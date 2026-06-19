@@ -8,8 +8,8 @@
 
 [![Go 1.22+](https://img.shields.io/badge/go-1.22%2B-00ADD8?logo=go)](https://go.dev/)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Python SDK](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python)](https://pypi.org/project/ans-sdk/)
-[![TypeScript SDK](https://img.shields.io/badge/typescript-5.0%2B-3178C6?logo=typescript)](https://www.npmjs.com/package/ans-sdk)
+[![Python SDK](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python)](sdks/python/)
+[![TypeScript SDK](https://img.shields.io/badge/typescript-5.0%2B-3178C6?logo=typescript)](sdks/typescript/)
 [![Go Reference](https://img.shields.io/badge/go-reference-00ADD8?logo=go)](https://pkg.go.dev/github.com/ans-project/ans)
 [![Built for](https://img.shields.io/badge/built%20for-AI%20Agents-FF6F00)](#)
 
@@ -69,14 +69,23 @@ Agents call tools, read databases, write files, execute code, delegate to sub-ag
 ## Quick Start — 30 Seconds
 
 ```bash
-# Install (macOS, Linux, Windows)
-curl -fsSL https://ans-project.github.io/install.sh | sh
+# Option 1: Build from source (after cloning the repo)
+make build
+sudo make install
 
+# Option 2: One-line binary install (macOS, Linux)
+curl -fsSL https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.sh | sh
+```
+
+```bash
 # Start the daemon (background, persistent)
 ans start
 
-# Decorate any Python function
-@ans.trace(action_type="file.write", agent_id="my_agent")
+# Register your first agent
+ans register --name my-agent --version 1.0.0
+
+# Decorate any Python function with the agent ID
+@ans.trace(action_type="file.write", agent_id="ans_3vQb7uL6x9")
 def deploy_config(path, content):
     with open(path, "w") as f:
         f.write(content)
@@ -94,12 +103,17 @@ ans verify --chain
 ans time-travel 42
 ```
 
-Or use the SDK directly:
+Or use the SDK directly (install from source):
+
+```bash
+pip install sdks/python/          # Python SDK
+cd sdks/typescript && npm install  # TypeScript SDK
+```
 
 ```python
 from ans import ANSClient
 
-client = ANSClient(agent_id="ans_3vQb7uL6x9")
+client = ANSClient()
 with client.trace("file.write"):
     deploy_config("/etc/nginx/nginx.conf", new_config)
 ```
@@ -353,8 +367,8 @@ ans start --webhook https://hooks.example.com/ans
 | **TypeScript/Node.js** | `wrap(tool, {agentId, client})` | 1 |
 
 ```bash
-pip install ans-sdk          # Python — zero dependencies
-npm install ans-sdk          # TypeScript — zero runtime dependencies
+pip install sdks/python/     # Python SDK — from cloned repo
+cd sdks/typescript && npm install  # TypeScript SDK
 ```
 
 Every integration supports a `silent` parameter — daemon restarts mid-trace **never crash your agent**.

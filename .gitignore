@@ -2,6 +2,7 @@
 /bin/
 /ans
 /ans.exe
+*.exe
 /ans_*
 
 # Build artifacts
