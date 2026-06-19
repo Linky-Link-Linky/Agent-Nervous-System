@@ -65,11 +65,12 @@ class ANSClient:
         print(f"Receipt ID: {resp['receipt_id']}")
     """
 
-    def __init__(self, socket_path: Optional[str] = None):
+    def __init__(self, agent_id: Optional[str] = None, socket_path: Optional[str] = None):
         """
         Initialize the ANS client.
         
         Args:
+            agent_id: Default agent ID for all operations (also sets global default)
             socket_path: Path to the daemon socket. If None, uses platform default:
                 - Linux/macOS: /tmp/ans.sock
                 - Windows: //./pipe/ans
@@ -84,6 +85,8 @@ class ANSClient:
         self.socket_path = socket_path
         self._sock: Optional[socket.socket] = None
         self._lock = threading.Lock()
+        if agent_id is not None:
+            configure(agent_id=agent_id, socket_path=socket_path)
 
     def connect(self) -> None:
         """Connect to the ANS daemon."""

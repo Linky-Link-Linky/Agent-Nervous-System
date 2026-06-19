@@ -10,6 +10,7 @@ from .client import ANSError, get_client, hash_payload, _default_agent_id
 
 def trace(
     action_type: str,
+    agent_id: Optional[str] = None,
     policy_decision: str = "allow",
     auth_context: str = "",
     payload_summary_fn: Optional[Callable[..., str]] = None,
@@ -39,8 +40,11 @@ def trace(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            if _default_agent_id is None:
+            aid = agent_id or _default_agent_id
+            if aid is None:
                 raise ANSError("ANS not configured. Call ans.configure(agent_id='...') first.")
+            if agent_id is not None:
+                configure(agent_id=agent_id)
 
             client = get_client()
 
@@ -54,7 +58,7 @@ def trace(
 
             if snapshot:
                 try:
-                    client.take_snapshot(agent_id=_default_agent_id, snap_type="filesystem")
+                    client.take_snapshot(agent_id=aid, snap_type="filesystem")
                 except ANSError as e:
                     if not silent:
                         raise
@@ -63,7 +67,7 @@ def trace(
             pre_receipt_id = ""
             try:
                 pre_resp = client.sign_append(
-                    agent_id=_default_agent_id, phase="pre",
+                    agent_id=aid, phase="pre",
                     action_type=action_type, payload_hash=ph,
                     payload_summary=summary, policy_decision=policy_decision,
                     auth_context=auth_context, parent_agent_id=parent_agent_id,
@@ -93,7 +97,7 @@ def trace(
             if pre_receipt_id:
                 try:
                     client.sign_append(
-                        agent_id=_default_agent_id, phase="post",
+                        agent_id=aid, phase="post",
                         action_type=action_type, payload_hash=ph,
                         payload_summary=summary, outcome=outcome,
                         outcome_summary=outcome_summary, duration_ms=duration_ms,
