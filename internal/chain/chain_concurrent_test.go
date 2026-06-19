@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ans-project/ans/internal/receipt"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/receipt"
 )
 
 // TestConcurrentOrdering proves chain safety under concurrent appends:

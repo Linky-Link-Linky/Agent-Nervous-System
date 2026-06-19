@@ -1,4 +1,4 @@
-module github.com/ans-project/ans
+module github.com/Linky-Link-Linky/Agent-Nervous-System
 
 go 1.25.0
 

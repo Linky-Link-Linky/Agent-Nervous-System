@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ans-project/ans/internal/receipt"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/receipt"
 )
 
 func TestAppendNew(t *testing.T) {

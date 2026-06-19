@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ans-project/ans/internal/receipt"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/receipt"
 )
 
 // VerificationResult is the outcome of a chain integrity walk.

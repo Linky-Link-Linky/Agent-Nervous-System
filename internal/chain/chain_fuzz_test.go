@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ans-project/ans/internal/receipt"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/receipt"
 )
 
 // FuzzHashChain ensures that for any sequence of valid receipts,

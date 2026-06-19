@@ -15,8 +15,8 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/ans-project/ans/internal/clock"
-	"github.com/ans-project/ans/internal/receipt"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/clock"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/receipt"
 )
 
 var (

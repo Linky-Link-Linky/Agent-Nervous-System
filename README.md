@@ -12,7 +12,7 @@
 [![MIT License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Python SDK](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python)](sdks/python/)
 [![TypeScript SDK](https://img.shields.io/badge/typescript-5.0%2B-3178C6?logo=typescript)](sdks/typescript/)
-[![Go Reference](https://img.shields.io/badge/go-reference-00ADD8?logo=go)](https://pkg.go.dev/github.com/ans-project/ans)
+[![Go Reference](https://img.shields.io/badge/go-reference-00ADD8?logo=go)](https://pkg.go.dev/github.com/Linky-Link-Linky/Agent-Nervous-System)
 [![Built for](https://img.shields.io/badge/built%20for-AI%20Agents-FF6F00)](#)
 
 ```bash
@@ -70,37 +70,32 @@ Agents call tools, read databases, write files, execute code, delegate to sub-ag
 
 ## Quick Start — 30 Seconds
 
-```bash
-# Option 1: Build from source (after cloning the repo)
-make build
-sudo make install
+### 1. Get the binary
 
-# Option 2: One-line binary install (macOS, Linux)
+```bash
+# Option A: Clone and build from source (recommended — works everywhere)
+git clone https://github.com/Linky-Link-Linky/Agent-Nervous-System.git
+cd Agent-Nervous-System
+make build               # produces bin/ans (Go 1.21+, MIT license)
+sudo make install         # copies to /usr/local/bin/ans
+
+# Option B: Direct download (once GitHub releases are published)
 curl -fsSL https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.sh | sh
 ```
 
+### 2. Start the daemon and register an agent
+
 ```bash
-# Start the daemon (background, persistent)
-ans start
-
-# Register your first agent
-ans register --name my-agent --version 1.0.0
-
-# See the full audit trail
-ans chain
-
-# Prove nothing was tampered with
-ans verify --chain
-
-# Rewind workspace to any prior state
-ans time-travel 42
+ans start                        # Launch the daemon (background)
+ans register --name my-agent --version 1.0.0   # Create your first agent
+ans chain                        # See the receipt chain
+ans verify --chain               # Verify chain integrity
 ```
 
-Use the Python SDK to instrument your agents:
+### 3. (Optional) Install the Python SDK
 
 ```bash
-# Install the Python SDK (from the cloned repo)
-pip install sdks/python/
+pip install sdks/python/         # Install Python SDK from the cloned repo
 ```
 
 ```python
@@ -1160,4 +1155,4 @@ ans export --format pdf      # export a compliance-ready audit report
 
 MIT — ship it.
 
-**Questions?** Open an issue at [github.com/ans-project/ans/issues](https://github.com/ans-project/ans/issues)
+**Questions?** Open an issue at [github.com/Linky-Link-Linky/Agent-Nervous-System/issues](https://github.com/Linky-Link-Linky/Agent-Nervous-System/issues)

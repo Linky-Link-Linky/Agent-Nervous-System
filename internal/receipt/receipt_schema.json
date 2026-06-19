@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/ans-project/ans/main/internal/receipt/receipt_schema.json",
+  "$id": "https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/main/internal/receipt/receipt_schema.json",
   "title": "ANS Receipt",
   "description": "A single cryptographically signed receipt in the ANS audit chain",
   "type": "object",

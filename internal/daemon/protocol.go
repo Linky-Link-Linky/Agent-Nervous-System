@@ -12,7 +12,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/ans-project/ans/internal/snapshot"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/snapshot"
 )
 
 const (

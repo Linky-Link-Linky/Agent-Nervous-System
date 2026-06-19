@@ -9,7 +9,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/ans-project/ans/internal/receipt"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/receipt"
 )
 
 func (c *Chain) ExportJSONL(w io.Writer, opts QueryOptions) error {

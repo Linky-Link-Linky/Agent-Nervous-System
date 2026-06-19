@@ -16,13 +16,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ans-project/ans/internal/broker"
-	"github.com/ans-project/ans/internal/chain"
-	"github.com/ans-project/ans/internal/identity"
-	"github.com/ans-project/ans/internal/mcp"
-	"github.com/ans-project/ans/internal/policy"
-	"github.com/ans-project/ans/internal/receipt"
-	"github.com/ans-project/ans/internal/snapshot"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/broker"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/chain"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/identity"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/mcp"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/policy"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/receipt"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/snapshot"
 )
 
 // execCommand is a variable so tests can mock it.

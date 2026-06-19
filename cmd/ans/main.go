@@ -18,11 +18,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ans-project/ans/internal/chain"
-	"github.com/ans-project/ans/internal/daemon"
-	"github.com/ans-project/ans/internal/identity"
-	"github.com/ans-project/ans/internal/pretty"
-	"github.com/ans-project/ans/internal/snapshot"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/chain"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/daemon"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/identity"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/pretty"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/snapshot"
 )
 
 const version = "0.1.0"

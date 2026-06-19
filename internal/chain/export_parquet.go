@@ -10,7 +10,7 @@ import (
 
 	"github.com/parquet-go/parquet-go"
 
-	"github.com/ans-project/ans/internal/receipt"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/receipt"
 )
 
 type parquetRow struct {

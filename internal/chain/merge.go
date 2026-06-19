@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"sort"
 
-	"github.com/ans-project/ans/internal/receipt"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/receipt"
 )
 
 // MergedReceipt is a receipt annotated with its source agent ID for display.
