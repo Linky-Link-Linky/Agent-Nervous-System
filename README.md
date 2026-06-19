@@ -86,15 +86,6 @@ ans start
 # Register your first agent
 ans register --name my-agent --version 1.0.0
 
-# Decorate any Python function with the agent ID
-@ans.trace(action_type="file.write", agent_id="ans_3vQb7uL6x9")
-def deploy_config(path, content):
-    with open(path, "w") as f:
-        f.write(content)
-
-# Run your agent — every call is now cryptographically recorded
-deploy_config("/etc/nginx/nginx.conf", "server { listen 443; }")
-
 # See the full audit trail
 ans chain
 
@@ -105,19 +96,45 @@ ans verify --chain
 ans time-travel 42
 ```
 
-Or use the SDK directly (install from source):
+Use the Python SDK to instrument your agents:
 
 ```bash
-pip install sdks/python/          # Python SDK
-cd sdks/typescript && npm install  # TypeScript SDK
+# Install the Python SDK (from the cloned repo)
+pip install sdks/python/
 ```
 
 ```python
-from ans import ANSClient
+from ans import ANSClient, trace
 
-client = ANSClient()
-with client.trace("file.write"):
-    deploy_config("/etc/nginx/nginx.conf", new_config)
+# Create a client (sets the agent for all operations)
+client = ANSClient(agent_id="ans_3vQb7uL6x9")
+
+# Option A: Decorate any function
+@trace(action_type="file.write", agent_id="ans_3vQb7uL6x9")
+def deploy_config(path, content):
+    with open(path, "w") as f:
+        f.write(content)
+
+# Run your agent — every call is now cryptographically recorded
+deploy_config("/etc/nginx/nginx.conf", "new config")
+
+# Option B: Use the context manager for inline tracing
+with client.trace("http.post"):
+    import requests
+    requests.post("https://api.example.com/data", json={"key": "value"})
+```
+
+The TypeScript SDK works the same way:
+
+```bash
+cd sdks/typescript && npm install
+```
+
+```typescript
+import { wrap } from "ans-sdk";
+
+const tracedFn = wrap(myFunction, { agentId: "ans_3vQb7uL6x9", actionType: "file.write" });
+await tracedFn(path, content);
 ```
 
 ---

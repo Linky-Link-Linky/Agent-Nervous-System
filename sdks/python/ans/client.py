@@ -463,6 +463,8 @@ class _TraceContext:
         self.client = client
         self.action_type = action_type
         self.auto_snapshot = auto_snapshot
+        if "agent_id" not in kwargs and _default_agent_id is not None:
+            kwargs["agent_id"] = _default_agent_id
         self.kwargs = kwargs
         self.pre_receipt = None
 
