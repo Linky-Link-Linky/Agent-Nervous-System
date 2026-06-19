@@ -4,6 +4,8 @@
 
 ### `git log` for your AI Agents
 
+**> Your AI agents are already running. Do you know what they actually did?**
+
 **Cryptographic audit trails · State rollback · Policy-as-Code · Zero-trust identity · MCP security**
 
 [![Go 1.22+](https://img.shields.io/badge/go-1.22%2B-00ADD8?logo=go)](https://go.dev/)
