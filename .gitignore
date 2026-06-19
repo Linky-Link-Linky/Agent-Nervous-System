@@ -1,0 +1,30 @@
+# Go binaries
+/bin/
+/ans
+/ans.exe
+/ans_*
+
+# Build artifacts
+coverage.out
+coverage.html
+
+# Node
+node_modules/
+.simple-or-release-profile
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+dev/null
+stderr.txt
+stdout.txt
+*.log

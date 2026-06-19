@@ -1,0 +1,100 @@
+package policy
+
+import (
+	"log"
+	"sync"
+)
+
+// Executor evaluates actions against all active policies.
+type Executor struct {
+	mu     sync.RWMutex
+	store  *Store
+	engine Engine
+}
+
+// NewExecutor creates a policy executor.
+func NewExecutor(store *Store) *Executor {
+	return &Executor{
+		store:  store,
+		engine: NewEngine(),
+	}
+}
+
+// EvalResult is the result of evaluating an action against all policies.
+type EvalResult struct {
+	Allowed       bool              `json:"allowed"`
+	Denied        bool              `json:"denied"`
+	Nociception   *NociceptionError `json:"nociception,omitempty"`
+	PolicyResults []*PolicyResult   `json:"policy_results,omitempty"`
+}
+
+// Evaluate runs all enabled policies against the given facts.
+func (ex *Executor) Evaluate(facts FactProvider) *EvalResult {
+	policies, err := ex.store.ListEnabled()
+	if err != nil {
+		log.Printf("policy: error listing enabled policies: %v", err)
+		return &EvalResult{Allowed: true}
+	}
+
+	res := &EvalResult{Allowed: true}
+	for _, p := range policies {
+		pr := ex.engine.Evaluate(p, facts)
+		res.PolicyResults = append(res.PolicyResults, pr)
+		if pr.Matched && pr.Effect == EffectDeny {
+			res.Allowed = false
+			res.Denied = true
+			res.Nociception = &NociceptionError{
+				PolicyID:   p.ID,
+				PolicyName: p.Name,
+				Message:    pr.ErrorMessage,
+				Severity:   string(p.Severity),
+			}
+			// Deny is terminal — first denial wins
+			return res
+		}
+	}
+	return res
+}
+
+// MakeFacts builds a FactProvider from receipt/action data and context.
+func MakeFacts(agentID, actionType, phase, payloadSummary, parentAgentID string, context map[string]interface{}) FactProvider {
+	// Scan PII once on the full text and cache the result.
+	// This guarantees all PII facts are consistent — they all reflect the same scan.
+	pii := DetectPII(payloadSummary + agentID + actionType)
+	return func(factPath string) (interface{}, bool) {
+		switch factPath {
+		case "agent_id":
+			return agentID, true
+		case "action_type":
+			return actionType, true
+		case "phase":
+			return phase, true
+		case "payload_summary":
+			return payloadSummary, true
+		case "parent_agent_id":
+			return parentAgentID, true
+		case "context.contains_pii":
+			return pii.HasPII, true
+		case "context.has_email":
+			return pii.HasEmail, true
+		case "context.has_ssn":
+			return pii.HasSSN, true
+		case "context.has_credit_card":
+			return pii.HasCreditCard, true
+		case "context.has_ip":
+			return pii.HasIP, true
+		case "context.has_phone":
+			return pii.HasPhone, true
+		case "context.has_api_key":
+			return pii.HasAPIKey, true
+		default:
+			// Check custom context keys
+			if context != nil {
+				if v, ok := context[factPath]; ok {
+					return v, true
+				}
+			}
+			return nil, false
+		}
+	}
+}

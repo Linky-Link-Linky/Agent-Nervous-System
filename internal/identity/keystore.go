@@ -1,0 +1,251 @@
+// Package identity — keystore persists agent keypairs encrypted with AES-256-GCM.
+// Encryption key is derived from a machine-local secret via HKDF-SHA256.
+// Security note: protecting ~/.ans/machine.secret protects all stored keys.
+// SPDX-License-Identifier: MIT
+package identity
+
+import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sync"
+
+	"golang.org/x/crypto/hkdf"
+)
+
+// agentIDSafe matches only alphanumeric + underscore + hypen (base58 chars in agent IDs).
+var agentIDSafe = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
+func sanitizeAgentID(id string) error {
+	if len(id) == 0 || len(id) > 128 {
+		return fmt.Errorf("invalid agent ID length")
+	}
+	if !agentIDSafe.MatchString(id) {
+		return fmt.Errorf("agent ID contains invalid characters")
+	}
+	return nil
+}
+
+// KeystoreEntry is the plaintext structure serialized before encryption.
+type KeystoreEntry struct {
+	AgentID    string `json:"agent_id"`
+	Name       string `json:"name"`
+	Version    string `json:"version"`
+	Owner      string `json:"owner"`
+	PublicKey  []byte `json:"public_key"`
+	PrivateKey []byte `json:"private_key"`
+}
+
+// Keystore manages encrypted agent keys at a local directory.
+type Keystore struct {
+	mu     sync.Mutex
+	dir    string
+	encKey []byte // 32-byte AES-256-GCM key
+}
+
+// NewKeystore opens (or creates) a keystore at dir.
+// If dir is empty, defaults to ~/.ans/keys.
+func NewKeystore(dir string) (*Keystore, error) {
+	if dir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("getting home dir: %w", err)
+		}
+		dir = filepath.Join(home, ".ans", "keys")
+	}
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return nil, fmt.Errorf("creating keystore dir: %w", err)
+	}
+	encKey, err := deriveMachineKey()
+	if err != nil {
+		return nil, fmt.Errorf("deriving machine key: %w", err)
+	}
+	return &Keystore{dir: dir, encKey: encKey}, nil
+}
+
+// Save encrypts and writes an agent keypair to disk.
+func (ks *Keystore) Save(a *Agent) error {
+	ks.mu.Lock()
+	defer ks.mu.Unlock()
+	if err := sanitizeAgentID(a.ID); err != nil {
+		return fmt.Errorf("invalid agent ID: %w", err)
+	}
+	entry := KeystoreEntry{
+		AgentID:    a.ID,
+		Name:       a.Name,
+		Version:    a.Version,
+		Owner:      a.Owner,
+		PublicKey:  []byte(a.PublicKey),
+		PrivateKey: []byte(a.PrivateKey),
+	}
+	plaintext, err := json.Marshal(entry)
+	if err != nil {
+		return fmt.Errorf("marshalling entry: %w", err)
+	}
+	ciphertext, err := ksEncrypt(ks.encKey, plaintext)
+	if err != nil {
+		return fmt.Errorf("encrypting entry: %w", err)
+	}
+	return os.WriteFile(filepath.Join(ks.dir, a.ID+".key"), ciphertext, 0600)
+}
+
+// Load decrypts and returns the agent for the given ID.
+func (ks *Keystore) Load(agentID string) (*Agent, error) {
+	ks.mu.Lock()
+	defer ks.mu.Unlock()
+	if err := sanitizeAgentID(agentID); err != nil {
+		return nil, fmt.Errorf("invalid agent ID: %w", err)
+	}
+	ciphertext, err := os.ReadFile(filepath.Join(ks.dir, agentID+".key"))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("agent %s not found in keystore", agentID)
+		}
+		return nil, fmt.Errorf("reading keyfile: %w", err)
+	}
+	plaintext, err := ksDecrypt(ks.encKey, ciphertext)
+	if err != nil {
+		return nil, fmt.Errorf("decrypting entry: %w", err)
+	}
+	var entry KeystoreEntry
+	if err := json.Unmarshal(plaintext, &entry); err != nil {
+		return nil, fmt.Errorf("unmarshalling entry: %w", err)
+	}
+	return NewFromKeys(
+		entry.Name, entry.Version, entry.Owner,
+		ed25519.PublicKey(entry.PublicKey),
+		ed25519.PrivateKey(entry.PrivateKey),
+	), nil
+}
+
+// List returns all agent IDs in the keystore directory.
+func (ks *Keystore) List() ([]string, error) {
+	ks.mu.Lock()
+	defer ks.mu.Unlock()
+	entries, err := os.ReadDir(ks.dir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("reading keystore dir: %w", err)
+	}
+	var ids []string
+	for _, e := range entries {
+		if filepath.Ext(e.Name()) == ".key" {
+			ids = append(ids, e.Name()[:len(e.Name())-4])
+		}
+	}
+	return ids, nil
+}
+
+// Delete removes a keypair from the keystore.
+func (ks *Keystore) Delete(agentID string) error {
+	ks.mu.Lock()
+	defer ks.mu.Unlock()
+	if err := sanitizeAgentID(agentID); err != nil {
+		return fmt.Errorf("invalid agent ID: %w", err)
+	}
+	return os.Remove(filepath.Join(ks.dir, agentID+".key"))
+}
+
+func deriveMachineKey() ([]byte, error) {
+	secret, err := machineSecret()
+	if err != nil {
+		return nil, err
+	}
+	r := hkdf.New(sha256.New, secret, []byte("ans-keystore-v1"), []byte("keystore-enc-key"))
+	key := make([]byte, 32)
+	if _, err := io.ReadFull(r, key); err != nil {
+		return nil, err
+	}
+	return key, nil
+}
+
+func machineSecret() ([]byte, error) {
+	if data, err := os.ReadFile("/etc/machine-id"); err == nil && len(data) > 8 {
+		return data, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("getting home dir: %w", err)
+	}
+	secretPath := filepath.Join(home, ".ans", "machine.secret")
+	if data, err := os.ReadFile(secretPath); err == nil {
+		if len(data) == 32 {
+			return data, nil
+		}
+		return nil, fmt.Errorf("machine.secret exists but has wrong length (%d bytes, expected 32); rename or delete it manually", len(data))
+	}
+	secret := make([]byte, 32)
+	if _, err := rand.Read(secret); err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Dir(secretPath), 0700); err != nil {
+		return nil, err
+	}
+	// Use O_EXCL to atomically create the file, preventing TOCTOU race with
+	// concurrent NewKeystore calls (in-process or cross-process).
+	f, err := os.OpenFile(secretPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		if !os.IsExist(err) {
+			return nil, fmt.Errorf("creating machine.secret: %w", err)
+		}
+		// Another process created it first; read their version.
+		data, err := os.ReadFile(secretPath)
+		if err != nil {
+			return nil, fmt.Errorf("reading machine.secret after race: %w", err)
+		}
+		if len(data) != 32 {
+			return nil, fmt.Errorf("machine.secret has wrong length (%d bytes, expected 32)", len(data))
+		}
+		return data, nil
+	}
+	if _, err := f.Write(secret); err != nil {
+		f.Close()
+		os.Remove(secretPath)
+		return nil, fmt.Errorf("writing machine.secret: %w", err)
+	}
+	f.Close()
+	return secret, nil
+}
+
+func ksEncrypt(key, plaintext []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return nil, err
+	}
+	return gcm.Seal(nonce, nonce, plaintext, nil), nil
+}
+
+func ksDecrypt(key, ciphertext []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	if len(ciphertext) < gcm.NonceSize() {
+		return nil, errors.New("ciphertext too short")
+	}
+	nonce := ciphertext[:gcm.NonceSize()]
+	return gcm.Open(nil, nonce, ciphertext[gcm.NonceSize():], nil)
+}

@@ -1,0 +1,25 @@
+{
+  "name": "ans-sdk",
+  "version": "0.1.0",
+  "description": "Agent Nervous System TypeScript SDK",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist/**"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ans-project/ans.git"
+  },
+  "keywords": ["ans", "audit", "cryptographic", "ai", "agent", "receipts", "trace"],
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/**/*.test.js"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

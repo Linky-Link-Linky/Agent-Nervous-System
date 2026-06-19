@@ -1,0 +1,27 @@
+{
+  "id": "no-pii-open-weights",
+  "name": "Block PII on Open-Weight Models",
+  "description": "If the active model is an open-weight variant and the context contains data classified as PII, block the transmission and throw a NociceptionError immediately.",
+  "enabled": true,
+  "priority": 100,
+  "severity": "critical",
+  "conditions": {
+    "all": [
+      {
+        "fact": "model.weight_type",
+        "operator": "eq",
+        "value": "open"
+      },
+      {
+        "fact": "context.contains_pii",
+        "operator": "eq",
+        "value": true
+      }
+    ]
+  },
+  "action": {
+    "effect": "deny",
+    "error_type": "NociceptionError",
+    "error_message": "PII transmission blocked: Open-weight models cannot process PII data"
+  }
+}
