@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 # ANS install script
-# Usage: curl -fsSL https://ans-project.github.io/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.sh | sh
 # SPDX-License-Identifier: MIT
 set -eu
 
-REPO="ans-project/ans"
+REPO="Linky-Link-Linky/Agent-Nervous-System"
 INSTALL_DIR="/usr/local/bin"
 BINARY="ans"
 
