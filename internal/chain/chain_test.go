@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -560,6 +561,138 @@ func TestMergeChainsTwoAgents(t *testing.T) {
 	}
 	if len(merged) != 6 {
 		t.Errorf("MergeChains() returned %d receipts, want 6", len(merged))
+	}
+}
+
+func TestPruneAndVerifyChainWithSignatures(t *testing.T) {
+	chainPath := filepath.Join(t.TempDir(), "chain.db")
+	c, err := Open(chainPath)
+	if err != nil {
+		t.Fatalf("Open() failed: %v", err)
+	}
+	defer c.Close()
+
+	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
+	signer := receipt.NewSigner(priv)
+
+	// Keep the raw bytes of receipt 1 for later inclusion proof
+	var receipt1Raw []byte
+
+	for i := 1; i <= 20; i++ {
+		payload := receipt.ActionPayload{Type: receipt.ActionCustom}
+		rec, err := c.AppendNew(func(prevHash string, nextIdx uint64) (*receipt.Receipt, error) {
+			b := receipt.NewBuilder("ans_test", prevHash, nextIdx)
+			return b.PreAction(payload, "test", receipt.PolicyAllow, ""), nil
+		}, signer)
+		if err != nil {
+			t.Fatalf("AppendNew() %d failed: %v", i, err)
+		}
+		if i == 1 {
+			receipt1Raw, err = json.Marshal(rec)
+			if err != nil {
+				t.Fatalf("json.Marshal(receipt1): %v", err)
+			}
+		}
+	}
+
+	// Prune first 10
+	anchor, err := c.Prune(10)
+	if err != nil {
+		t.Fatalf("Prune() failed: %v", err)
+	}
+	if anchor.Count != 10 {
+		t.Errorf("Anchor.Count = %d, want 10", anchor.Count)
+	}
+
+	// Verify chain with signature checking
+	pubkeys := map[string]ed25519.PublicKey{"ans_test": pub}
+	result := c.VerifyChain(pubkeys)
+	if !result.Valid {
+		t.Errorf("VerifyChain() with sigs after prune: %s", result.Error)
+	}
+	if result.TotalChecked != 10 {
+		t.Errorf("Checked %d receipts, want 10", result.TotalChecked)
+	}
+
+	// Verify inclusion of receipt 1 raw bytes against the anchor
+	if err := VerifyInclusion(anchor, receipt1Raw); err != nil {
+		t.Errorf("VerifyInclusion(anchor, receipt 1 raw) failed: %v", err)
+	}
+}
+
+func TestVerifyChainAfterTamperAndPrune(t *testing.T) {
+	chainPath := filepath.Join(t.TempDir(), "chain.db")
+	c, err := Open(chainPath)
+	if err != nil {
+		t.Fatalf("Open() failed: %v", err)
+	}
+	defer c.Close()
+
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	signer := receipt.NewSigner(priv)
+
+	for i := 1; i <= 15; i++ {
+		payload := receipt.ActionPayload{Type: receipt.ActionCustom}
+		_, err := c.AppendNew(func(prevHash string, nextIdx uint64) (*receipt.Receipt, error) {
+			b := receipt.NewBuilder("ans_test", prevHash, nextIdx)
+			return b.PreAction(payload, "test", receipt.PolicyAllow, ""), nil
+		}, signer)
+		if err != nil {
+			t.Fatalf("AppendNew() failed: %v", err)
+		}
+	}
+
+	// Prune 5
+	if _, err := c.Prune(5); err != nil {
+		t.Fatalf("Prune() failed: %v", err)
+	}
+
+	// Tamper with remaining receipt at index 6
+	_, err = c.db.Exec(`UPDATE receipts SET raw_receipt = replace(raw_receipt, '"test"', '"tampered"') WHERE chain_index = 6`)
+	if err != nil {
+		t.Fatalf("Tampering failed: %v", err)
+	}
+
+	result := c.VerifyChain(nil)
+	if result.Valid {
+		t.Error("VerifyChain() = valid after tampering, want invalid")
+	}
+	if result.FirstBrokenAt != 6 {
+		t.Errorf("FirstBrokenAt = %d, want 6", result.FirstBrokenAt)
+	}
+}
+
+func TestExportPDFWithNonASCII(t *testing.T) {
+	chainPath := filepath.Join(t.TempDir(), "chain.db")
+	c, err := Open(chainPath)
+	if err != nil {
+		t.Fatalf("Open() failed: %v", err)
+	}
+	defer c.Close()
+
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	signer := receipt.NewSigner(priv)
+
+	// Create one receipt with Em Dash in PayloadSummary (non-ASCII)
+	payload := receipt.ActionPayload{Type: receipt.ActionCustom}
+	_, err = c.AppendNew(func(prevHash string, nextIdx uint64) (*receipt.Receipt, error) {
+		b := receipt.NewBuilder("ans_test", prevHash, nextIdx)
+		return b.PreAction(payload, "test \u2014 non-ASCII", receipt.PolicyAllow, ""), nil
+	}, signer)
+	if err != nil {
+		t.Fatalf("AppendNew() failed: %v", err)
+	}
+
+	var buf bytes.Buffer
+	if err := c.ExportPDF(&buf); err != nil {
+		t.Fatalf("ExportPDF() failed: %v", err)
+	}
+	pdf := buf.String()
+	if !strings.HasPrefix(pdf, "%PDF-1.4") {
+		t.Error("PDF does not start with %PDF-1.4")
+	}
+	if !strings.Contains(pdf, "%"+"%EOF") {
+		t.Error("PDF does not contain EOF marker")
 	}
 }
 

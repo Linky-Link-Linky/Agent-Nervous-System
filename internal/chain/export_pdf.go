@@ -131,10 +131,38 @@ func (c *Chain) ExportPDF(w io.Writer) error {
 }
 
 func truncatePDF(s string, n int) string {
+	s = sanitizePDFText(s)
 	if len(s) <= n {
 		return s
 	}
 	return s[:n]
+}
+
+func sanitizePDFText(s string) string {
+	for _, r := range s {
+		if r > 0x7E {
+			return sanitizePDFTextSlow(s)
+		}
+	}
+	return s
+}
+
+func sanitizePDFTextSlow(s string) string {
+	runes := make([]rune, 0, len(s))
+	for _, r := range s {
+		if r <= 0x7E {
+			runes = append(runes, r)
+		} else if r == '\u2013' || r == '\u2014' {
+			runes = append(runes, '-')
+		} else if r == '\u2018' || r == '\u2019' {
+			runes = append(runes, '\'')
+		} else if r == '\u201c' || r == '\u201d' {
+			runes = append(runes, '"')
+		} else {
+			runes = append(runes, '?')
+		}
+	}
+	return string(runes)
 }
 
 // ─── Minimal hand-built PDF writer ───────────────────────────────────────────

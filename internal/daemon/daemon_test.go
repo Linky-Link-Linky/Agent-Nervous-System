@@ -375,6 +375,101 @@ func TestConcurrentClients(t *testing.T) {
 	}
 }
 
+func TestDaemonTokenLifecycle(t *testing.T) {
+	chainPath := filepath.Join(t.TempDir(), "chain.db")
+	keystorePath := t.TempDir()
+	d, err := NewWithPaths(chainPath, keystorePath)
+	if err != nil {
+		t.Fatalf("NewWithPaths() failed: %v", err)
+	}
+
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen() failed: %v", err)
+	}
+	defer l.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go d.RunOnListener(ctx, l)
+	time.Sleep(50 * time.Millisecond)
+
+	conn, err := net.Dial("tcp", l.Addr().String())
+	if err != nil {
+		t.Fatalf("Dial() failed: %v", err)
+	}
+	defer conn.Close()
+
+	// Request token
+	body, _ := json.Marshal(TokenRequestReq{
+		AgentID:    "test_agent",
+		Resource:   "s3://bucket/key",
+		Action:     "file.read",
+		TTLSeconds: 30,
+	})
+	if err := WriteFrame(conn, MsgTokenRequest, body); err != nil {
+		t.Fatalf("WriteFrame(MsgTokenRequest) failed: %v", err)
+	}
+	var tokenResp TokenRequestResp
+	recvExpect(t, conn, MsgTokenResp, &tokenResp)
+	if !tokenResp.Success {
+		t.Fatalf("Token request failed: %s", tokenResp.Message)
+	}
+	if tokenResp.TokenID == "" {
+		t.Error("TokenID is empty")
+	}
+	if tokenResp.TokenType == "" {
+		t.Error("TokenType is empty")
+	}
+
+	// List tokens
+	body, _ = json.Marshal(TokenListReq{})
+	if err := WriteFrame(conn, MsgTokenList, body); err != nil {
+		t.Fatalf("WriteFrame(MsgTokenList) failed: %v", err)
+	}
+	var listResp TokenListResp
+	recvExpect(t, conn, MsgTokenListResp, &listResp)
+	if len(listResp.Tokens) < 1 {
+		t.Error("TokenList returned 0 tokens, want >= 1")
+	}
+	found := false
+	for _, entry := range listResp.Tokens {
+		if entry.TokenID == tokenResp.TokenID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Listed tokens does not contain newly created token")
+	}
+
+	// Revoke token
+	body, _ = json.Marshal(TokenRevokeReq{TokenID: tokenResp.TokenID})
+	if err := WriteFrame(conn, MsgTokenRevoke, body); err != nil {
+		t.Fatalf("WriteFrame(MsgTokenRevoke) failed: %v", err)
+	}
+	var revokeResp TokenRevokeResp
+	recvExpect(t, conn, MsgTokenRevokeResp, &revokeResp)
+	if !revokeResp.Success {
+		t.Errorf("Revoke failed: %s", revokeResp.Message)
+	}
+}
+
+func recvExpect(t *testing.T, conn net.Conn, expectedType byte, v interface{}) {
+	t.Helper()
+	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	f, err := ReadFrame(conn)
+	if err != nil {
+		t.Fatalf("ReadFrame() failed (expected type 0x%02x): %v", expectedType, err)
+	}
+	if f.Type != expectedType {
+		t.Fatalf("response type = 0x%02x, want 0x%02x", f.Type, expectedType)
+	}
+	if err := json.Unmarshal(f.Body, v); err != nil {
+		t.Fatalf("JSON decode failed: %v", err)
+	}
+}
+
 func TestUnknownMessageType(t *testing.T) {
 	chainPath := filepath.Join(t.TempDir(), "chain.db")
 	keystorePath := t.TempDir()
