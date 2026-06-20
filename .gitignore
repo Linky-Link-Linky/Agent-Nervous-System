@@ -6,6 +6,7 @@
 /ans_*
 
 # Build artifacts
+.gocache/
 coverage.out
 coverage.html
 

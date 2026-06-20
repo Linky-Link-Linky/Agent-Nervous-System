@@ -70,17 +70,27 @@ Agents call tools, read databases, write files, execute code, delegate to sub-ag
 
 ## Quick Start — 30 Seconds
 
+### Option A: Download pre-built binary (no Go required)
+
+Grab the latest build for your OS from the [Releases page](https://github.com/Linky-Link-Linky/Agent-Nervous-System/releases), then:
+
 ```bash
-# Prerequisites: Go 1.22+ (go version), Git (git --version)
+# Linux / Mac
+chmod +x ans_linux_amd64 && sudo mv ans_linux_amd64 /usr/local/bin/ans
+
+# Windows — move ans_windows_amd64.exe to a folder in your PATH, then:
+ans version
+```
+
+### Option B: Build from source (requires Go 1.22+)
+
+```bash
 git clone https://github.com/Linky-Link-Linky/Agent-Nervous-System.git
 cd Agent-Nervous-System
-make build                    # produces bin/ans (or bin/ans.exe on Windows)
-
-# Install (one of these):
-sudo make install             # Linux/Mac — copies to /usr/local/bin/ans
-copy bin\ans.exe %USERPROFILE%; set PATH=%USERPROFILE%;%PATH%   # Windows
-
-ans version                   # verify it works
+make build                    # produces bin/ans (or bin/ans.exe)
+sudo make install             # copies to /usr/local/bin/ans
+# Windows: copy bin\ans.exe %USERPROFILE% && set PATH=%USERPROFILE%;%PATH%
+ans version
 ```
 
 ### First run
