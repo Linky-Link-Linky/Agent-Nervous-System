@@ -3,6 +3,7 @@ package mcp
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -456,7 +457,7 @@ func DialTarget(targetURL string) (net.Conn, error) {
 	case "http", "ws":
 		return net.DialTimeout("tcp", u.Host, 5*time.Second)
 	case "https", "wss":
-		return net.DialTimeout("tcp", u.Host, 5*time.Second)
+		return tls.DialWithDialer(&net.Dialer{Timeout: 5 * time.Second}, "tcp", u.Host, &tls.Config{})
 	case "tcp":
 		return net.DialTimeout("tcp", u.Host, 5*time.Second)
 	default:

@@ -191,9 +191,6 @@ func deriveMachineKey() ([]byte, error) {
 }
 
 func machineSecret() ([]byte, error) {
-	if data, err := os.ReadFile("/etc/machine-id"); err == nil && len(data) > 8 {
-		return data, nil
-	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("getting home dir: %w", err)

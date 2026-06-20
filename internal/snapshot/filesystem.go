@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -223,20 +224,19 @@ func (fs *FileSystemSnap) Restore(snap *Snapshot) error {
 
 		target := filepath.Join(fs.WorkspaceRoot, name)
 		// Prevent path traversal
-		if !strings.HasPrefix(filepath.Clean(target), filepath.Clean(fs.WorkspaceRoot)+string(os.PathSeparator)) &&
-			filepath.Clean(target) != filepath.Clean(fs.WorkspaceRoot) {
+		if !hasPathPrefix(filepath.Clean(target), filepath.Clean(fs.WorkspaceRoot)) {
 			continue
 		}
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(target, os.FileMode(header.Mode)); err != nil {
+			if err := os.MkdirAll(target, os.FileMode(header.Mode&0o777)); err != nil {
 				return fmt.Errorf("creating directory %s: %w", target, err)
 			}
 		case tar.TypeReg:
 			if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {
 				return fmt.Errorf("creating parent dir for %s: %w", target, err)
 			}
-			out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(header.Mode))
+			out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(header.Mode&0o777))
 			if err != nil {
 				return fmt.Errorf("creating file %s: %w", target, err)
 			}
@@ -252,8 +252,7 @@ func (fs *FileSystemSnap) Restore(snap *Snapshot) error {
 	for _, rel := range deletedFiles {
 		rel = filepath.FromSlash(rel)
 		target := filepath.Join(fs.WorkspaceRoot, rel)
-		if !strings.HasPrefix(filepath.Clean(target), filepath.Clean(fs.WorkspaceRoot)+string(os.PathSeparator)) &&
-			filepath.Clean(target) != filepath.Clean(fs.WorkspaceRoot) {
+		if !hasPathPrefix(filepath.Clean(target), filepath.Clean(fs.WorkspaceRoot)) {
 			continue
 		}
 		if err := os.RemoveAll(target); err != nil && !os.IsNotExist(err) {
@@ -480,7 +479,7 @@ func (fs *FileSystemSnap) SnapshotPaths(paths []string, storePath string) (*Snap
 		}
 		abs = filepath.Clean(abs)
 		// Prevent path traversal — path must be under workspace root
-		if !strings.HasPrefix(abs, workspaceClean+string(os.PathSeparator)) && abs != workspaceClean {
+		if !hasPathPrefix(abs, workspaceClean) {
 			return nil, fmt.Errorf("path %q is outside workspace root", p)
 		}
 		// Skip excluded paths
@@ -591,6 +590,17 @@ func (fs *FileSystemSnap) ExcludedPaths() []string {
 		paths = append(paths, p)
 	}
 	return paths
+}
+
+// hasPathPrefix checks if path is equal to root or has root as a parent directory.
+// On Windows, comparison is case-insensitive.
+func hasPathPrefix(path, root string) bool {
+	sep := string(os.PathSeparator)
+	if runtime.GOOS == "windows" {
+		path = strings.ToLower(path)
+		root = strings.ToLower(root)
+	}
+	return strings.HasPrefix(path, root+sep) || path == root
 }
 
 

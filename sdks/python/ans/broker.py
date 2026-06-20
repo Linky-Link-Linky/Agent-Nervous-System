@@ -51,6 +51,13 @@ class Credential:
         self.request_id = data.get("request_id", "")
         self.pre_receipt_id = data.get("pre_receipt_id", "")
 
+    def __repr__(self) -> str:
+        return (f"Credential(credential_id={self.credential_id!r}, "
+                f"agent_id={self.agent_id!r}, provider={self.provider!r}, "
+                f"type={self.type!r}, secret='[REDACTED]', "
+                f"scope={self.scope!r}, issued_at={self.issued_at!r}, "
+                f"expires_at={self.expires_at!r}, revoked={self.revoked})")
+
     def is_expired(self) -> bool:
         """Check if the credential has expired."""
         import time
