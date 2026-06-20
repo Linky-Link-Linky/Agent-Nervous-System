@@ -70,35 +70,29 @@ Agents call tools, read databases, write files, execute code, delegate to sub-ag
 
 ## Quick Start — 30 Seconds
 
-### Option A: Download pre-built binary (no Go required)
+### Download & Install
 
-Grab the latest build for your OS from the [Releases page](https://github.com/Linky-Link-Linky/Agent-Nervous-System/releases), then:
+Download the binary for your OS from the [Releases page](https://github.com/Linky-Link-Linky/Agent-Nervous-System/releases), or build from source (requires Go 1.22+):
 
 ```bash
-# Linux / Mac
+# Pre-built binary (Linux/Mac)
 chmod +x ans_linux_amd64 && sudo mv ans_linux_amd64 /usr/local/bin/ans
+# Windows: move ans_windows_amd64.exe to a folder in your PATH
 
-# Windows — move ans_windows_amd64.exe to a folder in your PATH, then:
+# Or build from source
+git clone https://github.com/Linky-Link-Linky/Agent-Nervous-System.git && cd Agent-Nervous-System
+make build && sudo make install   # Linux/Mac — produces bin/ans
+# Windows: make build then copy bin\ans.exe to %USERPROFILE% and add to PATH
+
 ans version
 ```
 
-### Option B: Build from source (requires Go 1.22+)
-
-```bash
-git clone https://github.com/Linky-Link-Linky/Agent-Nervous-System.git
-cd Agent-Nervous-System
-make build                    # produces bin/ans (or bin/ans.exe)
-sudo make install             # copies to /usr/local/bin/ans
-# Windows: copy bin\ans.exe %USERPROFILE% && set PATH=%USERPROFILE%;%PATH%
-ans version
-```
-
-### First run
+### Run
 
 ```bash
 ans start                     # start the daemon (background)
 ans register --name my-agent --version 1.0.0   # create an agent identity
-ans chain                     # see the receipt (just registration so far)
+ans chain                     # see the receipt chain
 ans verify --chain            # prove integrity: hashes + Ed25519 signatures ✓
 ```
 
@@ -107,7 +101,7 @@ That's it — your agent nervous system is live.
 ### (Optional) Use from Python
 
 ```bash
-pip install sdks/python/
+pip install ans/sdks/python/
 ```
 
 ```python
