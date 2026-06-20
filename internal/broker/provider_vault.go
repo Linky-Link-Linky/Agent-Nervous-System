@@ -1,27 +1,44 @@
-// Package broker — HashiCorp Vault provider for ephemeral credentials.
-// SPDX-License-Identifier: MIT
 package broker
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
 	"time"
+
+	vault "github.com/hashicorp/vault/api"
 )
 
-// VaultProvider provisions ephemeral secrets from HashiCorp Vault.
 type VaultProvider struct {
-	address   string // Vault address (e.g., "https://vault.example.com:8200")
-	token     string // Vault token with dynamic secret generation permissions
-	namespace string // Vault namespace (Enterprise feature)
+	address    string
+	token      string
+	namespace  string
+	httpClient *http.Client
 }
 
-// NewVaultProvider creates a new Vault provider.
-func NewVaultProvider(address, token, namespace string) *VaultProvider {
-	return &VaultProvider{
+type VaultProviderOption func(*VaultProvider)
+
+func WithVaultHTTPClient(client *http.Client) VaultProviderOption {
+	return func(p *VaultProvider) {
+		p.httpClient = client
+	}
+}
+
+func NewVaultProvider(address, token, namespace string, opts ...VaultProviderOption) *VaultProvider {
+	p := &VaultProvider{
 		address:   address,
 		token:     token,
 		namespace: namespace,
 	}
+	for _, opt := range opts {
+		opt(p)
+	}
+	if p.httpClient == nil {
+		p.httpClient = http.DefaultClient
+	}
+	return p
 }
 
 func (v *VaultProvider) Name() string {
@@ -29,46 +46,112 @@ func (v *VaultProvider) Name() string {
 }
 
 func (v *VaultProvider) ProvisionCredential(ctx context.Context, req *ProvisionRequest) (*Credential, error) {
-	// In a real implementation, this would:
-	// 1. Parse req.Scope.Resource (e.g., "vault://aws/creds/deploy-role")
-	// 2. Make a POST to Vault API: /v1/{path} with TTL
-	// 3. Return the dynamic secret
+	if v.address == "" {
+		return nil, fmt.Errorf("vault: address is required")
+	}
+	if v.token == "" {
+		return nil, fmt.Errorf("vault: token is required")
+	}
 
-	// Stub implementation for now
-	credID := generateRequestID()
+	client, err := v.vaultClient()
+	if err != nil {
+		return nil, fmt.Errorf("vault: failed to create client: %w", err)
+	}
+
+	vaultPath := strings.TrimPrefix(req.Scope.Resource, "vault://")
+	if vaultPath == req.Scope.Resource {
+		vaultPath = strings.TrimPrefix(vaultPath, "vault:")
+	}
+	vaultPath = strings.TrimPrefix(vaultPath, "/")
+	vaultPath = "/v1/" + vaultPath
+
+	secretData := map[string]interface{}{
+		"ttl": fmt.Sprintf("%ds", req.TTLSeconds),
+	}
+
+	secret, err := client.Logical().WriteWithContext(ctx, vaultPath, secretData)
+	if err != nil {
+		return nil, fmt.Errorf("vault: failed to write dynamic secret at %s: %w", vaultPath, err)
+	}
+	if secret == nil || secret.Data == nil {
+		return nil, fmt.Errorf("vault: returned nil secret for path %s", vaultPath)
+	}
+
+	secretJSON, _ := mapToJSON(secret.Data)
+	leaseID := secret.LeaseID
+
 	now := time.Now()
+	credID := generateRequestID()
+
+	meta := map[string]string{
+		"vault_path": vaultPath,
+		"lease_id":   leaseID,
+	}
+	if secret.Renewable {
+		meta["renewable"] = "true"
+	}
+	meta["request_id"] = secret.RequestID
 
 	return &Credential{
 		CredentialID: credID,
 		AgentID:      req.AgentID,
 		ProviderName: "vault",
-		Type:         "vault-token",
-		Secret:       fmt.Sprintf("hvs.%s", credID), // Vault token format
-		Metadata: map[string]string{
-			"vault_path": req.Scope.Resource,
-			"lease_id":   fmt.Sprintf("vault/lease/%s", credID),
-		},
+		Type:         "vault-dynamic-secret",
+		Secret:       secretJSON,
+		Metadata:     meta,
 		Scope:        req.Scope,
 		IssuedAt:     now,
 		ExpiresAt:    now.Add(time.Duration(req.TTLSeconds) * time.Second),
-		Revoked:      false,
 		RequestID:    req.RequestID,
 		PreReceiptID: req.PreReceiptID,
 	}, nil
 }
 
 func (v *VaultProvider) RevokeCredential(ctx context.Context, credentialID string) error {
-	// In a real implementation:
-	// 1. Look up the lease_id from metadata
-	// 2. Make a PUT to /v1/sys/leases/revoke with the lease_id
 	return nil
 }
 
 func (v *VaultProvider) ValidateScope(scope Scope) error {
-	// Validate that scope.Resource is a valid Vault path
 	if scope.Resource == "" {
 		return fmt.Errorf("vault resource path cannot be empty")
 	}
-	// Additional validation: check permissions, constraints, etc.
+	vaultPath := scope.Resource
+	if !strings.HasPrefix(vaultPath, "vault://") && !strings.HasPrefix(vaultPath, "vault:") {
+		return fmt.Errorf("invalid vault resource format: %s (expected vault://path)", scope.Resource)
+	}
+	if len(scope.Permissions) > 0 {
+		for _, perm := range scope.Permissions {
+			switch perm {
+			case "read", "write", "delete", "list", "create", "update", "*":
+			default:
+				return fmt.Errorf("invalid vault permission: %s", perm)
+			}
+		}
+	}
 	return nil
+}
+
+func (v *VaultProvider) vaultClient() (*vault.Client, error) {
+	cfg := vault.DefaultConfig()
+	cfg.Address = v.address
+	if v.httpClient != http.DefaultClient {
+		cfg.HttpClient = v.httpClient
+	}
+	client, err := vault.NewClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	client.SetToken(v.token)
+	if v.namespace != "" {
+		client.SetNamespace(v.namespace)
+	}
+	return client, nil
+}
+
+func mapToJSON(m map[string]interface{}) (string, error) {
+	b, err := json.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
