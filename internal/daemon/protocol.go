@@ -61,6 +61,8 @@ const (
 	MsgMCPStatusResp       byte = 0x36
 	MsgMCPLog              byte = 0x37
 	MsgMCPLogResp          byte = 0x38
+	MsgSnapshotDiff        byte = 0x39
+	MsgSnapshotDiffResp    byte = 0x3A
 	MsgError               byte = 0xFF
 
 	MaxFrameSize uint32 = 4 * 1024 * 1024 // 4 MB
@@ -248,6 +250,20 @@ type SnapshotListReq struct {
 // SnapshotListResp returns a list of snapshots.
 type SnapshotListResp struct {
 	Snapshots []*snapshot.Snapshot `json:"snapshots"`
+}
+
+// SnapshotDiffReq requests a file-level diff between the 2 most recent snapshots.
+type SnapshotDiffReq struct {
+	AgentID     string `json:"agent_id"`
+	SnapType    string `json:"snap_type,omitempty"`
+}
+
+// SnapshotDiffResp returns added, modified, and deleted files.
+type SnapshotDiffResp struct {
+	Added    []string `json:"added,omitempty"`
+	Modified []string `json:"modified,omitempty"`
+	Deleted  []string `json:"deleted,omitempty"`
+	Message  string   `json:"message,omitempty"`
 }
 
 // RegisterCompensateReq registers a compensating action for a given receipt.

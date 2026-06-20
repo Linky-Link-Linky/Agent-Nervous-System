@@ -4,9 +4,9 @@
  * Wraps a tool execution function with pre/post ANS receipts.
  *
  * Usage:
- *   import { ansMiddleware } from "ans-sdk/integrations/mcp";
+ *   import { ANSMiddleware } from "ans-sdk/integrations/mcp";
  *
- *   const middleware = ansMiddleware({ agentId: "ans_xyz123" });
+ *   const middleware = ANSMiddleware({ agentId: "ans_xyz123" });
  *   const handler = async (toolName: string, args: Record<string, unknown>) => {
  *     return middleware(async () => {
  *       // your tool logic here
@@ -17,6 +17,9 @@
  * SPDX-License-Identifier: MIT
  */
 import { Client, ANSError, ActionType } from "../client";
+
+// ANSMiddleware is the public API name (factory function, not a class — do not use `new`)
+export const ANSMiddleware = ansMiddleware;
 
 export function ansMiddleware(opts: {
   agentId: string;

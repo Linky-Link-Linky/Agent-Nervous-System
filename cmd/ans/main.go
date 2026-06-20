@@ -699,22 +699,39 @@ func cmdSnapshotDiff(args []string) {
 
 	conn := mustDial()
 	defer conn.Close()
-	daemon.WriteJSON(conn, daemon.MsgSnapshotList, daemon.SnapshotListReq{
-		AgentID: *agentID, SnapType: string(snapshot.SnapFileSystem), Limit: 2,
+	daemon.WriteJSON(conn, daemon.MsgSnapshotDiff, daemon.SnapshotDiffReq{
+		AgentID: *agentID, SnapType: string(snapshot.SnapFileSystem),
 	})
-	var resp map[string]interface{}
+	var resp daemon.SnapshotDiffResp
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
-		fatalf("listing snapshots: %v", err)
+		fatalf("snapshot diff: %v", err)
 	}
-	snaps, _ := resp["snapshots"].([]interface{})
-	if len(snaps) < 2 {
-		fmt.Println("Need at least 2 snapshots to compute a diff")
+	if resp.Message != "" {
+		fmt.Println(resp.Message)
 		return
 	}
-	latest := snaps[0].(map[string]interface{})
-	prior := snaps[1].(map[string]interface{})
-	fmt.Printf("Diff between index %d and %d:\n", int(prior["chain_index"].(float64)), int(latest["chain_index"].(float64)))
-	fmt.Println("  (differential snapshot created automatically on next snapshot take)")
+	fmt.Printf("File-level diff:\n")
+	if len(resp.Added) > 0 {
+		fmt.Printf("  Added:    %d files\n", len(resp.Added))
+		for _, f := range resp.Added {
+			fmt.Printf("    + %s\n", f)
+		}
+	}
+	if len(resp.Modified) > 0 {
+		fmt.Printf("  Modified: %d files\n", len(resp.Modified))
+		for _, f := range resp.Modified {
+			fmt.Printf("    ~ %s\n", f)
+		}
+	}
+	if len(resp.Deleted) > 0 {
+		fmt.Printf("  Deleted:  %d files\n", len(resp.Deleted))
+		for _, f := range resp.Deleted {
+			fmt.Printf("    - %s\n", f)
+		}
+	}
+	if len(resp.Added)+len(resp.Modified)+len(resp.Deleted) == 0 {
+		fmt.Println("  No changes (snapshots are identical)")
+	}
 }
 
 // cmdSnapshots lists snapshots for an agent.

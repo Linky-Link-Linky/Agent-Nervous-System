@@ -376,22 +376,22 @@ ans start --webhook https://hooks.example.com/ans
 
 ---
 
-### 🧩 8. SDK Integrations (Every Framework)
+### 8. SDK Integrations (Every Framework)
 
-| Framework | Integration | Lines of Code |
-|-----------|------------|:---:|
-| **Python native** | `@ans.trace(action_type="...")` | 1 |
-| **Anthropic Messages API** | `ANSAnthropicClient(base, agent_id=...)` | 1 |
-| **Claude Agent SDK** | `ClaudeAgentOptions(hooks=ans_hooks(...))` | 1 |
-| **OpenAI Agents SDK** | `ans_tool_plugin()` | 1 |
-| **Google Gemini** | `ANSGenAIClient(base, agent_id=...)` | 1 |
-| **Ollama** | `ANSOllamaClient(base, agent_id=...)` | 1 |
-| **LangChain** | `chain.invoke(..., callbacks=[ANSCallbackHandler(...)])` | 1 |
-| **LangGraph** | `ans_node(my_node, agent_id=...)` | 1 |
-| **CrewAI** | `ANSTool` (subclass) | 3 |
-| **PydanticAI** | `Agent("...", capabilities=[ans_hooks(...)])` | 1 |
-| **MCP** | Middleware — Python & TypeScript | 1 |
-| **TypeScript/Node.js** | `wrap(tool, {agentId, client})` | 1 |
+| Framework | Integration | Loc | SDK |
+|-----------|------------|:---:|:---:|
+| **Python native** | `@ans.trace(action_type="...")` | 1 | Python |
+| **Anthropic Messages API** | `ANSAnthropicClient(base, agent_id=...)` | 1 | Python, TypeScript |
+| **Claude Agent SDK** | `ClaudeAgentOptions(hooks=ans_hooks(...))` | 1 | Python |
+| **OpenAI Agents SDK** | `ans_tool_plugin()` | 1 | Python, TypeScript |
+| **Google Gemini** | `ANSGenAIClient(base, agent_id=...)` | 1 | Python, TypeScript |
+| **Ollama** | `ANSOllamaClient(base, agent_id=...)` | 1 | Python, TypeScript |
+| **LangChain** | `chain.invoke(..., callbacks=[ANSCallbackHandler(...)])` | 1 | Python, TypeScript |
+| **LangGraph** | `ans_node(my_node, agent_id=...)` | 1 | Python, TypeScript |
+| **CrewAI** | `ANSTool` (subclass) | 3 | Python |
+| **PydanticAI** | `Agent("...", capabilities=[ans_hooks(...)])` | 1 | Python |
+| **MCP** | Middleware | 1 | Python, TypeScript |
+| **TypeScript/Node.js** | `wrap(tool, {agentId, client})` | 1 | TypeScript |
 
 ```bash
 pip install sdks/python/     # Python SDK — from cloned repo

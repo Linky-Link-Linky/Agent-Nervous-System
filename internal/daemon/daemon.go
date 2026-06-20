@@ -29,6 +29,7 @@ type Daemon struct {
 	chain         *chain.Chain
 	keystore      *identity.Keystore
 	snapStore     *snapshot.Store
+	snapshotter   snapshot.Snapshotter
 	policyExec    *policy.Executor
 	broker        *broker.Broker
 	mcpProxy      *mcp.Proxy
@@ -204,6 +205,7 @@ func (d *Daemon) initSnapshotStore() error {
 	}
 	fsSnap := snapshot.NewFileSystemSnap(d.workspaceRoot)
 	store.RegisterSnapshotter(fsSnap)
+	d.snapshotter = fsSnap
 	d.snapStore = store
 	d.snapBaseDir = snapDir
 	return nil

@@ -109,6 +109,8 @@ func (h *Handler) Handle(ctx context.Context, conn net.Conn) {
 			h.handleMCPLog(conn, f.Body)
 		case MsgSnapshotList:
 			h.handleSnapshotList(conn, f.Body)
+		case MsgSnapshotDiff:
+			h.handleSnapshotDiff(conn, f.Body)
 		default:
 			writeOK(conn, MsgError, ErrorResp{Message: fmt.Sprintf("unknown msg type 0x%02x", f.Type)})
 		}
@@ -593,6 +595,53 @@ func (h *Handler) handleSnapshotList(conn net.Conn, body []byte) {
 		return
 	}
 	writeOK(conn, MsgSnapshotListResp, SnapshotListResp{Snapshots: snaps})
+}
+
+func (h *Handler) handleSnapshotDiff(conn net.Conn, body []byte) {
+	var req SnapshotDiffReq
+	if err := json.Unmarshal(body, &req); err != nil {
+		writeOK(conn, MsgError, ErrorResp{Message: "bad snapshot diff request: " + err.Error()})
+		return
+	}
+	if req.AgentID == "" {
+		writeOK(conn, MsgError, ErrorResp{Message: "agent_id required"})
+		return
+	}
+	if len(req.AgentID) > 128 || len(req.SnapType) > 32 {
+		writeOK(conn, MsgError, ErrorResp{Message: "field too long"})
+		return
+	}
+	snapType := snapshot.SnapFileSystem
+	if req.SnapType != "" {
+		snapType = snapshot.SnapType(req.SnapType)
+	}
+	// Get 2 most recent snapshots
+	snaps, err := h.daemon.snapStore.List(req.AgentID, snapType, 2, 0)
+	if err != nil {
+		writeOK(conn, MsgError, ErrorResp{Message: "listing snapshots: " + err.Error()})
+		return
+	}
+	if len(snaps) < 2 {
+		writeOK(conn, MsgSnapshotDiffResp, SnapshotDiffResp{Message: "Need at least 2 snapshots to compute a diff"})
+		return
+	}
+	// snaps are newest-first; base is the older one (index 1)
+	baseSnap := snaps[1]
+	fs, ok := h.daemon.snapshotter.(*snapshot.FileSystemSnap)
+	if !ok {
+		writeOK(conn, MsgError, ErrorResp{Message: "filesystem snapshotter not available"})
+		return
+	}
+	added, modified, deleted, err := fs.Diff(baseSnap.StoragePath)
+	if err != nil {
+		writeOK(conn, MsgError, ErrorResp{Message: "diff failed: " + err.Error()})
+		return
+	}
+	writeOK(conn, MsgSnapshotDiffResp, SnapshotDiffResp{
+		Added:    added,
+		Modified: modified,
+		Deleted:  deleted,
+	})
 }
 
 func (h *Handler) handlePolicyRegister(conn net.Conn, body []byte) {

@@ -23,7 +23,7 @@ export function wrap<T extends (...args: unknown[]) => unknown>(
   fn: T,
   opts: {
     agentId: string;
-    actionType: ActionType;
+    actionType?: ActionType;
     client?: Client;
     silent?: boolean;
   }
@@ -34,7 +34,7 @@ export function wrap<T extends (...args: unknown[]) => unknown>(
 
   if (isAsync) {
     return (async (...args: unknown[]) => {
-      const actionType = opts.actionType;
+      const actionType: ActionType = opts.actionType || "custom" as ActionType;
       const payload = { function: fn.name || "anonymous", args: JSON.stringify(args).slice(0, 200) };
       const summary = `${fn.name || "anonymous"}(${args.map(a => String(a).slice(0, 30)).join(", ")})`.slice(0, 80);
 
@@ -88,7 +88,7 @@ export function wrap<T extends (...args: unknown[]) => unknown>(
     }) as T;
   } else {
     return ((...args: unknown[]) => {
-      const actionType = opts.actionType;
+      const actionType: ActionType = opts.actionType || "custom" as ActionType;
       const payload = { function: fn.name || "anonymous", args: JSON.stringify(args).slice(0, 200) };
       const summary = `${fn.name || "anonymous"}(${args.map(a => String(a).slice(0, 30)).join(", ")})`.slice(0, 80);
 
