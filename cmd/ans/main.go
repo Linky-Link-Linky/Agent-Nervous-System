@@ -499,11 +499,15 @@ func cmdExport(args []string) {
 
 	w := os.Stdout
 	if *output != "" {
-		clean := filepath.Clean(*output)
-		if clean != *output {
-			fatalf("invalid output path: %s", *output)
-		}
+	clean := filepath.Clean(*output)
+	if !filepath.IsAbs(clean) {
 		abs, err := filepath.Abs(clean)
+		if err != nil {
+			fatalf("resolving output path: %v", err)
+		}
+		clean = abs
+	}
+	abs, err := filepath.Abs(clean)
 		if err != nil {
 			fatalf("resolving output path: %v", err)
 		}
@@ -583,7 +587,7 @@ func cmdRotate(args []string) {
 	fmt.Printf("New agent ID: %s\n", newAgent.ID)
 	fmt.Printf("New public key: %x\n", newAgent.PublicKey)
 	fmt.Printf("Rotation record: old_sig=%s... new_sig=%s...\n",
-		rec.OldSignature[:16], rec.NewSignature[:16])
+		safeSig(rec.OldSignature), safeSig(rec.NewSignature))
 	fmt.Println("Update your SDK configuration to use the new agent ID.")
 }
 
@@ -643,8 +647,8 @@ func cmdTimeTravel(args []string) {
 		if _, err := daemon.ReadJSON(conn, &verifyResp); err != nil {
 			fatalf("resolving receipt %q: %v", targetStr, err)
 		}
-		if verifyResp.ChainIndex == 0 {
-			fatalf("receipt %q not found at chain index 0", targetStr)
+		if verifyResp.ChainIndex == 0 && !verifyResp.Valid {
+			fatalf("receipt %q not found", targetStr)
 		}
 		targetIdx = verifyResp.ChainIndex
 		fmt.Printf("Resolved receipt %s to chain index %d\n", targetStr[:16], targetIdx)
@@ -839,7 +843,14 @@ func cmdPolicyAdd(args []string) {
 		os.Exit(1)
 	}
 	path := filepath.Clean(args[0])
-	if strings.Contains(path, "..") || path == "/" || path == "." {
+	if !filepath.IsAbs(path) {
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			fatalf("resolving policy path: %v", err)
+		}
+		path = abs
+	}
+	if path == "/" {
 		fatalf("invalid policy file path: %s", args[0])
 	}
 	data, err := os.ReadFile(path)
@@ -1012,15 +1023,9 @@ func cmdTokenRequest(args []string) {
 	fmt.Printf("\033[32m\u2713\033[0m Token provisioned\n")
 	fmt.Printf("  Token ID:  %s\n", resp.TokenID)
 	fmt.Printf("  Type:      %s\n", resp.TokenType)
-	if resp.AccessKey != "" {
-		fmt.Printf("  Access Key: %s\n", resp.AccessKey)
-	}
-	if resp.SecretKey != "" {
-		fmt.Printf("  Secret Key: %s\n", resp.SecretKey)
-	}
-	if resp.BearerToken != "" {
-		fmt.Printf("  Bearer:    %s\n", resp.BearerToken)
-	}
+	fmt.Printf("  Access Key: %s\n", maskSecret(resp.AccessKey))
+	fmt.Printf("  Secret Key: %s\n", maskSecret(resp.SecretKey))
+	fmt.Printf("  Bearer:    %s\n", maskSecret(resp.BearerToken))
 	fmt.Printf("  Resource:  %s\n", resp.Resource)
 	fmt.Printf("  Expires:   %d ns\n", resp.ExpiresNS)
 }
@@ -1210,9 +1215,28 @@ func noColor() bool {
 	return os.Getenv("NO_COLOR") != "" || os.Getenv("ANS_NO_COLOR") != ""
 }
 
+// maskSecret masks all but the last 4 characters of a secret, or shows "[REDACTED]" if empty.
+func maskSecret(s string) string {
+	if s == "" {
+		return "[REDACTED]"
+	}
+	if len(s) <= 4 {
+		return "****"
+	}
+	return "****" + s[len(s)-4:]
+}
+
 func pidFilePath() string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".ans", "daemon.pid")
+}
+
+// safeSig returns the first 16 hex chars of a signature, or "[short]" if shorter.
+func safeSig(sig string) string {
+	if len(sig) < 16 {
+		return "[short]"
+	}
+	return sig[:16]
 }
 
 func writePID() {

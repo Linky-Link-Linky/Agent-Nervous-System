@@ -96,8 +96,13 @@ class ANSClient:
 
             if platform.system() == "Windows":
                 # Named pipe on Windows
-                import pywintypes
-                import win32file
+                try:
+                    import pywintypes  # noqa: F401
+                    import win32file
+                except ImportError:
+                    raise ANSError(
+                        "pywin32 is required on Windows. Install with: pip install pywin32"
+                    )
 
                 try:
                     handle = win32file.CreateFile(
@@ -146,6 +151,8 @@ class ANSClient:
         if payload_len > MAX_FRAME_SIZE:
             raise ANSError(f"Frame too large: {payload_len} (max {MAX_FRAME_SIZE})")
         header = struct.pack(">I", payload_len)
+        if self._sock is None:
+            raise ANSError("Not connected")
         self._sock.sendall(header + bytes([msg_type]) + body)
 
     def _read_frame(self) -> tuple[int, bytes]:
@@ -159,6 +166,8 @@ class ANSClient:
 
     def _recv_exactly(self, n: int) -> bytes:
         """Read exactly n bytes from socket."""
+        if self._sock is None:
+            raise ANSError("Not connected")
         buf = b""
         while len(buf) < n:
             chunk = self._sock.recv(n - len(buf))
@@ -176,12 +185,18 @@ class ANSClient:
 
             msg_type, resp_body = self._read_frame()
             if msg_type == MSG_ERROR:
-                err = json.loads(resp_body)
+                try:
+                    err = json.loads(resp_body)
+                except json.JSONDecodeError:
+                    raise ANSError(f"Daemon error (malformed response)")
                 raise ANSError(f"Daemon error: {err.get('message', 'unknown')}")
             if msg_type != resp_type:
                 raise ANSError(f"Unexpected response type: {msg_type} (expected {resp_type})")
 
-            return json.loads(resp_body)
+            try:
+                return json.loads(resp_body)
+            except json.JSONDecodeError as e:
+                raise ANSError(f"Invalid JSON response: {e}")
 
     def take_snapshot(
         self,
@@ -448,10 +463,11 @@ class ANSClient:
     def ping(self) -> bool:
         """Ping the daemon. Returns True if daemon responds."""
         try:
-            self.connect()
-            self._write_frame(MSG_PING, b"")
-            msg_type, _ = self._read_frame()
-            return msg_type == MSG_PONG
+            with self._lock:
+                self.connect()
+                self._write_frame(MSG_PING, b"")
+                msg_type, _ = self._read_frame()
+                return msg_type == MSG_PONG
         except Exception:
             return False
 
@@ -467,10 +483,12 @@ class _TraceContext:
             kwargs["agent_id"] = _default_agent_id
         self.kwargs = kwargs
         self.pre_receipt = None
+        self._payload_hash = None
 
     def __enter__(self) -> Dict[str, Any]:
         """Send pre-action receipt."""
         ph = self.kwargs.pop("payload_hash", None) or hash_payload("")
+        self._payload_hash = ph
         self.pre_receipt = self.client.sign_append(
             phase="pre",
             action_type=self.action_type,
@@ -483,7 +501,7 @@ class _TraceContext:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Send post-action receipt."""
         outcome = "failure" if exc_type is not None else "success"
-        ph = self.kwargs.pop("payload_hash", None) or hash_payload(str(exc_val) if exc_val else "success")
+        ph = self._payload_hash or hash_payload(str(exc_val) if exc_val else "success")
         self.client.sign_append(
             phase="post",
             action_type=self.action_type,

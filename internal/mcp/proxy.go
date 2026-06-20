@@ -142,13 +142,6 @@ func (p *Proxy) acceptLoop() {
 				continue
 			}
 		}
-		select {
-		case p.connSem <- struct{}{}:
-		default:
-			log.Printf("mcp proxy: max connections (%d) reached, rejecting", maxProxyConns)
-			conn.Close()
-			continue
-		}
 		p.wg.Add(1)
 		go p.handleConn(conn)
 	}
@@ -157,7 +150,6 @@ func (p *Proxy) acceptLoop() {
 func (p *Proxy) handleConn(client net.Conn) {
 	defer p.wg.Done()
 	defer client.Close()
-	defer func() { <-p.connSem }()
 
 	target, err := DialTarget(p.targetURL)
 	if err != nil {
@@ -165,6 +157,15 @@ func (p *Proxy) handleConn(client net.Conn) {
 		return
 	}
 	defer target.Close()
+
+	// Acquire semaphore after successful dial to avoid holding slots during slow dials
+	select {
+	case p.connSem <- struct{}{}:
+	default:
+		log.Printf("mcp proxy: max connections (%d) reached, rejecting", maxProxyConns)
+		return
+	}
+	defer func() { <-p.connSem }()
 
 	// Copy safety config to avoid data race if WithSafety is called concurrently
 	safety := p.safety
@@ -318,6 +319,10 @@ func (ctx *proxyCtx) checkRequestSafety(line string, entry *LogEntry, clientConn
 				writeError(clientConn, entry.RequestID, -32003, errMsg)
 				return false
 			}
+		} else {
+			log.Printf("mcp proxy: failed to parse tools/call message: %v", err)
+			writeError(clientConn, entry.RequestID, -32003, "failed to parse tool call")
+			return false
 		}
 	}
 
@@ -350,7 +355,7 @@ func (ctx *proxyCtx) applyResponseSafety(line string, entry *LogEntry) string {
 		}
 	}
 
-	// Token budget tracking for response tokens
+	// Token budget tracking for response tokens (monitoring only — doesn't block)
 	if ctx.tokBudget != nil {
 		respTokens := EstimateTokens(line)
 		if !ctx.tokBudget.Allow(ctx.clientAddr, respTokens) {
@@ -428,6 +433,10 @@ func (ctx *proxyCtx) analyze(line string, dir Direction) *LogEntry {
 		entry.RequestID = "(notification)"
 	} else {
 		entry.RequestID = string(msg.ID)
+		// Strip JSON string quotes from string-typed IDs
+		if len(entry.RequestID) >= 2 && entry.RequestID[0] == '"' {
+			entry.RequestID = entry.RequestID[1 : len(entry.RequestID)-1]
+		}
 	}
 
 	// Extract content for injection scanning

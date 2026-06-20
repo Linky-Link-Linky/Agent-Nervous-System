@@ -87,6 +87,7 @@ type Broker struct {
 	cache     *CredentialCache
 	logger    Logger
 	mu        sync.RWMutex
+	done      chan struct{}
 }
 
 // NewBroker creates a new identity broker.
@@ -95,6 +96,7 @@ func NewBroker(logger Logger) *Broker {
 		providers: make(map[string]Provider),
 		cache:     NewCredentialCache(),
 		logger:    logger,
+		done:      make(chan struct{}),
 	}
 }
 
@@ -196,6 +198,11 @@ func (b *Broker) ListActive() []*Credential {
 	return b.cache.ListActive()
 }
 
+// Close stops all pending revocation goroutines.
+func (b *Broker) Close() {
+	close(b.done)
+}
+
 // scheduleRevocation automatically revokes the credential when it expires.
 func (b *Broker) scheduleRevocation(cred *Credential) {
 	ttl := time.Until(cred.ExpiresAt)
@@ -203,7 +210,11 @@ func (b *Broker) scheduleRevocation(cred *Credential) {
 		return
 	}
 
-	time.Sleep(ttl)
+	select {
+	case <-b.done:
+		return
+	case <-time.After(ttl):
+	}
 
 	// Best-effort revocation
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -269,19 +280,39 @@ type Logger interface {
 // generateRequestID generates a unique request ID.
 func generateRequestID() string {
 	b := make([]byte, 16)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		// Fallback to nanosecond timestamp if crypto/rand fails
+		return fmt.Sprintf("fallback-%d", time.Now().UnixNano())
+	}
 	h := sha256.Sum256(b)
 	return hex.EncodeToString(h[:8])
 }
 
-// MarshalJSON redacts the secret when marshaling to JSON.
+// Sensitive metadata keys that should be redacted in JSON output.
+var sensitiveMetaKeys = map[string]bool{
+	"access_key":    true,
+	"session_token": true,
+	"secret_key":    true,
+}
+
+// MarshalJSON redacts the secret and sensitive metadata when marshaling to JSON.
 func (c *Credential) MarshalJSON() ([]byte, error) {
 	type Alias Credential
+	redactedMeta := make(map[string]string, len(c.Metadata))
+	for k, v := range c.Metadata {
+		if sensitiveMetaKeys[k] {
+			redactedMeta[k] = "[REDACTED]"
+		} else {
+			redactedMeta[k] = v
+		}
+	}
 	return json.Marshal(&struct {
-		Secret string `json:"secret"`
+		Secret   string            `json:"secret"`
+		Metadata map[string]string `json:"metadata"`
 		*Alias
 	}{
-		Secret: "[REDACTED]", // Never log secrets
-		Alias:  (*Alias)(c),
+		Secret:   "[REDACTED]",
+		Metadata: redactedMeta,
+		Alias:    (*Alias)(c),
 	})
 }

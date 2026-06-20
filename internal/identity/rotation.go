@@ -28,7 +28,10 @@ type RotationRecord struct {
 // returns a RotationRecord suitable for embedding in a chain receipt payload.
 // The old key is NOT deleted — historical receipts remain verifiable with it.
 func (ks *Keystore) Rotate(agentID string) (*Agent, *RotationRecord, error) {
-	old, err := ks.Load(agentID)
+	ks.mu.Lock()
+	defer ks.mu.Unlock()
+
+	old, err := ks.loadLocked(agentID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("loading existing agent: %w", err)
 	}
@@ -38,9 +41,6 @@ func (ks *Keystore) Rotate(agentID string) (*Agent, *RotationRecord, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("generating new keypair: %w", err)
 	}
-	// The new agent has a new ID derived from the new public key.
-	// We set the Name/Version/Owner to match the old agent.
-	// Callers update their agent_id references after rotation.
 
 	// Build the signable body (without signatures)
 	type rotationBody struct {
@@ -73,7 +73,7 @@ func (ks *Keystore) Rotate(agentID string) (*Agent, *RotationRecord, error) {
 	}
 
 	// Save new agent under its new ID
-	if err := ks.Save(newAgent); err != nil {
+	if err := ks.saveLocked(newAgent); err != nil {
 		return nil, nil, fmt.Errorf("saving new keypair: %w", err)
 	}
 
@@ -82,6 +82,9 @@ func (ks *Keystore) Rotate(agentID string) (*Agent, *RotationRecord, error) {
 
 // VerifyRotation checks that a RotationRecord was signed by both claimed keys.
 func VerifyRotation(rec *RotationRecord) error {
+	if rec == nil {
+		return fmt.Errorf("rotation record is nil")
+	}
 	type rotationBody struct {
 		AgentID      string `json:"agent_id"`
 		OldPublicKey string `json:"old_public_key_hex"`

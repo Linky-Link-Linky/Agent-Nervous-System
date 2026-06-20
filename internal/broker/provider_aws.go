@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -22,6 +23,7 @@ type AWSProvider struct {
 	region     string
 	accountID  string
 	httpClient *http.Client
+	initOnce   sync.Once
 }
 
 type AWSProviderOption func(*AWSProvider)
@@ -57,14 +59,21 @@ func (a *AWSProvider) Name() string {
 }
 
 func (a *AWSProvider) ProvisionCredential(ctx context.Context, req *ProvisionRequest) (*Credential, error) {
-	if a.stsClient == nil {
-		cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(a.region))
-		if err != nil {
-			return nil, fmt.Errorf("aws: failed to load AWS config: %w", err)
+	var initErr error
+	a.initOnce.Do(func() {
+		if a.stsClient == nil {
+			cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(a.region))
+			if err != nil {
+				initErr = fmt.Errorf("aws: failed to load AWS config: %w", err)
+				return
+			}
+			a.stsClient = sts.NewFromConfig(cfg, func(o *sts.Options) {
+				o.HTTPClient = a.httpClient
+			})
 		}
-		a.stsClient = sts.NewFromConfig(cfg, func(o *sts.Options) {
-			o.HTTPClient = a.httpClient
-		})
+	})
+	if initErr != nil {
+		return nil, initErr
 	}
 
 	roleArn, err := a.resolveRoleARN(req.Scope.Resource)

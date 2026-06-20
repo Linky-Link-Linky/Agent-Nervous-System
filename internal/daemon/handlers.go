@@ -94,9 +94,9 @@ func (h *Handler) Handle(ctx context.Context, conn net.Conn) {
 		case MsgPolicyEvaluate:
 			h.handlePolicyEvaluate(conn, f.Body)
 		case MsgTokenRequest:
-			h.handleTokenRequest(conn, f.Body)
+			h.handleTokenRequest(conn, f.Body, ctx)
 		case MsgTokenRevoke:
-			h.handleTokenRevoke(conn, f.Body)
+			h.handleTokenRevoke(conn, f.Body, ctx)
 		case MsgTokenList:
 			h.handleTokenList(conn, f.Body)
 		case MsgMCPStart:
@@ -365,7 +365,7 @@ func (h *Handler) handleRestore(conn net.Conn, body []byte) {
 	})
 }
 
-func (h *Handler) handleTokenRequest(conn net.Conn, body []byte) {
+func (h *Handler) handleTokenRequest(conn net.Conn, body []byte, ctx context.Context) {
 	var req TokenRequestReq
 	if err := json.Unmarshal(body, &req); err != nil {
 		writeOK(conn, MsgError, ErrorResp{Message: "bad request: " + err.Error()})
@@ -396,10 +396,19 @@ func (h *Handler) handleTokenRequest(conn net.Conn, body []byte) {
 		Scope:      scope,
 		TTLSeconds: ttl,
 	}
-	// Try the first registered provider
-	cred, err := h.daemon.broker.Provision(context.Background(), "dev", provReq)
-	if err != nil {
-		writeOK(conn, MsgError, ErrorResp{Message: "provisioning failed: " + err.Error()})
+	// Try registered providers in order
+	var (
+		cred *broker.Credential
+		provErr error
+	)
+	for _, name := range []string{"dev", "env"} {
+		cred, provErr = h.daemon.broker.Provision(ctx, name, provReq)
+		if provErr == nil {
+			break
+		}
+	}
+	if provErr != nil {
+		writeOK(conn, MsgError, ErrorResp{Message: "provisioning failed: " + provErr.Error()})
 		return
 	}
 	writeOK(conn, MsgTokenResp, TokenRequestResp{
@@ -409,19 +418,18 @@ func (h *Handler) handleTokenRequest(conn net.Conn, body []byte) {
 		AccessKey:    cred.Metadata["access_key"],
 		SecretKey:    cred.Secret,
 		SessionToken: cred.Metadata["session_token"],
-		BearerToken:  cred.Secret,
 		Resource:     cred.Scope.Resource,
 		ExpiresNS:    cred.ExpiresAt.UnixNano(),
 	})
 }
 
-func (h *Handler) handleTokenRevoke(conn net.Conn, body []byte) {
+func (h *Handler) handleTokenRevoke(conn net.Conn, body []byte, ctx context.Context) {
 	var req TokenRevokeReq
 	if err := json.Unmarshal(body, &req); err != nil || req.TokenID == "" {
 		writeOK(conn, MsgError, ErrorResp{Message: "token_id required"})
 		return
 	}
-	if err := h.daemon.broker.Revoke(context.Background(), req.TokenID); err != nil {
+	if err := h.daemon.broker.Revoke(ctx, req.TokenID); err != nil {
 		writeOK(conn, MsgError, ErrorResp{Message: "revoke failed: " + err.Error()})
 		return
 	}
@@ -842,7 +850,7 @@ func (h *Handler) handleCompensate(conn net.Conn, body []byte) {
 		if c.ReverseCmd == "" {
 			continue
 		}
-		if err := h.executeCompensation(c); err != nil {
+		if err := h.executeCompensation(c, context.Background()); err != nil {
 			details = append(details, fmt.Sprintf("[%d] FAIL: %s", c.ChainIndex, err))
 			failed++
 		} else {
@@ -859,14 +867,14 @@ func (h *Handler) handleCompensate(conn net.Conn, body []byte) {
 
 
 
-func (h *Handler) executeCompensation(c chain.CompensationRecord) error {
+func (h *Handler) executeCompensation(c chain.CompensationRecord, parentCtx context.Context) error {
 	// Parse the command into executable + args for safe execution without shell injection.
 	// The command has been validated by safeCmdPattern at registration time.
 	parts := strings.Fields(c.ReverseCmd)
 	if len(parts) == 0 {
 		return fmt.Errorf("empty reverse_cmd")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(parentCtx, 30*time.Second)
 	defer cancel()
 	cmd := execCommandContext(ctx, parts[0], parts[1:]...)
 	output, err := cmd.CombinedOutput()

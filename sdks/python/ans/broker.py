@@ -60,7 +60,6 @@ class Credential:
 
     def is_expired(self) -> bool:
         """Check if the credential has expired."""
-        import time
         return time.time() > self.expires_at
 
     def is_active(self) -> bool:

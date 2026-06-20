@@ -86,6 +86,11 @@ func NewKeystore(dir string) (*Keystore, error) {
 func (ks *Keystore) Save(a *Agent) error {
 	ks.mu.Lock()
 	defer ks.mu.Unlock()
+	return ks.saveLocked(a)
+}
+
+// saveLocked is Save with ks.mu already held by caller.
+func (ks *Keystore) saveLocked(a *Agent) error {
 	if err := sanitizeAgentID(a.ID); err != nil {
 		return fmt.Errorf("invalid agent ID: %w", err)
 	}
@@ -114,6 +119,11 @@ func (ks *Keystore) Save(a *Agent) error {
 func (ks *Keystore) Load(agentID string) (*Agent, error) {
 	ks.mu.Lock()
 	defer ks.mu.Unlock()
+	return ks.loadLocked(agentID)
+}
+
+// loadLocked is Load with ks.mu already held by caller.
+func (ks *Keystore) loadLocked(agentID string) (*Agent, error) {
 	if err := sanitizeAgentID(agentID); err != nil {
 		return nil, fmt.Errorf("invalid agent ID: %w", err)
 	}

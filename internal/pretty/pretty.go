@@ -7,11 +7,18 @@ package pretty
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/receipt"
 )
+
+// ansiRE matches ANSI escape sequences.
+var ansiRE = regexp.MustCompile(`\033\[[0-9;]*[a-zA-Z]|\033][^\a]*(\a|\033\\)`)
+
+// stripANSI removes ANSI escape sequences from s.
+func stripANSI(s string) string { return ansiRE.ReplaceAllString(s, "") }
 
 const (
 	reset  = "\033[0m"
@@ -24,8 +31,9 @@ const (
 	gray   = "\033[90m"
 )
 
-// safeID returns the first 8 chars of id, or the full id if shorter.
+// safeID returns the first 8 chars of id, or the full id if shorter, with ANSI stripped.
 func safeID(id string) string {
+	id = stripANSI(id)
 	if len(id) >= 8 {
 		return id[:8]
 	}
@@ -48,12 +56,15 @@ func printChainColor(w io.Writer, receipts []*receipt.Receipt) {
 
 	seen := make(map[string]bool, len(receipts))
 	for _, r := range receipts {
-		if seen[r.ReceiptID] || r.Phase != receipt.PhasePre {
+		if r == nil || seen[r.ReceiptID] || r.Phase != receipt.PhasePre {
 			continue
 		}
 		seen[r.ReceiptID] = true
 		var post *receipt.Receipt
 		for _, r2 := range receipts {
+			if r2 == nil {
+				continue
+			}
 			if r2.Phase == receipt.PhasePost && r2.PreReceiptID == r.ReceiptID {
 				post = r2
 				seen[r2.ReceiptID] = true
@@ -64,10 +75,11 @@ func printChainColor(w io.Writer, receipts []*receipt.Receipt) {
 	}
 	// Orphan receipts (no paired pre found)
 	for _, r := range receipts {
-		if !seen[r.ReceiptID] {
-			printOrphan(w, r)
-			seen[r.ReceiptID] = true
+		if r == nil || seen[r.ReceiptID] {
+			continue
 		}
+		printOrphan(w, r)
+		seen[r.ReceiptID] = true
 	}
 }
 
@@ -77,11 +89,11 @@ func printPair(w io.Writer, pre *receipt.Receipt, post *receipt.Receipt) {
 		gray, reset,
 		yellow, safeID(pre.ReceiptID), reset,
 		dim, ts.Format("2006-01-02"), ts.Format("15:04:05.000"), reset,
-		bold, string(pre.ActionType), reset,
-		dim, pre.AgentID, reset,
+		bold, stripANSI(string(pre.ActionType)), reset,
+		dim, stripANSI(pre.AgentID), reset,
 	)
 	if pre.PayloadSummary != "" {
-		fmt.Fprintf(w, "%s│  %s%s%s\n", gray, dim, pre.PayloadSummary, reset)
+		fmt.Fprintf(w, "%s│  %s%s%s\n", gray, dim, stripANSI(pre.PayloadSummary), reset)
 	}
 	policyColor := green
 	if pre.PolicyDecision == receipt.PolicyDeny {
@@ -89,7 +101,7 @@ func printPair(w io.Writer, pre *receipt.Receipt, post *receipt.Receipt) {
 	} else if pre.PolicyDecision == receipt.PolicyAllowWithConditions {
 		policyColor = yellow
 	}
-	policyStr := string(pre.PolicyDecision)
+	policyStr := stripANSI(string(pre.PolicyDecision))
 	if policyStr == "" {
 		policyStr = "allow"
 	}
@@ -107,7 +119,7 @@ func printPair(w io.Writer, pre *receipt.Receipt, post *receipt.Receipt) {
 			dur = fmt.Sprintf("  %s%dms%s", dim, post.DurationMS, reset)
 		}
 		fmt.Fprintf(w, "%s└─%s %s %s%s%s%s\n",
-			gray, reset, icon, dim, post.OutcomeSummary, reset, dur)
+			gray, reset, icon, dim, stripANSI(post.OutcomeSummary), reset, dur)
 		if len(post.Signature) >= 16 {
 			fmt.Fprintf(w, "   %ssig %s…%s\n", gray, post.Signature[:16], reset)
 		}
@@ -123,7 +135,7 @@ func printOrphan(w io.Writer, r *receipt.Receipt) {
 		gray, reset,
 		yellow, safeID(r.ReceiptID), reset,
 		dim, ts.Format("15:04:05"), reset,
-		string(r.ActionType),
+		stripANSI(string(r.ActionType)),
 	)
 	fmt.Fprintln(w)
 }
@@ -132,9 +144,12 @@ func printChainPlain(w io.Writer, receipts []*receipt.Receipt) {
 	fmt.Fprintln(w, "ANS Receipt Chain")
 	fmt.Fprintln(w, strings.Repeat("-", 60))
 	for _, r := range receipts {
+		if r == nil {
+			continue
+		}
 		ts := time.Unix(0, r.TimestampNS).UTC().Format(time.RFC3339)
 		fmt.Fprintf(w, "[%s] %s %s %s %s\n",
-			ts, safeID(r.ReceiptID), string(r.Phase), string(r.ActionType), r.PayloadSummary)
+			ts, safeID(r.ReceiptID), stripANSI(string(r.Phase)), stripANSI(string(r.ActionType)), stripANSI(r.PayloadSummary))
 	}
 }
 

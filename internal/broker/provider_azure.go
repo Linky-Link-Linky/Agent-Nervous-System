@@ -137,8 +137,7 @@ func (a *AzureProvider) ValidateScope(scope Scope) error {
 		return fmt.Errorf("azure resource path cannot be empty")
 	}
 	if !strings.HasPrefix(scope.Resource, "https://") &&
-		!strings.HasPrefix(scope.Resource, "api://") &&
-		!strings.HasPrefix(scope.Resource, "http://") {
+		!strings.HasPrefix(scope.Resource, "api://") {
 		return fmt.Errorf("invalid Azure resource format: %s", scope.Resource)
 	}
 	for _, perm := range scope.Permissions {

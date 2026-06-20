@@ -29,6 +29,10 @@ func (rl *RateLimiter) Allow(key string) bool {
 	}
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
+	// Periodically prune stale entries (every 64 calls)
+	if len(rl.buckets) > 1000 && len(rl.buckets)%64 == 0 {
+		rl.pruneLocked()
+	}
 	b, ok := rl.buckets[key]
 	now := time.Now()
 	if !ok {
@@ -77,6 +81,10 @@ func (tb *TokenBudget) Allow(key string, tokens int) bool {
 	}
 	tb.mu.Lock()
 	defer tb.mu.Unlock()
+	// Periodically prune stale entries (every 64 calls)
+	if len(tb.usage) > 1000 && len(tb.usage)%64 == 0 {
+		tb.pruneLocked()
+	}
 	u, ok := tb.usage[key]
 	now := time.Now()
 	if !ok || now.After(u.resetAt) {
@@ -102,4 +110,25 @@ func (tb *TokenBudget) Remaining(key string) int {
 		return 0
 	}
 	return remaining
+}
+
+// pruneLocked removes stale rate limiter entries (last refill > 5 minutes ago).
+func (rl *RateLimiter) pruneLocked() {
+	cutoff := time.Now().Add(-5 * time.Minute)
+	for k, b := range rl.buckets {
+		if b.last.Before(cutoff) {
+			delete(rl.buckets, k)
+		}
+	}
+}
+
+// pruneLocked removes stale token budget entries (reset time > 5 minutes ago).
+func (tb *TokenBudget) pruneLocked() {
+	now := time.Now()
+	cutoff := now.Add(-5 * time.Minute)
+	for k, u := range tb.usage {
+		if u.resetAt.Before(cutoff) {
+			delete(tb.usage, k)
+		}
+	}
 }

@@ -47,13 +47,16 @@ def ans_hooks(client: ANSClient, agent_id: str, parent_agent_id: str = "", silen
         def __init__(self):
             self._pre_receipts = {}
             self._start_times = {}
+            self._counter = 0
 
         async def on_tool_start(self, tool_name: str, tool_input: Any) -> None:
             payload = {"tool": tool_name, "input": tool_input}
             ph = hash_payload(payload)
+            self._counter += 1
+            key = f"{ph}:{self._counter}"
             summary = f"Tool: {tool_name}"
 
-            self._start_times[ph] = time.time()
+            self._start_times[key] = time.time()
             loop = asyncio.get_running_loop()
             try:
                 resp = await loop.run_in_executor(None, lambda: client.sign_append(
@@ -61,7 +64,7 @@ def ans_hooks(client: ANSClient, agent_id: str, parent_agent_id: str = "", silen
                     payload_hash=ph, payload_summary=summary,
                     policy_decision="allow", parent_agent_id=parent_agent_id,
                 ))
-                self._pre_receipts[ph] = resp["receipt_id"]
+                self._pre_receipts[key] = resp["receipt_id"]
             except ANSError as e:
                 if not silent:
                     raise
@@ -72,12 +75,23 @@ def ans_hooks(client: ANSClient, agent_id: str, parent_agent_id: str = "", silen
         ) -> None:
             payload = {"tool": tool_name, "input": tool_input}
             ph = hash_payload(payload)
+            self._counter += 1
+            key = f"{ph}:{self._counter}"
             summary = f"Tool: {tool_name}"
-            pre_id = self._pre_receipts.pop(ph, "")
-            start = self._start_times.pop(ph, 0)
-            duration_ms = int((time.time() - start) * 1000) if start else 0
+            pre_id = self._pre_receipts.pop(key, "")
+            start = self._start_times.pop(key, 0)
+
             if not pre_id:
-                return
+                # Key mismatch — try to match by payload hash prefix (last resort)
+                for k in list(self._pre_receipts.keys()):
+                    if k.startswith(ph):
+                        pre_id = self._pre_receipts.pop(k, "")
+                        start = self._start_times.pop(k, 0)
+                        break
+                if not pre_id:
+                    return
+
+            duration_ms = int((time.time() - start) * 1000) if start else 0
 
             if error is not None:
                 outcome, o_sum = "failure", f"Error: {type(error).__name__}: {str(error)[:100]}"

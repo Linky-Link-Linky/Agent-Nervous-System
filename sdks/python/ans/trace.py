@@ -47,8 +47,6 @@ def trace(
             aid = agent_id or _client_mod._default_agent_id
             if aid is None:
                 raise ANSError("ANS not configured. Call ans.configure(agent_id='...') first.")
-            if agent_id is not None:
-                configure(agent_id=agent_id)
 
             client = get_client()
 

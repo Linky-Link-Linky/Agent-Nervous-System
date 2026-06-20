@@ -64,6 +64,7 @@ func (fs *FileSystemSnap) Capture(agentID string, chainIndex uint64, storePath s
 	defer f.Close()
 
 	gzw := gzip.NewWriter(f)
+	defer gzw.Close()
 	tw := tar.NewWriter(gzw)
 
 	walkErr := filepath.Walk(fs.WorkspaceRoot, func(path string, info os.FileInfo, err error) error {
@@ -214,10 +215,16 @@ func (fs *FileSystemSnap) Restore(snap *Snapshot) error {
 			continue
 		}
 
-		// Handle deletion manifest in differential snapshots
+	// Handle deletion manifest in differential snapshots
+		const deletedMaxSize = 10 * 1024 * 1024 // 10MB max for delete manifest
 		if name == ".ans_deleted" {
+			if header.Size <= 0 || header.Size > deletedMaxSize {
+				return fmt.Errorf("deleted manifest size %d exceeds maximum %d", header.Size, deletedMaxSize)
+			}
 			buf := make([]byte, header.Size)
-			io.ReadFull(tr, buf)
+			if _, err := io.ReadFull(tr, buf); err != nil {
+				return fmt.Errorf("reading deleted manifest: %w", err)
+			}
 			deletedFiles = strings.Split(strings.TrimSpace(string(buf)), "\n")
 			continue
 		}
@@ -232,6 +239,9 @@ func (fs *FileSystemSnap) Restore(snap *Snapshot) error {
 			if err := os.MkdirAll(target, os.FileMode(header.Mode&0o777)); err != nil {
 				return fmt.Errorf("creating directory %s: %w", target, err)
 			}
+			if !header.ModTime.IsZero() {
+				os.Chtimes(target, header.AccessTime, header.ModTime)
+			}
 		case tar.TypeReg:
 			if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {
 				return fmt.Errorf("creating parent dir for %s: %w", target, err)
@@ -245,6 +255,9 @@ func (fs *FileSystemSnap) Restore(snap *Snapshot) error {
 				return fmt.Errorf("writing file %s: %w", target, err)
 			}
 			out.Close()
+			if !header.ModTime.IsZero() {
+				os.Chtimes(target, header.AccessTime, header.ModTime)
+			}
 		}
 	}
 
@@ -355,6 +368,7 @@ func (fs *FileSystemSnap) CaptureDiff(agentID string, chainIndex uint64, storePa
 	defer fh.Close()
 
 	gzw := gzip.NewWriter(fh)
+	defer gzw.Close()
 	tw := tar.NewWriter(gzw)
 
 	// Store deletion manifest as a special entry
@@ -469,6 +483,7 @@ func (fs *FileSystemSnap) SnapshotPaths(paths []string, storePath string) (*Snap
 	defer f.Close()
 
 	gzw := gzip.NewWriter(f)
+	defer gzw.Close()
 	tw := tar.NewWriter(gzw)
 
 	workspaceClean := filepath.Clean(fs.WorkspaceRoot)

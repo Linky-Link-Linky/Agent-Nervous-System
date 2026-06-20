@@ -39,11 +39,9 @@ class ANSCallbackHandler(BaseCallbackHandler):
         self.agent_id = agent_id
         self.parent_agent_id = parent_agent_id
         self.silent = silent
-        self._action_receipts: Dict[str, str] = {}
-        self._action_starts: Dict[str, float] = {}
+        self._pending: list[tuple[str, str, float]] = []  # (payload_hash, pre_id, start_time)
 
     def _pre(self, ph: str, summary: str) -> str:
-        self._action_starts[ph] = time.time()
         try:
             resp = self.client.sign_append(
                 agent_id=self.agent_id, phase="pre", action_type="agent.delegate",
@@ -56,10 +54,8 @@ class ANSCallbackHandler(BaseCallbackHandler):
             print(f"ans: pre-receipt error (non-fatal): {e}", file=sys.stderr)
             return ""
 
-    def _post(self, ph: str, summary: str, outcome: str, o_sum: str, pre_id: str) -> None:
+    def _post(self, ph: str, summary: str, outcome: str, o_sum: str, pre_id: str, duration_ms: int = 0) -> None:
         if not pre_id: return
-        start = self._action_starts.pop(ph, 0)
-        duration_ms = int((time.time() - start) * 1000) if start else 0
         try:
             self.client.sign_append(
                 agent_id=self.agent_id, phase="post", action_type="agent.delegate",
@@ -80,33 +76,38 @@ class ANSCallbackHandler(BaseCallbackHandler):
         }
         ph = hash_payload(payload)
         summary = f"Tool: {action.tool}"
+        now = time.time()
         pre_id = self._pre(ph, summary)
         if pre_id:
-            self._action_receipts[ph] = pre_id
+            self._pending.append((ph, pre_id, now))
 
-    def _pop_receipt(self) -> tuple:
-        if not self._action_receipts:
-            return ("", "")
-        ph = list(self._action_receipts.keys())[-1]
-        pre_id = self._action_receipts.pop(ph)
-        return (ph, pre_id)
+    def _pop_pending(self) -> tuple:
+        if not self._pending:
+            return ("", "", 0)
+        ph, pre_id, start = self._pending.pop(0)
+        return (ph, pre_id, start)
 
     def on_tool_end(self, output: str, observation_prefix: Optional[str] = None, **kwargs: Any) -> Any:
-        ph, pre_id = self._pop_receipt()
+        ph, pre_id, start = self._pop_pending()
+        duration_ms = int((time.time() - start) * 1000) if start else 0
         o_sum = output[:120] if output else "Completed"
-        self._post(ph, "Tool completed", "success", o_sum, pre_id)
+        self._post(ph, "Tool completed", "success", o_sum, pre_id, duration_ms)
 
     def on_tool_error(self, error: Exception, **kwargs: Any) -> Any:
-        ph, pre_id = self._pop_receipt()
+        ph, pre_id, start = self._pop_pending()
+        duration_ms = int((time.time() - start) * 1000) if start else 0
         o_sum = f"Error: {type(error).__name__}: {str(error)[:100]}"
-        self._post(ph, "Tool failed", "failure", o_sum, pre_id)
+        self._post(ph, "Tool failed", "failure", o_sum, pre_id, duration_ms)
 
     def on_agent_finish(self, finish: AgentFinish, **kwargs: Any) -> Any:
         payload = {"output": finish.return_values, "log": finish.log}
         ph = hash_payload(payload)
+        now = time.time()
         pre_id = self._pre(ph, "Agent finished")
         # Close any dangling pre-receipts with a neutral post receipt
-        for dangling_ph, dangling_pre_id in list(self._action_receipts.items()):
-            self._post(dangling_ph, "Tool (interrupted)", "failure", "Interrupted: agent finished", dangling_pre_id)
-            del self._action_receipts[dangling_ph]
-        self._post(ph, "Agent finished", "success", "Agent completed", pre_id)
+        for dangling_ph, dangling_pre_id, dangling_start in self._pending:
+            dur = int((time.time() - dangling_start) * 1000) if dangling_start else 0
+            self._post(dangling_ph, "Tool (interrupted)", "failure", "Interrupted: agent finished", dangling_pre_id, dur)
+        self._pending.clear()
+        dur = int((time.time() - now) * 1000)
+        self._post(ph, "Agent finished", "success", "Agent completed", pre_id, dur)

@@ -147,7 +147,9 @@ func (as *AuditStore) GetStats(uptimeSeconds int64) (*Stats, error) {
 	// Token burn rate: tokens in last 60s
 	var recentToks int64
 	cutoff := time.Now().UnixNano() - 60*1e9
-	as.db.QueryRow(`SELECT COALESCE(SUM(toks_est),0) FROM mcp_log WHERE timestamp_ns > ?`, cutoff).Scan(&recentToks)
+	if err := as.db.QueryRow(`SELECT COALESCE(SUM(toks_est),0) FROM mcp_log WHERE timestamp_ns > ?`, cutoff).Scan(&recentToks); err != nil {
+		recentToks = 0
+	}
 	if uptimeSeconds > 0 {
 		s.TokenBurnRate = float64(recentToks) / 60.0
 	}

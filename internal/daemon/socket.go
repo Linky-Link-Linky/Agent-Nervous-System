@@ -23,10 +23,9 @@ func SocketPath() string {
 // Listen creates a Unix socket listener. Removes stale socket; sets mode 0600.
 func Listen() (net.Listener, error) {
 	path := SocketPath()
-	if _, err := os.Stat(path); err == nil {
-		if err := os.Remove(path); err != nil {
-			return nil, fmt.Errorf("removing stale socket %s: %w", path, err)
-		}
+	// Remove any existing socket file (ignore ENOENT to avoid TOCTOU)
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("removing stale socket %s: %w", path, err)
 	}
 	l, err := net.Listen("unix", path)
 	if err != nil {

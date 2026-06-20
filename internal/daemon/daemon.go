@@ -215,6 +215,7 @@ func (d *Daemon) initSnapshotStore() error {
 func (d *Daemon) Run() error {
 	l, err := Listen()
 	if err != nil {
+		d.chain.Close()
 		return fmt.Errorf("starting listener: %w", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -226,7 +227,7 @@ func (d *Daemon) Run() error {
 	go func() {
 		<-sig
 		fmt.Fprintln(os.Stderr, "\nans: shutting down...")
-		cancel()
+		d.cancel()
 		l.Close()
 	}()
 
