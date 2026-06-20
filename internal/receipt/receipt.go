@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 )
 
@@ -111,6 +112,7 @@ type Receipt struct {
 	// cachedHash and cachedRaw are set by ComputeHash on first call.
 	cachedHash string
 	cachedRaw  []byte
+	mu         sync.Mutex
 }
 
 // signableFields mirrors Receipt minus ReceiptID and Signature to avoid circularity.
@@ -196,22 +198,28 @@ func (r *Receipt) SetReceiptID() error {
 // Called AFTER Sign() so the signature is included in the chain hash.
 // The result is cached on first call.
 func (r *Receipt) ComputeHash() (string, error) {
+	r.mu.Lock()
 	if r.cachedHash != "" {
+		r.mu.Unlock()
 		return r.cachedHash, nil
 	}
 	b, err := json.Marshal(r)
 	if err != nil {
+		r.mu.Unlock()
 		return "", err
 	}
 	r.cachedRaw = b
 	h := sha256.Sum256(b)
 	r.cachedHash = fmt.Sprintf("%x", h)
+	r.mu.Unlock()
 	return r.cachedHash, nil
 }
 
 // RawJSON returns the cached raw JSON from a prior ComputeHash call.
 // Returns nil if ComputeHash has not been called yet.
 func (r *Receipt) RawJSON() []byte {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	return r.cachedRaw
 }
 

@@ -36,7 +36,7 @@ func FuzzReceiptRoundtrip(f *testing.F) {
 			return
 		}
 		// Roundtrip: marshal the unmarshalled result
-		out, err := json.Marshal(r)
+		out, err := json.Marshal(&r)
 		if err != nil {
 			t.Fatalf("re-marshal failed: %v", err)
 		}

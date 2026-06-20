@@ -8,6 +8,7 @@ package chain
 
 import (
 	"encoding/json"
+	"log"
 	"sort"
 
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/receipt"
@@ -83,9 +84,11 @@ func (c *Chain) MergeChains(agentIDs []string) ([]*MergedReceipt, error) {
 					ActionType: string(receipt.ActionAgentDelegate),
 					Phase:      string(receipt.PhasePre),
 				})
-				if err == nil && len(allReceipts) > 0 {
-					before = append(before, allReceipts[0].ReceiptID)
-				}
+			if err == nil && len(allReceipts) > 0 {
+				before = append(before, allReceipts[0].ReceiptID)
+			} else if err != nil {
+				log.Printf("merge: cross-agent query for %s: %v", r.ParentAgentID, err)
+			}
 			}
 		}
 		deps[r.ReceiptID] = before

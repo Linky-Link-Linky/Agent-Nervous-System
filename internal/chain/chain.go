@@ -227,7 +227,9 @@ func Open(path string) (*Chain, error) {
 		return nil, fmt.Errorf("applying anchor schema: %w", err)
 	}
 	// Migration: add merkle_tree column to anchors for pre-existing databases
-	db.Exec(`ALTER TABLE anchors ADD COLUMN merkle_tree TEXT NOT NULL DEFAULT ''`)
+	if _, err := db.Exec(`ALTER TABLE anchors ADD COLUMN merkle_tree TEXT NOT NULL DEFAULT ''`); err != nil {
+		// Column may already exist on upgraded databases — continue regardless
+	}
 	// Apply snapshot schema (for time-travel state restore)
 	if _, err := db.Exec(snapshotSchema); err != nil {
 		db.Close()
