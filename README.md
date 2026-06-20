@@ -70,67 +70,169 @@ Agents call tools, read databases, write files, execute code, delegate to sub-ag
 
 ## Quick Start — 30 Seconds
 
-### 1. Get the binary
+> **I just want to see it work.** Follow these steps in order. If you get stuck, see [Something wrong?](#something-wrong) at the bottom.
+
+### What you need before you start
+
+- **A computer** (Windows, Mac, or Linux)
+- **A terminal** (Command Prompt, PowerShell, or Terminal) — open it now
+- **Go 1.22 or newer** installed ([download here](https://go.dev/dl/) if you don't have it)
+- **Git** installed ([download here](https://git-scm.com/downloads) if you don't have it)
+
+To check if you have Go, type this in your terminal and press Enter:
 
 ```bash
-# Option A: Clone and build from source (recommended — works everywhere)
+go version
+```
+
+You should see something like `go version go1.22.3 windows/amd64`. If you get an error instead, install Go from [go.dev/dl](https://go.dev/dl/) and try again.
+
+---
+
+### Step 1: Download the program
+
+Copy and paste this into your terminal:
+
+```bash
 git clone https://github.com/Linky-Link-Linky/Agent-Nervous-System.git
+```
+
+**What this does:** Downloads the entire ANS project to your computer into a folder called `Agent-Nervous-System`.
+
+Then type:
+
+```bash
 cd Agent-Nervous-System
-make build               # produces bin/ans (Go 1.21+, MIT license)
-sudo make install         # copies to /usr/local/bin/ans
-
-# Option B: Direct download (once GitHub releases are published)
-curl -fsSL https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.sh | sh
 ```
 
-### 2. Start the daemon and register an agent
+**What this does:** Moves you into that folder.
+
+Then type:
 
 ```bash
-ans start                        # Launch the daemon (background)
-ans register --name my-agent --version 1.0.0   # Create your first agent
-ans chain                        # See the receipt chain
-ans verify --chain               # Verify chain integrity
+make build
 ```
 
-### 3. (Optional) Install the Python SDK
+**What this does:** Compiles the code into a single program file called `ans` (inside the `bin/` folder). This takes about 30 seconds.
+
+**Check your work:** You should see the file `bin/ans` (or `bin/ans.exe` on Windows) exists. Type `ls bin/` (Mac/Linux) or `dir bin\` (Windows) to check.
+
+---
+
+### Step 2: Install the program
 
 ```bash
-pip install sdks/python/         # Install Python SDK from the cloned repo
+sudo make install
 ```
+(Linux/Mac) — This copies `ans` to `/usr/local/bin/` so you can type `ans` from anywhere.
+
+On Windows, instead of `sudo make install`, do this:
+
+```bash
+copy bin\ans.exe %USERPROFILE%\ans.exe
+set PATH=%USERPROFILE%;%PATH%
+```
+
+**Check your work:** Type `ans version` — you should see `ans version ...` printed.
+
+---
+
+### Step 3: Start the daemon (the background brain)
+
+```bash
+ans start
+```
+
+**What this does:** Starts a background program (called a "daemon") that will record everything your AI agents do. It keeps running until you turn it off.
+
+**Expected output:**
+```
+ANS daemon started (pid: 12345)
+```
+
+**Check your work:** Type `ans status` — you should see it say "running" with some numbers.
+
+---
+
+### Step 4: Create your first agent
+
+```bash
+ans register --name my-agent --version 1.0.0
+```
+
+**What this does:** Creates a digital identity for your AI agent. It generates a secret key pair (like a digital signature) so every action your agent takes can be proven to be from your agent.
+
+**Expected output:** You'll see an agent ID that looks like `ans_3vQb7uL6x9`. This is your agent's unique ID.
+
+---
+
+### Step 5: See the receipt chain
+
+```bash
+ans chain
+```
+
+**What this does:** Shows you the list of everything that has been recorded. Right now it's just the registration you just did.
+
+You should see one receipt saying you registered your agent.
+
+---
+
+### Step 6: Verify the chain hasn't been tampered with
+
+```bash
+ans verify --chain
+```
+
+**What this does:** Checks every single receipt to make sure nobody tampered with the data. It checks the digital signatures and the hash links between receipts.
+
+**Expected output:**
+```
+✓ Chain integrity verified — 1 receipts checked (all hashes, all signatures)
+```
+
+If you ever see `✗ CHAIN BROKEN`, something has been tampered with — don't trust the data.
+
+---
+
+### Step 7: (Optional) Use it from Python
+
+If you use Python, install the ANS Python SDK:
+
+```bash
+pip install sdks/python/
+```
+
+**What this does:** Installs the `ans` Python package so you can add ANS tracing to your Python AI agents.
+
+Here's the absolute minimum Python code to try it:
 
 ```python
-from ans import ANSClient, trace
+from ans import ANSClient
 
-# Create a client (sets the agent for all operations)
-client = ANSClient(agent_id="ans_3vQb7uL6x9")
+client = ANSClient()
 
-# Option A: Decorate any function
-@trace(action_type="file.write", agent_id="ans_3vQb7uL6x9")
-def deploy_config(path, content):
-    with open(path, "w") as f:
-        f.write(content)
-
-# Run your agent — every call is now cryptographically recorded
-deploy_config("/etc/nginx/nginx.conf", "new config")
-
-# Option B: Use the context manager for inline tracing
-with client.trace("http.post"):
-    import requests
-    requests.post("https://api.example.com/data", json={"key": "value"})
+# This records a receipt for everything inside the "with" block
+with client.trace("hello_world"):
+    print("Hello from my traced agent!")
 ```
 
-The TypeScript SDK works the same way:
+Save that as `test.py` and run it with `python test.py`. Then type `ans chain` again — you'll see a new receipt appear.
 
-```bash
-cd sdks/typescript && npm install
-```
+---
 
-```typescript
-import { wrap } from "ans-sdk";
+### Something wrong?
 
-const tracedFn = wrap(myFunction, { agentId: "ans_3vQb7uL6x9", actionType: "file.write" });
-await tracedFn(path, content);
-```
+| Problem | Fix |
+|---------|-----|
+| `git: command not found` | Install Git from [git-scm.com](https://git-scm.com/downloads) |
+| `go: command not found` | Install Go from [go.dev/dl](https://go.dev/dl/) |
+| `make: command not found` | On Windows: install [GnuWin32 Make](https://gnuwin32.sourceforge.net/packages/make.htm). On Mac: `xcode-select --install`. On Linux: `sudo apt install make` (Ubuntu) or `sudo dnf install make` (Fedora) |
+| `ans: command not found` | You skipped Step 2. Run `sudo make install` (or the Windows copy command) |
+| Daemon won't start | Check if another instance is running: `ans stop`, then try `ans start` again |
+| `ans chain` shows nothing | Make sure you registered an agent first (Step 4) |
+| Permission denied | You need admin rights. On Linux/Mac: add `sudo` before the command. On Windows: run your terminal as Administrator |
+| Something else | [Open a GitHub issue](https://github.com/Linky-Link-Linky/Agent-Nervous-System/issues) |
 
 ---
 
