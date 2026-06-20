@@ -28,13 +28,7 @@ var (
 	validPhases    = map[string]bool{"pre": true, "post": true}
 	validOutcomes  = map[string]bool{"success": true, "failure": true, "partial": true}
 	validPolicies  = map[string]bool{"allow": true, "deny": true, "allow_with_conditions": true}
-	validActionTypes = map[string]bool{
-		"file.read": true, "file.write": true, "file.delete": true,
-		"http.get": true, "http.post": true, "http.other": true,
-		"shell.exec": true, "db.read": true, "db.write": true,
-		"agent.delegate": true, "memory.read": true, "memory.write": true,
-		"custom": true,
-	}
+	reActionType = regexp.MustCompile(`^[a-z][a-z0-9_.-]{1,63}$`)
 )
 
 // validateReceipt checks a receipt against the ANS JSON Schema constraints.
@@ -52,7 +46,7 @@ func validateReceipt(r *receipt.Receipt) error {
 	if !validPhases[string(r.Phase)] {
 		return fmt.Errorf("phase: must be \"pre\" or \"post\", got %q", r.Phase)
 	}
-	if !validActionTypes[string(r.ActionType)] {
+	if !reActionType.MatchString(string(r.ActionType)) {
 		return fmt.Errorf("action_type: invalid, got %q", r.ActionType)
 	}
 	if r.ChainIndex < 1 {

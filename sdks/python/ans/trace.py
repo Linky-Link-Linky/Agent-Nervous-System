@@ -5,7 +5,8 @@ import sys
 import time
 from typing import Callable, Optional
 
-from .client import ANSError, get_client, hash_payload, _default_agent_id
+from . import client as _client_mod
+from .client import ANSError, configure, get_client, hash_payload
 
 
 def trace(
@@ -40,7 +41,7 @@ def trace(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            aid = agent_id or _default_agent_id
+            aid = agent_id or _client_mod._default_agent_id
             if aid is None:
                 raise ANSError("ANS not configured. Call ans.configure(agent_id='...') first.")
             if agent_id is not None:

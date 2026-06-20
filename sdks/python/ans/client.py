@@ -84,7 +84,7 @@ class ANSClient:
                 socket_path = "/tmp/ans.sock"
         self.socket_path = socket_path
         self._sock: Optional[socket.socket] = None
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         if agent_id is not None:
             configure(agent_id=agent_id, socket_path=socket_path)
 
@@ -470,10 +470,11 @@ class _TraceContext:
 
     def __enter__(self) -> Dict[str, Any]:
         """Send pre-action receipt."""
+        ph = self.kwargs.pop("payload_hash", None) or hash_payload("")
         self.pre_receipt = self.client.sign_append(
             phase="pre",
             action_type=self.action_type,
-            payload_hash="",
+            payload_hash=ph,
             auto_snapshot=self.auto_snapshot,
             **self.kwargs,
         )
@@ -482,10 +483,11 @@ class _TraceContext:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Send post-action receipt."""
         outcome = "failure" if exc_type is not None else "success"
+        ph = self.kwargs.pop("payload_hash", None) or hash_payload(str(exc_val) if exc_val else "success")
         self.client.sign_append(
             phase="post",
             action_type=self.action_type,
-            payload_hash="",
+            payload_hash=ph,
             pre_receipt_id=self.pre_receipt.get("receipt_id", ""),
             outcome=outcome,
             **self.kwargs,

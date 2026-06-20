@@ -121,8 +121,12 @@ func (h *Handler) handleSignAppend(conn net.Conn, body []byte) {
 		writeOK(conn, MsgError, ErrorResp{Message: "bad request: " + err.Error()})
 		return
 	}
-	if req.AgentID == "" || req.ActionType == "" || req.PayloadHash == "" {
-		writeOK(conn, MsgError, ErrorResp{Message: "agent_id, action_type, payload_hash required"})
+	if req.AgentID == "" || req.ActionType == "" {
+		writeOK(conn, MsgError, ErrorResp{Message: "agent_id, action_type required"})
+		return
+	}
+	if req.Phase == "post" && req.PayloadHash == "" && req.PreReceiptID == "" {
+		writeOK(conn, MsgError, ErrorResp{Message: "payload_hash or pre_receipt_id required for post phase"})
 		return
 	}
 	if len(req.AgentID) > 128 || len(req.ActionType) > 64 || len(req.PayloadHash) > 128 ||
