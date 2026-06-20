@@ -33,7 +33,7 @@ jobs:
             -trimpath \
             -o "ans_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.ext || '' }}" \
             ./cmd/ans
-      - uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7803305oc0eca5 # v4
+      - uses: actions/upload-artifact@v4
         with:
           name: ans_${{ matrix.goos }}_${{ matrix.goarch }}
           path: ans_${{ matrix.goos }}_${{ matrix.goarch }}${{ matrix.ext || '' }}
