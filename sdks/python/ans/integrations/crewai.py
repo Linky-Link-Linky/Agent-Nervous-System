@@ -27,6 +27,7 @@ class ANSTool(BaseTool):
     Subclass this instead of BaseTool to automatically get ANS receipt generation.
 
     Example:
+        import os
         from ans.integrations.crewai import ANSTool
         from pydantic import BaseModel
 
@@ -40,9 +41,10 @@ class ANSTool(BaseTool):
             args_schema: Type[BaseModel] = WriteFileArgs
 
             def _run(self, path: str, content: str) -> str:
-                with open(path, 'w') as f:
+                safe_path = os.path.realpath(path)
+                with open(safe_path, 'w') as f:
                     f.write(content)
-                return f"Wrote {len(content)} bytes to {path}"
+                return f"Wrote {len(content)} bytes to {safe_path}"
     """
 
     ans_client: Optional[ANSClient] = Field(default=None, exclude=True)

@@ -33,6 +33,7 @@ def ans_mcp_middleware(client: ANSClient, agent_id: str, parent_agent_id: str = 
         Decorator function to wrap tool handlers
 
     Example:
+        import os
         from mcp.server import Server
         from ans.integrations.mcp import ans_mcp_middleware
 
@@ -44,7 +45,8 @@ def ans_mcp_middleware(client: ANSClient, agent_id: str, parent_agent_id: str = 
         @server.tool()
         @ans_wrap
         def read_file(path: str) -> str:
-            with open(path) as f:
+            safe_path = os.path.realpath(path)
+            with open(safe_path) as f:
                 return f.read()
     """
 

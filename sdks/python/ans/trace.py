@@ -32,9 +32,12 @@ def trace(
         silent: If True (default), ANSError is logged but never raised.
 
     Example:
+        import os
+
         @ans.trace(action_type="file.write")
         def write_file(path: str, content: str):
-            with open(path, 'w') as f:
+            safe_path = os.path.realpath(path)
+            with open(safe_path, 'w') as f:
                 f.write(content)
     """
 

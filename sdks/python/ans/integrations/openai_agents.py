@@ -32,6 +32,7 @@ def ans_tool_plugin(
         silent: If True (default), ANSError is logged but never raised.
 
     Example:
+        import os
         from ans.integrations.openai_agents import ans_tool_plugin
         from openai import OpenAI
 
@@ -40,7 +41,8 @@ def ans_tool_plugin(
 
         @plugin
         def write_file(path: str, content: str):
-            with open(path, 'w') as f:
+            safe_path = os.path.realpath(path)
+            with open(safe_path, 'w') as f:
                 f.write(content)
             return f"Wrote {len(content)} bytes"
 
