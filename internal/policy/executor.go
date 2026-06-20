@@ -57,10 +57,12 @@ func (ex *Executor) Evaluate(facts FactProvider) *EvalResult {
 }
 
 // MakeFacts builds a FactProvider from receipt/action data and context.
+// PII scanning is deferred until the first access to a PII fact path,
+// so it is skipped entirely when no policy rule checks PII.
 func MakeFacts(agentID, actionType, phase, payloadSummary, parentAgentID string, context map[string]interface{}) FactProvider {
-	// Scan PII once on the full text and cache the result.
-	// This guarantees all PII facts are consistent — they all reflect the same scan.
-	pii := DetectPII(payloadSummary + agentID + actionType)
+	lazyPII := sync.OnceValue(func() PIIClassification {
+		return DetectPII(payloadSummary + agentID + actionType)
+	})
 	return func(factPath string) (interface{}, bool) {
 		switch factPath {
 		case "agent_id":
@@ -74,19 +76,19 @@ func MakeFacts(agentID, actionType, phase, payloadSummary, parentAgentID string,
 		case "parent_agent_id":
 			return parentAgentID, true
 		case "context.contains_pii":
-			return pii.HasPII, true
+			return lazyPII().HasPII, true
 		case "context.has_email":
-			return pii.HasEmail, true
+			return lazyPII().HasEmail, true
 		case "context.has_ssn":
-			return pii.HasSSN, true
+			return lazyPII().HasSSN, true
 		case "context.has_credit_card":
-			return pii.HasCreditCard, true
+			return lazyPII().HasCreditCard, true
 		case "context.has_ip":
-			return pii.HasIP, true
+			return lazyPII().HasIP, true
 		case "context.has_phone":
-			return pii.HasPhone, true
+			return lazyPII().HasPhone, true
 		case "context.has_api_key":
-			return pii.HasAPIKey, true
+			return lazyPII().HasAPIKey, true
 		default:
 			// Check custom context keys
 			if context != nil {

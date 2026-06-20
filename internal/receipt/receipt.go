@@ -137,24 +137,46 @@ type signableFields struct {
 // SignableBytes returns deterministic canonical JSON of all fields except
 // ReceiptID and Signature. This is what gets hashed and signed.
 func (r *Receipt) SignableBytes() ([]byte, error) {
-	return canonicalJSON(signableFields{
-		Phase:              r.Phase,
-		AgentID:            r.AgentID,
-		ParentAgentID:      r.ParentAgentID,
-		PrevReceiptHash:    r.PrevReceiptHash,
-		ChainIndex:         r.ChainIndex,
-		ActionType:         r.ActionType,
-		PayloadHash:        r.PayloadHash,
-		PayloadSummary:     r.PayloadSummary,
-		PolicyDecision:     r.PolicyDecision,
-		AuthorizingContext: r.AuthorizingContext,
-		SnapshotID:         r.SnapshotID,
-		Outcome:            r.Outcome,
-		OutcomeSummary:     r.OutcomeSummary,
-		DurationMS:         r.DurationMS,
-		PreReceiptID:       r.PreReceiptID,
-		TimestampNS:        r.TimestampNS,
-	})
+	// Build the map directly with alphabetically sorted keys to avoid
+	// the expensive json.Marshal → json.Unmarshal → sortedJSON cycle.
+	m := map[string]interface{}{
+		"action_type":       string(r.ActionType),
+		"agent_id":          r.AgentID,
+		"chain_index":       r.ChainIndex,
+		"payload_hash":      r.PayloadHash,
+		"phase":             string(r.Phase),
+		"prev_receipt_hash": r.PrevReceiptHash,
+		"timestamp_ns":      r.TimestampNS,
+	}
+	// Optional fields — only include when non-zero (mirrors omitempty)
+	if r.AuthorizingContext != "" {
+		m["authorizing_context"] = r.AuthorizingContext
+	}
+	if r.DurationMS != 0 {
+		m["duration_ms"] = r.DurationMS
+	}
+	if r.Outcome != "" {
+		m["outcome"] = string(r.Outcome)
+	}
+	if r.OutcomeSummary != "" {
+		m["outcome_summary"] = r.OutcomeSummary
+	}
+	if r.ParentAgentID != "" {
+		m["parent_agent_id"] = r.ParentAgentID
+	}
+	if r.PayloadSummary != "" {
+		m["payload_summary"] = r.PayloadSummary
+	}
+	if r.PolicyDecision != "" {
+		m["policy_decision"] = string(r.PolicyDecision)
+	}
+	if r.PreReceiptID != "" {
+		m["pre_receipt_id"] = r.PreReceiptID
+	}
+	if r.SnapshotID != "" {
+		m["snapshot_id"] = r.SnapshotID
+	}
+	return sortedJSON(m)
 }
 
 // SetReceiptID hashes SignableBytes and sets r.ReceiptID.

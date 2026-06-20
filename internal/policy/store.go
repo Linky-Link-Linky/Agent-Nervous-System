@@ -8,10 +8,19 @@ import (
 	"time"
 )
 
+const policyCacheTTL = 10 * int64(time.Second) // refresh policies from DB every 10s
+
+type cachedPolicies struct {
+	policies  []*Policy
+	expiresAt int64 // unix nanos
+}
+
 // Store persists policies in a SQLite database.
 type Store struct {
-	mu sync.RWMutex
-	db *sql.DB
+	mu       sync.RWMutex
+	db       *sql.DB
+	cache    *cachedPolicies
+	dirty    bool // set true on Insert/Delete, forces immediate refresh
 }
 
 // NewStore creates a policy store backed by the given DB.
@@ -40,6 +49,7 @@ CREATE TABLE IF NOT EXISTS policies (
 func (s *Store) Insert(p *Policy) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.dirty = true
 	condJSON, err := json.Marshal(p.Conditions)
 	if err != nil {
 		return fmt.Errorf("marshaling conditions: %w", err)
@@ -74,6 +84,11 @@ func (s *Store) Get(id string) (*Policy, error) {
 func (s *Store) List() ([]*Policy, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	return s.listNoLock()
+}
+
+// listNoLock is the internal implementation of List; caller must hold at least a read lock.
+func (s *Store) listNoLock() ([]*Policy, error) {
 	rows, err := s.db.Query(
 		`SELECT id, name, description, enabled, priority, severity, conditions, action, created_ns, updated_ns FROM policies ORDER BY priority DESC, name ASC`,
 	)
@@ -93,8 +108,24 @@ func (s *Store) List() ([]*Policy, error) {
 }
 
 // ListEnabled returns all enabled policies, ordered by priority descending.
+// Results are cached for policyCacheTTL to avoid a SQL query on every append.
 func (s *Store) ListEnabled() ([]*Policy, error) {
-	all, err := s.List()
+	s.mu.RLock()
+	if s.cache != nil && !s.dirty && time.Now().UnixNano() < s.cache.expiresAt {
+		c := s.cache
+		s.mu.RUnlock()
+		return c.policies, nil
+	}
+	s.mu.RUnlock()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// Double-check after acquiring write lock
+	if s.cache != nil && !s.dirty && time.Now().UnixNano() < s.cache.expiresAt {
+		return s.cache.policies, nil
+	}
+	s.dirty = false
+	all, err := s.listNoLock()
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +135,10 @@ func (s *Store) ListEnabled() ([]*Policy, error) {
 			enabled = append(enabled, p)
 		}
 	}
+	s.cache = &cachedPolicies{
+		policies:  enabled,
+		expiresAt: time.Now().UnixNano() + policyCacheTTL,
+	}
 	return enabled, nil
 }
 
@@ -111,6 +146,7 @@ func (s *Store) ListEnabled() ([]*Policy, error) {
 func (s *Store) Delete(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.dirty = true
 	_, err := s.db.Exec(`DELETE FROM policies WHERE id=?`, id)
 	return err
 }

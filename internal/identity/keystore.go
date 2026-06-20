@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sync"
+	"time"
 
 	"golang.org/x/crypto/hkdf"
 )
@@ -45,11 +46,20 @@ type KeystoreEntry struct {
 	PrivateKey []byte `json:"private_key"`
 }
 
+// cacheTTL is how long a decrypted agent stays in memory before re-read from disk.
+const cacheTTL = 5 * 60_000_000_000 // 5 minutes in nanoseconds
+
+type cachedAgent struct {
+	agent     *Agent
+	expiresAt int64 // unix nanos
+}
+
 // Keystore manages encrypted agent keys at a local directory.
 type Keystore struct {
 	mu     sync.Mutex
 	dir    string
 	encKey []byte // 32-byte AES-256-GCM key
+	cache  map[string]*cachedAgent
 }
 
 // NewKeystore opens (or creates) a keystore at dir.
@@ -69,7 +79,7 @@ func NewKeystore(dir string) (*Keystore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("deriving machine key: %w", err)
 	}
-	return &Keystore{dir: dir, encKey: encKey}, nil
+	return &Keystore{dir: dir, encKey: encKey, cache: make(map[string]*cachedAgent)}, nil
 }
 
 // Save encrypts and writes an agent keypair to disk.
@@ -79,6 +89,7 @@ func (ks *Keystore) Save(a *Agent) error {
 	if err := sanitizeAgentID(a.ID); err != nil {
 		return fmt.Errorf("invalid agent ID: %w", err)
 	}
+	delete(ks.cache, a.ID) // invalidate cache
 	entry := KeystoreEntry{
 		AgentID:    a.ID,
 		Name:       a.Name,
@@ -99,11 +110,16 @@ func (ks *Keystore) Save(a *Agent) error {
 }
 
 // Load decrypts and returns the agent for the given ID.
+// Results are cached in memory for cacheTTL to avoid repeated disk I/O + AES decrypt.
 func (ks *Keystore) Load(agentID string) (*Agent, error) {
 	ks.mu.Lock()
 	defer ks.mu.Unlock()
 	if err := sanitizeAgentID(agentID); err != nil {
 		return nil, fmt.Errorf("invalid agent ID: %w", err)
+	}
+	// Check in-memory cache first
+	if c, ok := ks.cache[agentID]; ok && time.Now().UnixNano() < c.expiresAt {
+		return c.agent, nil
 	}
 	ciphertext, err := os.ReadFile(filepath.Join(ks.dir, agentID+".key"))
 	if err != nil {
@@ -120,11 +136,14 @@ func (ks *Keystore) Load(agentID string) (*Agent, error) {
 	if err := json.Unmarshal(plaintext, &entry); err != nil {
 		return nil, fmt.Errorf("unmarshalling entry: %w", err)
 	}
-	return NewFromKeys(
+	agent := NewFromKeys(
 		entry.Name, entry.Version, entry.Owner,
 		ed25519.PublicKey(entry.PublicKey),
 		ed25519.PrivateKey(entry.PrivateKey),
-	), nil
+	)
+	// Cache for subsequent lookups
+	ks.cache[agentID] = &cachedAgent{agent: agent, expiresAt: time.Now().UnixNano() + cacheTTL}
+	return agent, nil
 }
 
 // List returns all agent IDs in the keystore directory.
@@ -154,6 +173,7 @@ func (ks *Keystore) Delete(agentID string) error {
 	if err := sanitizeAgentID(agentID); err != nil {
 		return fmt.Errorf("invalid agent ID: %w", err)
 	}
+	delete(ks.cache, agentID) // invalidate cache
 	return os.Remove(filepath.Join(ks.dir, agentID+".key"))
 }
 
