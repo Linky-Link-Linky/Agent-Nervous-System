@@ -121,25 +121,27 @@ func (fs *FileSystemSnap) Capture(agentID string, chainIndex uint64, storePath s
 	if walkErr != nil {
 		return nil, fmt.Errorf("walking workspace: %w", walkErr)
 	}
-	if err := tw.Close(); err != nil {
+	if err = tw.Close(); err != nil {
 		return nil, fmt.Errorf("closing tar writer: %w", err)
 	}
-	if err := gzw.Close(); err != nil {
+	if err = gzw.Close(); err != nil {
 		return nil, fmt.Errorf("closing gzip writer: %w", err)
 	}
 
 	// Hash the entire archive, not just file bodies
-	fh, err := os.Open(storePath)
+	var hashFH *os.File
+	hashFH, err = os.Open(storePath)
 	if err != nil {
 		return nil, fmt.Errorf("opening archive for hashing: %w", err)
 	}
-	defer fh.Close()
+	defer hashFH.Close()
 	archiveHash := sha256.New()
-	if _, err := io.Copy(archiveHash, fh); err != nil {
+	if _, err = io.Copy(archiveHash, hashFH); err != nil {
 		return nil, fmt.Errorf("hashing archive: %w", err)
 	}
 
-	stat, err := os.Stat(storePath)
+	var stat os.FileInfo
+	stat, err = os.Stat(storePath)
 	if err != nil {
 		return nil, fmt.Errorf("stating snapshot: %w", err)
 	}
@@ -179,15 +181,15 @@ func (fs *FileSystemSnap) Restore(snap *Snapshot) error {
 	defer f.Close()
 
 	// Verify archive hash before extraction
-	if snap.Hash != "" {
-		h := sha256.New()
-		if _, err := io.Copy(h, f); err != nil {
-			return fmt.Errorf("hashing snapshot: %w", err)
-		}
-		if hex.EncodeToString(h.Sum(nil)) != snap.Hash {
-			return fmt.Errorf("snapshot hash mismatch (expected %s)", snap.Hash)
-		}
-		if _, err := f.Seek(0, 0); err != nil {
+		if snap.Hash != "" {
+			h := sha256.New()
+			if _, err = io.Copy(h, f); err != nil {
+				return fmt.Errorf("hashing snapshot: %w", err)
+			}
+			if hex.EncodeToString(h.Sum(nil)) != snap.Hash {
+				return fmt.Errorf("snapshot hash mismatch (expected %s)", snap.Hash)
+			}
+			if _, err = f.Seek(0, 0); err != nil {
 			return fmt.Errorf("rewinding snapshot: %w", err)
 		}
 	}
@@ -317,7 +319,8 @@ func (fs *FileSystemSnap) Diff(baseSnapPath string) (added, modified, deleted []
 	defer gzr.Close()
 	tr := tar.NewReader(gzr)
 	for {
-		hdr, err := tr.Next()
+		var hdr *tar.Header
+		hdr, err = tr.Next()
 		if err == io.EOF { break }
 		if err != nil { return nil, nil, nil, fmt.Errorf("reading tar: %w", err) }
 		if hdr.Typeflag == tar.TypeReg {
@@ -358,7 +361,7 @@ func (fs *FileSystemSnap) CaptureDiff(agentID string, chainIndex uint64, storePa
 		return nil, nil, fmt.Errorf("no changes since base snapshot")
 	}
 
-	if err := os.MkdirAll(filepath.Dir(storePath), 0700); err != nil {
+	if err = os.MkdirAll(filepath.Dir(storePath), 0700); err != nil {
 		return nil, nil, fmt.Errorf("creating snapshot dir: %w", err)
 	}
 	fh, err := os.Create(storePath)
@@ -379,10 +382,10 @@ func (fs *FileSystemSnap) CaptureDiff(agentID string, chainIndex uint64, storePa
 			Mode:     0644,
 			ModTime:  time.Now(),
 		}
-		if err := tw.WriteHeader(delHeader); err != nil {
+		if err = tw.WriteHeader(delHeader); err != nil {
 			return nil, nil, fmt.Errorf("writing deletion manifest: %w", err)
 		}
-		if _, err := tw.Write([]byte(strings.Join(deleted, "\n"))); err != nil {
+		if _, err = tw.Write([]byte(strings.Join(deleted, "\n"))); err != nil {
 			return nil, nil, fmt.Errorf("writing deletion entries: %w", err)
 		}
 	}
@@ -390,33 +393,36 @@ func (fs *FileSystemSnap) CaptureDiff(agentID string, chainIndex uint64, storePa
 	allChanged := append(added, modified...)
 	for _, rel := range allChanged {
 		abs := filepath.Join(fs.WorkspaceRoot, filepath.FromSlash(rel))
-		info, err := os.Stat(abs)
+		var info os.FileInfo
+		info, err = os.Stat(abs)
 		if err != nil {
 			return nil, nil, fmt.Errorf("stating %s: %w", rel, err)
 		}
-		header, err := tar.FileInfoHeader(info, "")
+		var header *tar.Header
+		header, err = tar.FileInfoHeader(info, "")
 		if err != nil {
 			return nil, nil, fmt.Errorf("creating tar header for %s: %w", rel, err)
 		}
 		header.Name = filepath.ToSlash(rel)
-		if err := tw.WriteHeader(header); err != nil {
+		if err = tw.WriteHeader(header); err != nil {
 			return nil, nil, fmt.Errorf("writing tar header for %s: %w", rel, err)
 		}
-		f, err := os.Open(abs)
+		var fOpen *os.File
+		fOpen, err = os.Open(abs)
 		if err != nil {
 			return nil, nil, fmt.Errorf("opening %s: %w", rel, err)
 		}
-		if _, err := io.Copy(tw, f); err != nil {
-			f.Close()
+		if _, err = io.Copy(tw, fOpen); err != nil {
+			fOpen.Close()
 			return nil, nil, fmt.Errorf("writing %s: %w", rel, err)
 		}
-		f.Close()
+		fOpen.Close()
 	}
 
-	if err := tw.Close(); err != nil {
+	if err = tw.Close(); err != nil {
 		return nil, nil, fmt.Errorf("closing tar: %w", err)
 	}
-	if err := gzw.Close(); err != nil {
+	if err = gzw.Close(); err != nil {
 		return nil, nil, fmt.Errorf("closing gzip: %w", err)
 	}
 
@@ -427,7 +433,7 @@ func (fs *FileSystemSnap) CaptureDiff(agentID string, chainIndex uint64, storePa
 		return nil, nil, fmt.Errorf("opening archive for hash: %w", err)
 	}
 	defer rh.Close()
-	if _, err := io.Copy(archiveHash, rh); err != nil {
+	if _, err = io.Copy(archiveHash, rh); err != nil {
 		return nil, nil, fmt.Errorf("hashing archive: %w", err)
 	}
 
@@ -498,21 +504,22 @@ func (fs *FileSystemSnap) SnapshotPaths(paths []string, storePath string) (*Snap
 			return nil, fmt.Errorf("path %q is outside workspace root", p)
 		}
 		// Skip excluded paths
-		rel, err := filepath.Rel(fs.WorkspaceRoot, abs)
+		var rel string
+		rel, err = filepath.Rel(fs.WorkspaceRoot, abs)
 		if err != nil {
 			return nil, fmt.Errorf("computing relative path for %s: %w", p, err)
 		}
 		if fs.isExcluded(filepath.ToSlash(rel)) {
 			continue
 		}
-		if err := fs.addToTar(abs, tw, io.Discard); err != nil {
+		if err = fs.addToTar(abs, tw, io.Discard); err != nil {
 			return nil, fmt.Errorf("adding %s to tar: %w", p, err)
 		}
 	}
-	if err := tw.Close(); err != nil {
+	if err = tw.Close(); err != nil {
 		return nil, fmt.Errorf("closing tar: %w", err)
 	}
-	if err := gzw.Close(); err != nil {
+	if err = gzw.Close(); err != nil {
 		return nil, fmt.Errorf("closing gzip: %w", err)
 	}
 
@@ -555,12 +562,13 @@ func (fs *FileSystemSnap) addToTar(absPath string, tw *tar.Writer, hash io.Write
 			return nil
 		}
 		if info.IsDir() {
-			header, err := tar.FileInfoHeader(info, "")
+			var hdr *tar.Header
+			hdr, err = tar.FileInfoHeader(info, "")
 			if err != nil {
 				return err
 			}
-			header.Name = rel + "/"
-			return tw.WriteHeader(header)
+			hdr.Name = rel + "/"
+			return tw.WriteHeader(hdr)
 		}
 		if !info.Mode().IsRegular() {
 			return nil
@@ -576,7 +584,7 @@ func (fs *FileSystemSnap) addToTar(absPath string, tw *tar.Writer, hash io.Write
 			return err
 		}
 		header.Name = rel
-		if err := tw.WriteHeader(header); err != nil {
+		if err = tw.WriteHeader(header); err != nil {
 			return err
 		}
 		fh, err := os.Open(path)

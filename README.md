@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🧠 ANS — Agent Nervous System
+# ANS — Agent Nervous System
 
 ### `git log` for your AI Agents
 
@@ -53,18 +53,18 @@ Agents call tools, read databases, write files, execute code, delegate to sub-ag
 
 | Capability | What It Gives You |
 |-----------|------------------|
-| **🔗 Receipt Chain** | Pre/post Ed25519-signed receipts, hash-linked, SQLite-backed. Tamper-evident audit trail. |
-| **⏱ Time-Travel** | Full workspace snapshots before every action. Restore any point in time with one command. |
-| **👥 Multi-Agent Merge** | Causal topological sort across concurrent sub-agents. No more interleaved log nightmares. |
-| **🆔 Identity & Keys** | Ed25519 keypairs, AES-256-GCM encrypted, HKDF-SHA256 derived. Keys never leave the daemon. |
-| **📦 Merkle Pruning** | Compact old receipts into Merkle anchors. Infinite scale without losing cryptographic integrity. |
-| **📤 Export** | JSONL, CSV, TXT, PDF, Parquet. Compliance-ready reports. |
-| **🔔 Real-Time Streaming** | NDJSON stdout or CloudEvents 1.0 webhooks. Wire into any pipeline. |
-| **🧩 12+ SDK Integrations** | Python, TypeScript, Anthropic, OpenAI, Gemini, LangChain, CrewAI, PydanticAI, MCP, and more. |
-| **🔌 Policy-as-Code** | JSON-declarative, 10 operators, all/any/none compounds. PII detection. NociceptionError (0x1F). |
-| **🔄 Compensation** | Register reverse commands. Undo actions with dry-run. No shell injection. |
-| **🔐 Ephemeral Identity** | Zero-trust broker. 60s TTL, single-use, auto-revoke. Vault, AWS, GCP, Azure, OAuth2. |
-| **🛡 MCP Security Proxy** | TCP proxy with rate limiting, token budgets, PII redaction, injection detection, policy enforcement, tool approval, audit. |
+| **Receipt Chain** | Pre/post Ed25519-signed receipts, hash-linked, SQLite-backed. Tamper-evident audit trail. |
+| **Time-Travel** | Full workspace snapshots before every action. Restore any point in time with one command. |
+| **Multi-Agent Merge** | Causal topological sort across concurrent sub-agents. No more interleaved log nightmares. |
+| **Identity & Keys** | Ed25519 keypairs, AES-256-GCM encrypted, HKDF-SHA256 derived. Keys never leave the daemon. |
+| **Merkle Pruning** | Compact old receipts into Merkle anchors. Infinite scale without losing cryptographic integrity. |
+| **Export** | JSONL, CSV, TXT, PDF, Parquet. Compliance-ready reports. |
+| **Real-Time Streaming** | NDJSON stdout or CloudEvents 1.0 webhooks. Wire into any pipeline. |
+| **12+ SDK Integrations** | Python, TypeScript, Anthropic, OpenAI, Gemini, LangChain, CrewAI, PydanticAI, MCP, and more. |
+| **Policy-as-Code** | JSON-declarative, 10 operators, all/any/none compounds. PII detection. NociceptionError (0x1F). |
+| **Compensation** | Register reverse commands. Undo actions with dry-run. No shell injection. |
+| **Ephemeral Identity** | Zero-trust broker. 60s TTL, single-use, auto-revoke. Vault, AWS, GCP, Azure, OAuth2. |
+| **MCP Security Proxy** | TCP proxy with rate limiting, token budgets, PII redaction, injection detection, policy enforcement, tool approval, audit. |
 
 ---
 
@@ -143,7 +143,7 @@ Run it, then `ans chain` again — a new receipt appears.
 
 ## Features
 
-### 🔗 1. The Receipt Chain
+### 1. The Receipt Chain
 
 Every tool call produces **two linked, Ed25519-signed receipts** — one *before* the action (recording intent, policy check, and a workspace snapshot) and one *after* (recording outcome, duration, and the link back to the pre-receipt).
 
@@ -220,7 +220,7 @@ $ ans verify --chain
 
 ---
 
-### ⏱ 2. Time-Travel — Full State Rewind
+### 2. Time-Travel — Full State Rewind
 
 Every pre-action receipt captures a **full workspace snapshot** as a compressed, hashed, and cryptographically bound archive. You can restore the workspace to any point in time with a single command.
 
@@ -270,7 +270,7 @@ $ ans time-travel 42
 
 ---
 
-### 👥 3. Multi-Agent Merge
+### 3. Multi-Agent Merge
 
 When multiple agents (or sub-agents) produce interleaved receipts, `MergeChains` reconstructs a single causal timeline:
 
@@ -287,7 +287,7 @@ No more reconstructing "what happened" from interleaved log files. The chain cap
 
 ---
 
-### 🆔 4. Identity & Key Management
+### 4. Identity & Key Management
 
 | Property | Implementation |
 |----------|---------------|
@@ -313,7 +313,7 @@ Receipt a1b2c3d4e5f6a7b8
 
 ---
 
-### 📦 5. Pruning — Infinite Scale
+### 5. Pruning — Infinite Scale
 
 The chain grows forever. When it gets large, compact old receipts into a **Merkle anchor**:
 
@@ -327,7 +327,7 @@ After pruning, `ans verify --chain` still works — it accepts the Merkle anchor
 
 ---
 
-### 📤 6. Export & Compliance
+### 6. Export & Compliance
 
 ```bash
 # Human-readable audit report
@@ -342,7 +342,7 @@ ans export --format parquet   # Parquet — import into Spark, DuckDB, BigQuery
 
 ---
 
-### 🔔 7. Real-Time Streaming
+### 7. Real-Time Streaming
 
 ```bash
 # Stream every new receipt as NDJSON to stdout (capture with > file)
@@ -396,7 +396,7 @@ Every integration supports a `silent` parameter — daemon restarts mid-trace **
 
 ---
 
-### � 9. Ephemeral Identity Provisioning (Zero-Trust Broker)
+### 9. Ephemeral Identity Provisioning (Zero-Trust Broker)
 
 **The Problem:** Agents execute commands under the developer's master API keys or admin terminal permissions. This violates every rule of enterprise access management and creates a **massive insider threat surface**.
 
@@ -612,7 +612,7 @@ This is **zero-trust** for AI agents.
 
 ---
 
-### 🔌 10. Policy-as-Code — Biological Immune System
+### 10. Policy-as-Code — Biological Immune System
 
 ANS policies act as a **biological immune system** for your agents — they evaluate every action at runtime and can deny, warn, or audit tool calls before they execute.
 
@@ -712,7 +712,7 @@ ans policy remove no-pii-on-open-models
 
 ---
 
-### 🔌 11. Compensation — Undo for Agents
+### 11. Compensation — Undo for Agents
 
 Every action can have a **compensating action** registered — a reversal command that undoes the action's effects. This is how you implement rollback at the application level.
 
@@ -733,7 +733,7 @@ Compensations execute in **reverse order** (newest first). Each command is valid
 
 ---
 
-### 🔌 12. MCP Security Proxy
+### 12. MCP Security Proxy
 
 The MCP Security Proxy is a **transparent TCP-level proxy** that sits between MCP clients and servers, providing real-time traffic auditing, prompt injection detection, context window optimization, PII redaction, rate limiting, agent-scoped token budgets, per-method policy enforcement, and tool-use approval workflows — all backed by the same policy engine used for receipt access control.
 
@@ -887,7 +887,7 @@ Each proxied message is logged to the `mcp_log` table with direction, method, to
 
 ---
 
-### 🔌 13. MCP Integration (SDK)
+### 13. MCP Integration (SDK)
 
 ANS works as **MCP middleware** (separate from the MCP Security Proxy above), wrapping any MCP tool with automatic pre/post tracing and optional state snapshots:
 

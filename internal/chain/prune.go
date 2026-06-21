@@ -77,14 +77,14 @@ func (c *Chain) Prune(upToIndex uint64) (*Anchor, error) {
 	var raws [][]byte
 	for rows.Next() {
 		var raw string
-		if err := rows.Scan(&raw); err != nil {
+		if err = rows.Scan(&raw); err != nil {
 			rows.Close()
 			return nil, err
 		}
 		raws = append(raws, []byte(raw))
 	}
 	rows.Close()
-	if err := rows.Err(); err != nil {
+	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 	if len(raws) == 0 {
@@ -98,7 +98,7 @@ func (c *Chain) Prune(upToIndex uint64) (*Anchor, error) {
 
 	// Determine the actual minimum index being pruned (not always 1 on subsequent prunes)
 	var fromIndex uint64
-	if err := c.db.QueryRow(
+	if err = c.db.QueryRow(
 		`SELECT MIN(chain_index) FROM receipts WHERE chain_index <= ?`, upToIndex,
 	).Scan(&fromIndex); err != nil || fromIndex == 0 {
 		fromIndex = 1 // fallback: receipts start at 1

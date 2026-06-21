@@ -310,10 +310,10 @@ func (c *Chain) AppendNew(
 	}
 	// Stamp with HLC timestamp for monotonicity across the chain
 	r.TimestampNS = c.hlc.Now()
-	if err := signer.Sign(r); err != nil {
+	if err = signer.Sign(r); err != nil {
 		return nil, fmt.Errorf("signing: %w", err)
 	}
-	if err := validateReceipt(r); err != nil {
+	if err = validateReceipt(r); err != nil {
 		return nil, fmt.Errorf("schema validation: %w", err)
 	}
 	hash, err := r.ComputeHash()

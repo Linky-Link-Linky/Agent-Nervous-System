@@ -346,7 +346,8 @@ func cmdVerify(args []string) {
 		if ks, err := identity.NewKeystore(""); err == nil {
 			ids, _ := ks.List()
 			for _, id := range ids {
-				if ag, err := ks.Load(id); err == nil {
+				ag, loadErr := ks.Load(id)
+				if loadErr == nil {
 					pubkeys[ag.ID] = ag.PublicKey
 				}
 			}

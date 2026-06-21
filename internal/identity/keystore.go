@@ -206,17 +206,17 @@ func machineSecret() ([]byte, error) {
 		return nil, fmt.Errorf("getting home dir: %w", err)
 	}
 	secretPath := filepath.Join(home, ".ans", "machine.secret")
-	if data, err := os.ReadFile(secretPath); err == nil {
+	if data, readErr := os.ReadFile(secretPath); readErr == nil {
 		if len(data) == 32 {
 			return data, nil
 		}
 		return nil, fmt.Errorf("machine.secret exists but has wrong length (%d bytes, expected 32); rename or delete it manually", len(data))
 	}
 	secret := make([]byte, 32)
-	if _, err := rand.Read(secret); err != nil {
+	if _, err = rand.Read(secret); err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(secretPath), 0700); err != nil {
+	if err = os.MkdirAll(filepath.Dir(secretPath), 0700); err != nil {
 		return nil, err
 	}
 	// Use O_EXCL to atomically create the file, preventing TOCTOU race with
