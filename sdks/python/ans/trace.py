@@ -6,7 +6,7 @@ import time
 from typing import Callable, Optional
 
 from . import client as _client_mod
-from .client import ANSError, configure, get_client, hash_payload
+from .client import ANSError, get_client, hash_payload
 
 
 def trace(

@@ -35,7 +35,9 @@ export function wrap<T extends (...args: unknown[]) => unknown>(
   if (isAsync) {
     return (async (...args: unknown[]) => {
       const actionType: ActionType = opts.actionType || "custom" as ActionType;
-      const payload = { function: fn.name || "anonymous", args: JSON.stringify(args).slice(0, 200) };
+      let argsStr: string;
+      try { argsStr = JSON.stringify(args).slice(0, 200); } catch { argsStr = "[unserializable]"; }
+      const payload = { function: fn.name || "anonymous", args: argsStr };
       const summary = `${fn.name || "anonymous"}(${args.map(a => String(a).slice(0, 30)).join(", ")})`.slice(0, 80);
 
       let preId = "";
@@ -89,7 +91,9 @@ export function wrap<T extends (...args: unknown[]) => unknown>(
   } else {
     return ((...args: unknown[]) => {
       const actionType: ActionType = opts.actionType || "custom" as ActionType;
-      const payload = { function: fn.name || "anonymous", args: JSON.stringify(args).slice(0, 200) };
+      let argsStr: string;
+      try { argsStr = JSON.stringify(args).slice(0, 200); } catch { argsStr = "[unserializable]"; }
+      const payload = { function: fn.name || "anonymous", args: argsStr };
       const summary = `${fn.name || "anonymous"}(${args.map(a => String(a).slice(0, 30)).join(", ")})`.slice(0, 80);
 
       // Fire-and-forget pre receipt (cannot await in sync context)
@@ -136,6 +140,8 @@ export function wrap<T extends (...args: unknown[]) => unknown>(
             if (!silent) throw e;
             console.error(`ans: post-receipt error: ${e instanceof ANSError ? e.message : e}`);
           });
+        }).catch(e => {
+          if (!silent) throw e;
         });
       }
     }) as T;

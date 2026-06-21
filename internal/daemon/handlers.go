@@ -26,10 +26,7 @@ import (
 )
 
 // execCommand is a variable so tests can mock it.
-var (
-	execCommand        = exec.Command
-	execCommandContext = exec.CommandContext
-)
+var execCommandContext = exec.CommandContext
 
 // safeCmdPattern allows only alphanumeric, spaces, common path chars, and shell-safe punctuation.
 var safeCmdPattern = regexp.MustCompile(`^[a-zA-Z0-9_\-\/\\\.\:\@\,\=\+\~\%\s]+$`)

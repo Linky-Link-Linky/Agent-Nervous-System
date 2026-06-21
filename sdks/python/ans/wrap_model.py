@@ -50,7 +50,7 @@ SPDX-License-Identifier: MIT
 """
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from .client import ANSClient
 
@@ -120,7 +120,6 @@ def wrap_model(
 
     if provider == "ollama":
         from .integrations.ollama import ANSOllamaClient, ANSAsyncOllamaClient
-        modname = type(model).__module__
         if "AsyncClient" in type(model).__name__:
             return ANSAsyncOllamaClient(
                 model, ans_client, agent_id=agent_id,

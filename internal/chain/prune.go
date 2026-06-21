@@ -223,7 +223,7 @@ func VerifyInclusion(anchor *Anchor, rawReceipt []byte) error {
 
 		// Verify against stored parent
 		if parentHash != anchor.MerkleTree[level+1][idx/2] {
-			return fmt.Errorf("Merkle proof failed at level %d: computed=%s stored=%s", level, parentHash, anchor.MerkleTree[level+1][idx/2])
+			return fmt.Errorf("merkle proof failed at level %d: computed=%s stored=%s", level, parentHash, anchor.MerkleTree[level+1][idx/2])
 		}
 		idx = idx / 2
 	}

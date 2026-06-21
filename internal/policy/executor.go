@@ -7,7 +7,6 @@ import (
 
 // Executor evaluates actions against all active policies.
 type Executor struct {
-	mu     sync.RWMutex
 	store  *Store
 	engine Engine
 }

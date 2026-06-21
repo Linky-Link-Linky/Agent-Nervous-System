@@ -29,6 +29,14 @@ function socketPath(): string {
   return xdg ? path.join(xdg,"ans.sock") : "/tmp/ans.sock";
 }
 
+function tryParse<T>(s: string): T {
+  try { return JSON.parse(s) as T; } catch { throw new ANSError("Invalid JSON response from daemon"); }
+}
+
+function tryParseMessage(s: string): string {
+  try { return (JSON.parse(s) as {message:string}).message ?? "unknown error"; } catch { return "unknown error"; }
+}
+
 function hashPayload(p: Record<string,unknown>): string {
   const sorted = Object.fromEntries(Object.entries(p).sort(([a],[b])=>a.localeCompare(b)));
   return crypto.createHash("sha256").update(JSON.stringify(sorted)).digest("hex");
@@ -65,8 +73,8 @@ function call<T>(sockPath: string, msgType: number, body: unknown, timeoutMs = 1
       const b = buf.subarray(5, 4 + size);
       conn.destroy();
       if (done) return; done = true;
-      if (t === MSG.ERROR) reject(new ANSError((JSON.parse(b.toString()) as {message:string}).message ?? "unknown error"));
-      else resolve(JSON.parse(b.toString()) as T);
+      if (t === MSG.ERROR) reject(new ANSError(tryParseMessage(b.toString())));
+      else resolve(tryParse<T>(b.toString()));
     });
   });
 }

@@ -188,7 +188,7 @@ class ANSClient:
                 try:
                     err = json.loads(resp_body)
                 except json.JSONDecodeError:
-                    raise ANSError(f"Daemon error (malformed response)")
+                    raise ANSError("Daemon error (malformed response)")
                 raise ANSError(f"Daemon error: {err.get('message', 'unknown')}")
             if msg_type != resp_type:
                 raise ANSError(f"Unexpected response type: {msg_type} (expected {resp_type})")

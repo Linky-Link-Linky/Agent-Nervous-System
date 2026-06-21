@@ -115,27 +115,6 @@ type Receipt struct {
 	mu         sync.Mutex
 }
 
-// signableFields mirrors Receipt minus ReceiptID and Signature to avoid circularity.
-// This exact struct is what is both hashed (→ ReceiptID) and signed (Ed25519).
-type signableFields struct {
-	Phase              Phase          `json:"phase"`
-	AgentID            string         `json:"agent_id"`
-	ParentAgentID      string         `json:"parent_agent_id,omitempty"`
-	PrevReceiptHash    string         `json:"prev_receipt_hash"`
-	ChainIndex         uint64         `json:"chain_index"`
-	ActionType         ActionType     `json:"action_type"`
-	PayloadHash        string         `json:"payload_hash"`
-	PayloadSummary     string         `json:"payload_summary,omitempty"`
-	PolicyDecision     PolicyDecision `json:"policy_decision,omitempty"`
-	AuthorizingContext string         `json:"authorizing_context,omitempty"`
-	SnapshotID         string         `json:"snapshot_id,omitempty"`
-	Outcome            Outcome        `json:"outcome,omitempty"`
-	OutcomeSummary     string         `json:"outcome_summary,omitempty"`
-	DurationMS         int64          `json:"duration_ms,omitempty"`
-	PreReceiptID       string         `json:"pre_receipt_id,omitempty"`
-	TimestampNS        int64          `json:"timestamp_ns"`
-}
-
 // SignableBytes returns deterministic canonical JSON of all fields except
 // ReceiptID and Signature. This is what gets hashed and signed.
 func (r *Receipt) SignableBytes() ([]byte, error) {

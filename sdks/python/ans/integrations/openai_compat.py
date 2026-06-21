@@ -35,7 +35,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import time
-from typing import Any, Optional
+from typing import Any
 
 from ans.client import ANSClient, ANSError, hash_payload
 

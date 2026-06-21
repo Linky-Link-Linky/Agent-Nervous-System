@@ -3,7 +3,7 @@
 import asyncio
 import sys
 import time
-from typing import Any, Optional
+from typing import Any
 
 try:
     from ollama import Client, AsyncClient

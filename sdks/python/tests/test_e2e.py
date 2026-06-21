@@ -8,7 +8,6 @@ Tests the full time-travel workflow:
   5. Restore the snapshot via time-travel
   6. Verify the file is back to original content
 """
-import json
 import os
 import sys
 import tempfile
@@ -142,7 +141,7 @@ def main():
         )
         check("snapshot-list", "SNAPSHOT ID" in result.stdout, "")
         if "SNAPSHOT ID" in result.stdout:
-            print(f"   Snapshots listed OK")
+            print("   Snapshots listed OK")
 
         # Time-travel to index 1 (the first receipt should have a snapshot)
         # This may fail if no snapshot exists at that index
