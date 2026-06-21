@@ -11,7 +11,7 @@
  *   const ansClient = new ANSGenAIClient(base, { agentId: "ans_xyz123" });
  *   const response = await ansClient.models.generateContent({ ... });
  *
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 import { Client, ANSError, ActionType } from "../client";
 

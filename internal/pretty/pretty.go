@@ -1,7 +1,7 @@
 // Package pretty renders the ANS receipt chain as a colored tree.
 // "git log for AI agents."
 // Uses only stdlib ANSI codes. Respects NO_COLOR env var (https://no-color.org/).
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package pretty
 
 import (

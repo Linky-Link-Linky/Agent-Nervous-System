@@ -15,7 +15,7 @@
 // the previous maximum is incremented by 1. This guarantees strict
 // monotonicity without a separate logical-counter encoding.
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package clock
 
 import (

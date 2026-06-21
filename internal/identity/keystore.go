@@ -1,7 +1,7 @@
 // Package identity — keystore persists agent keypairs encrypted with AES-256-GCM.
 // Encryption key is derived from a machine-local secret via HKDF-SHA256.
 // Security note: protecting ~/.ans/machine.secret protects all stored keys.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package identity
 
 import (

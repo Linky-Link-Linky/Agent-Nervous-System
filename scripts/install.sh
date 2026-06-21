@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # ANS install script
 # Usage: curl -fsSL https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.sh | sh
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 set -eu
 
 REPO="Linky-Link-Linky/Agent-Nervous-System"

@@ -1,5 +1,5 @@
 // Package daemon — lifecycle management. Owns chain, keystore, and socket listener.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package daemon
 
 import (

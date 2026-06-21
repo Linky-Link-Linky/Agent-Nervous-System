@@ -14,7 +14,7 @@
  *   const app = graph.compile();
  *   const result = await app.invoke({ input: "hello" });
  *
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 import { Client, ANSError, ActionType } from "../client";
 import { wrap } from "../wrap";

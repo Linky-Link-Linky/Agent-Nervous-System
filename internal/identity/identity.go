@@ -1,7 +1,7 @@
 // Package identity manages cryptographic agent identities for ANS.
 // Each agent gets a unique Ed25519 keypair. The public key hash is the agent ID.
 // Base58 encoding is implemented inline — no external dependency.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package identity
 
 import (

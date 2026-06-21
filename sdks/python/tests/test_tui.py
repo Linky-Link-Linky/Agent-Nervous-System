@@ -3,7 +3,7 @@ ANS Textual TUI tests.
 
 Uses Textual's built-in async test runner (app.run_test()).
 
-SPDX-License-Identifier: MIT
+SPDX-License-Identifier: Apache-2.0
 """
 from __future__ import annotations
 

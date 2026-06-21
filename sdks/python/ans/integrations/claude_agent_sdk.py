@@ -19,7 +19,7 @@ Install:
     pip install claude-agent-sdk          # Anthropic's Claude Agent SDK
     pip install "ans-sdk"                 # ANS Python SDK
 
-SPDX-License-Identifier: MIT
+SPDX-License-Identifier: Apache-2.0
 """
 from __future__ import annotations
 

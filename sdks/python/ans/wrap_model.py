@@ -46,7 +46,7 @@ With Google Gemini:
     wrapped = wrap_model(raw, client, agent_id="ans_xyz")
     resp = wrapped.generate_content("Hello")
 
-SPDX-License-Identifier: MIT
+SPDX-License-Identifier: Apache-2.0
 """
 from __future__ import annotations
 

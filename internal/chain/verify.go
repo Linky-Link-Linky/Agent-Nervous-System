@@ -1,5 +1,5 @@
 // Package chain — verify.go: full chain integrity verification and single-receipt check.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package chain
 
 import (

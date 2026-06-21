@@ -1,5 +1,5 @@
 """ANS Textual TUI — interactive terminal UI for the Agent Nervous System.
-SPDX-License-Identifier: MIT"""
+SPDX-License-Identifier: Apache-2.0"""
 from __future__ import annotations
 
 import os

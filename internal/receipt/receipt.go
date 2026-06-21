@@ -1,5 +1,5 @@
 // Package receipt defines the ANS receipt schema and canonical serialization.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package receipt
 
 import (

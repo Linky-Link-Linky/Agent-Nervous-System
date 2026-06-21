@@ -1,7 +1,7 @@
 /**
  * ANS TypeScript SDK — function wrapper.
  * Wraps any sync or async function with pre/post receipts.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 import { Client, ANSError, ActionType, SignAppendResp } from "./client";
 

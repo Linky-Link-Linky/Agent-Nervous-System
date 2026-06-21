@@ -10,7 +10,7 @@
 // - Azure AD (ephemeral app registrations)
 // - Generic OAuth2/OIDC (client credentials flow with TTL)
 //
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package broker
 
 import (

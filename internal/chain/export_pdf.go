@@ -17,7 +17,7 @@
 // macOS Preview, Evince, and all major browsers' built-in PDF viewers.
 // The AI IDE should manually open the generated PDF in at least one viewer
 // after running TestExportPDF to visually confirm correct rendering.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package chain
 
 import (

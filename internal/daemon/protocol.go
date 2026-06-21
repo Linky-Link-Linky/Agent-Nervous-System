@@ -2,7 +2,7 @@
 //
 // Frame layout: [4-byte big-endian uint32 payload_size][1-byte msg_type][N-byte JSON body]
 // Size is validated BEFORE allocation to prevent memory exhaustion attacks.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package daemon
 
 import (

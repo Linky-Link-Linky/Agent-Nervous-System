@@ -2,7 +2,7 @@
 
 // Package daemon — Unix domain socket implementation for Linux and macOS.
 // The Windows named pipe implementation is in socket_windows.go.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package daemon
 
 import (

@@ -13,7 +13,7 @@
 // A Merkle proof for any individual pruned receipt can be computed from its
 // original raw JSON — callers who retained the raw receipt JSON can prove
 // inclusion against the stored root.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package chain
 
 import (

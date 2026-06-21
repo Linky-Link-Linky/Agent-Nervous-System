@@ -10,7 +10,7 @@
  *   const client = new ANSOllamaClient(ollama, { agentId: "ans_xyz123" });
  *   const response = await client.chat({ model: "llama3", messages: [...] });
  *
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 import { Client, ANSError, ActionType } from "../client";
 

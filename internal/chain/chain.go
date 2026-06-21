@@ -1,6 +1,6 @@
 // Package chain manages the ANS append-only receipt chain stored in SQLite.
 // Uses modernc.org/sqlite (pure Go, no CGO) for static linking.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package chain
 
 import (

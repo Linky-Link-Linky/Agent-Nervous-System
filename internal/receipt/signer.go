@@ -1,5 +1,5 @@
 // Package receipt — signer handles Ed25519 signing and verification.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package receipt
 
 import (

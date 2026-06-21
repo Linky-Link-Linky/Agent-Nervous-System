@@ -1,5 +1,5 @@
 // Package snapshot — file system state capture and restore using tar archives.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package snapshot
 
 import (

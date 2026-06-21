@@ -3,7 +3,7 @@
 // interleaves their receipts in causal order: receipts linked by AgentDelegateAction
 // (pre-receipt → post-receipt → delegated sub-agent receipts) are sorted causally;
 // otherwise receipts are sorted by TimestampNS ascending.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package chain
 
 import (

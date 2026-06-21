@@ -14,7 +14,7 @@
  *     }, toolName, args);
  *   };
  *
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 import { Client, ANSError, ActionType } from "../client";
 

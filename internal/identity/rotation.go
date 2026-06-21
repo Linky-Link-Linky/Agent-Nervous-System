@@ -2,7 +2,7 @@
 // Rotating a key generates a new keypair, signs a rotation record with BOTH the old
 // and new private keys, and saves the new keypair. The rotation record is returned so
 // the caller can append it to the chain as a CustomAction receipt.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package identity
 
 import (

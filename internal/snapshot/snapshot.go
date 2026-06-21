@@ -1,5 +1,5 @@
 // Package snapshot provides state capture and restore for agent time-travel.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package snapshot
 
 import (

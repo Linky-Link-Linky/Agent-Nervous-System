@@ -1,7 +1,7 @@
 /**
  * ANS TypeScript SDK — Unix socket / named pipe client (Node.js).
  * One connection per call. Zero external dependencies.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: Apache-2.0
  */
 import * as crypto from "crypto";
 import * as net from "net";

@@ -9,7 +9,7 @@
 **Cryptographic audit trails · State rollback · Policy-as-Code · Zero-trust identity · MCP security**
 
 [![Go 1.22+](https://img.shields.io/badge/go-1.22%2B-00ADD8?logo=go)](https://go.dev/)
-[![MIT License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Apache 2.0 License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 [![Python SDK](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python)](sdks/python/)
 [![TypeScript SDK](https://img.shields.io/badge/typescript-5.0%2B-3178C6?logo=typescript)](sdks/typescript/)
 [![Go Reference](https://img.shields.io/badge/go-reference-00ADD8?logo=go)](https://pkg.go.dev/github.com/Linky-Link-Linky/Agent-Nervous-System)
@@ -1109,7 +1109,7 @@ Other
 | **Merkle prune** | ✓ Infinite scale | N/A | Usually |
 | **Offline-first** | ✓ Fully offline | ✓ | ✗ (SaaS) |
 | **Zero dependencies** | ✓ One Go binary | ✓ | ✗ |
-| **Open source** | ✓ MIT | Usually | ✗ |
+| **Open source** | ✓ Apache 2.0 | Usually | ✗ |
 | **Framework integrations** | 12+ | None | Vendor-specific |
 | **MCP support** | ✓ Middleware | ✗ | ✗ |
 | **MCP Security Proxy** | ✓ Full safety pipeline | ✗ | ✗ |
@@ -1129,7 +1129,7 @@ Other
 
 Audit trails should be as fundamental as `git`. You don't pay a vendor per commit.
 
-- **Your chain. Your keys. Your binary.** Open source, MIT licensed.
+- **Your chain. Your keys. Your binary.** Open source, Apache 2.0 licensed.
 - **Zero vendors** between you and the truth.
 - **Works fully offline** — no internet connection required.
 - **No API keys, no monthly bill, no data leaving your machine.**
@@ -1160,6 +1160,6 @@ ans export --format pdf      # export a compliance-ready audit report
 
 ## License
 
-MIT — ship it.
+Apache 2.0 — ship it.
 
 **Questions?** Open an issue at [github.com/Linky-Link-Linky/Agent-Nervous-System/issues](https://github.com/Linky-Link-Linky/Agent-Nervous-System/issues)

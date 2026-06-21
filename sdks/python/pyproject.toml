@@ -7,7 +7,7 @@ name = "ans-sdk"
 version = "0.1.0"
 description = "Agent Nervous System — Python SDK"
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
 dependencies = ["pywin32>=306; platform_system == 'Windows'"]
 

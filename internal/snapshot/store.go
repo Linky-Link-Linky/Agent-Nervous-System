@@ -1,5 +1,5 @@
 // Package snapshot — SQLite-backed metadata store for agent state snapshots.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package snapshot
 
 import (

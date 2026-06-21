@@ -2,7 +2,7 @@
 
 // Package daemon — Windows named pipe implementation.
 // Uses github.com/Microsoft/go-winio. Only compiled on Windows.
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 package daemon
 
 import (
