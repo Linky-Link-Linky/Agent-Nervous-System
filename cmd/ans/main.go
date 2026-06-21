@@ -239,7 +239,7 @@ func cmdStart() {
 	}
 
 	if conn, err := daemon.Dial(); err == nil {
-		conn.Close()
+		_ = conn.Close()
 		fmt.Fprintln(os.Stderr, "ans: daemon is already running")
 		return
 	}
@@ -264,7 +264,7 @@ func cmdStart() {
 	for i := 0; i < 30; i++ {
 		time.Sleep(100 * time.Millisecond)
 		if conn, err := daemon.Dial(); err == nil {
-			conn.Close()
+			_ = conn.Close()
 			fmt.Fprintf(os.Stderr, "ans: daemon started (socket: %s)\n", daemon.SocketPath())
 			return
 		}
@@ -300,7 +300,7 @@ func cmdStop() {
 			_ = os.Remove(pidFilePath())
 			os.Exit(1)
 		} else {
-			conn.Close()
+			_ = conn.Close()
 		}
 	}
 	if runtime.GOOS == "windows" {
@@ -512,7 +512,7 @@ func cmdExport(args []string) {
 		if err != nil {
 			fatalf("resolving output path: %v", err)
 		}
-		f, err := os.Create(abs)
+		f, err := os.Create(abs) // #nosec G304
 		if err != nil {
 			fatalf("creating output file: %v", err)
 		}
@@ -643,7 +643,7 @@ func cmdTimeTravel(args []string) {
 	// Auto-detect: 64-char hex = receipt hash, else numeric index
 	var targetIdx uint64
 	if len(targetStr) == 64 && isHex(targetStr) {
-		daemon.WriteJSON(conn, daemon.MsgVerify, daemon.VerifyReq{ReceiptID: targetStr})
+		_ = daemon.WriteJSON(conn, daemon.MsgVerify, daemon.VerifyReq{ReceiptID: targetStr})
 		var verifyResp daemon.VerifyResp
 		if _, err := daemon.ReadJSON(conn, &verifyResp); err != nil {
 			fatalf("resolving receipt %q: %v", targetStr, err)
@@ -704,7 +704,7 @@ func cmdSnapshotDiff(args []string) {
 
 	conn := mustDial()
 	defer conn.Close()
-	daemon.WriteJSON(conn, daemon.MsgSnapshotDiff, daemon.SnapshotDiffReq{
+	_ = daemon.WriteJSON(conn, daemon.MsgSnapshotDiff, daemon.SnapshotDiffReq{
 		AgentID: *agentID, SnapType: string(snapshot.SnapFileSystem),
 	})
 	var resp daemon.SnapshotDiffResp
@@ -820,7 +820,7 @@ func cmdCompensate(args []string) {
 
 	conn := mustDial()
 	defer conn.Close()
-	daemon.WriteJSON(conn, daemon.MsgCompensate, daemon.CompensateReq{
+	_ = daemon.WriteJSON(conn, daemon.MsgCompensate, daemon.CompensateReq{
 		TargetIndex: targetIdx, DryRun: *dryRun,
 	})
 	var resp daemon.CompensateResp
@@ -897,11 +897,11 @@ func cmdPolicyAdd(args []string) {
 func cmdPolicyList(args []string) {
 	fs := flag.NewFlagSet("policy list", flag.ExitOnError)
 	enabledOnly := fs.Bool("enabled", false, "Show only enabled policies")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 
 	conn := mustDial()
 	defer conn.Close()
-	daemon.WriteJSON(conn, daemon.MsgPolicyList, daemon.PolicyListReq{EnabledOnly: *enabledOnly})
+	_ = daemon.WriteJSON(conn, daemon.MsgPolicyList, daemon.PolicyListReq{EnabledOnly: *enabledOnly})
 	var resp daemon.PolicyListResp
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("policy list failed: %v", err)
@@ -937,7 +937,7 @@ func cmdPolicyRemove(args []string) {
 	}
 	conn := mustDial()
 	defer conn.Close()
-	daemon.WriteJSON(conn, daemon.MsgPolicyDelete, daemon.PolicyDeleteReq{ID: args[0]})
+	_ = daemon.WriteJSON(conn, daemon.MsgPolicyDelete, daemon.PolicyDeleteReq{ID: args[0]})
 	var resp daemon.PolicyDeleteResp
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("policy delete failed: %v", err)
@@ -954,14 +954,14 @@ func cmdPolicyEval(args []string) {
 	fs := flag.NewFlagSet("policy eval", flag.ExitOnError)
 	actionType := fs.String("action-type", "", "Action type (required)")
 	payloadSummary := fs.String("payload-summary", "", "Payload summary text")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if *actionType == "" {
 		fmt.Fprintln(os.Stderr, "Usage: ans policy eval --action-type <type> [--payload-summary <text>]")
 		os.Exit(1)
 	}
 	conn := mustDial()
 	defer conn.Close()
-	daemon.WriteJSON(conn, daemon.MsgPolicyEvaluate, daemon.PolicyEvaluateReq{
+	_ = daemon.WriteJSON(conn, daemon.MsgPolicyEvaluate, daemon.PolicyEvaluateReq{
 		AgentID: "_cli", ActionType: *actionType, Phase: "pre",
 		PayloadSummary: *payloadSummary,
 	})
@@ -1003,7 +1003,7 @@ func cmdTokenRequest(args []string) {
 	resource := fs.String("resource", "", "Resource ARN or path (required)")
 	action := fs.String("action", "read", "Action (read, write, etc.)")
 	ttl := fs.Int("ttl", 60, "Token TTL in seconds (max 60)")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if *resource == "" {
 		fmt.Fprintln(os.Stderr, "Usage: ans token request --resource <arn> [--action read] [--ttl 60]")
 		os.Exit(1)
@@ -1011,7 +1011,7 @@ func cmdTokenRequest(args []string) {
 
 	conn := mustDial()
 	defer conn.Close()
-	daemon.WriteJSON(conn, daemon.MsgTokenRequest, daemon.TokenRequestReq{
+	_ = daemon.WriteJSON(conn, daemon.MsgTokenRequest, daemon.TokenRequestReq{
 		AgentID: "_cli", Resource: *resource, Action: *action, TTLSeconds: *ttl, SingleUse: true,
 	})
 	var resp daemon.TokenRequestResp
@@ -1035,7 +1035,7 @@ func cmdTokenRequest(args []string) {
 func cmdTokenList(args []string) {
 	conn := mustDial()
 	defer conn.Close()
-	daemon.WriteJSON(conn, daemon.MsgTokenList, daemon.TokenListReq{})
+	_ = daemon.WriteJSON(conn, daemon.MsgTokenList, daemon.TokenListReq{})
 	var resp daemon.TokenListResp
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("token list failed: %v", err)
@@ -1067,7 +1067,7 @@ func cmdTokenRevoke(args []string) {
 	}
 	conn := mustDial()
 	defer conn.Close()
-	daemon.WriteJSON(conn, daemon.MsgTokenRevoke, daemon.TokenRevokeReq{TokenID: args[0]})
+	_ = daemon.WriteJSON(conn, daemon.MsgTokenRevoke, daemon.TokenRevokeReq{TokenID: args[0]})
 	var resp daemon.TokenRevokeResp
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("token revoke failed: %v", err)
@@ -1088,7 +1088,7 @@ func cmdMCPStart(args []string) {
 	rateLimit := fs.Int("rate-limit", 60, "Requests per minute per client IP (0 = unlimited)")
 	tokenBudget := fs.Int("token-budget", 50000, "Estimated tokens per minute per agent (0 = unlimited)")
 	piiRedact := fs.Bool("pii-redact", true, "Enable PII redaction on server responses")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	if *target == "" {
 		fmt.Fprintln(os.Stderr, "Usage: ans mcp start --listen :8080 --target http://mcp-server:8080")
 		os.Exit(1)
@@ -1098,7 +1098,7 @@ func cmdMCPStart(args []string) {
 	rl := *rateLimit
 	tb := *tokenBudget
 	pr := *piiRedact
-	daemon.WriteJSON(conn, daemon.MsgMCPStart, daemon.MCPStartReq{
+	_ = daemon.WriteJSON(conn, daemon.MsgMCPStart, daemon.MCPStartReq{
 		ListenAddr:    *listen,
 		TargetURL:     *target,
 		SafetyDisable: *safetyDisable,
@@ -1121,7 +1121,7 @@ func cmdMCPStart(args []string) {
 func cmdMCPStop() {
 	conn := mustDial()
 	defer conn.Close()
-	daemon.WriteJSON(conn, daemon.MsgMCPStop, daemon.MCPStopReq{})
+	_ = daemon.WriteJSON(conn, daemon.MsgMCPStop, daemon.MCPStopReq{})
 	var resp daemon.MCPStopResp
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("mcp stop failed: %v", err)
@@ -1137,7 +1137,7 @@ func cmdMCPStop() {
 func cmdMCPStatus() {
 	conn := mustDial()
 	defer conn.Close()
-	daemon.WriteJSON(conn, daemon.MsgMCPStatus, nil)
+	_ = daemon.WriteJSON(conn, daemon.MsgMCPStatus, nil)
 	var resp daemon.MCPStatusResp
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("mcp status failed: %v", err)
@@ -1161,10 +1161,10 @@ func cmdMCPLog(args []string) {
 	limit := fs.Int("n", 20, "Number of entries")
 	method := fs.String("method", "", "Filter by method")
 	injOnly := fs.Bool("inj", false, "Show only injections")
-	fs.Parse(args)
+	_ = fs.Parse(args)
 	conn := mustDial()
 	defer conn.Close()
-	daemon.WriteJSON(conn, daemon.MsgMCPLog, daemon.MCPLogReq{Limit: *limit, Method: *method, InjOnly: *injOnly})
+	_ = daemon.WriteJSON(conn, daemon.MsgMCPLog, daemon.MCPLogReq{Limit: *limit, Method: *method, InjOnly: *injOnly})
 	var resp daemon.MCPLogResp
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("mcp log failed: %v", err)

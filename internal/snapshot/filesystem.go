@@ -57,7 +57,7 @@ func (fs *FileSystemSnap) Capture(agentID string, chainIndex uint64, storePath s
 	if err := os.MkdirAll(filepath.Dir(storePath), 0700); err != nil {
 		return nil, fmt.Errorf("creating snapshot dir: %w", err)
 	}
-	f, err := os.Create(storePath)
+	f, err := os.Create(storePath) // #nosec G304
 	if err != nil {
 		return nil, fmt.Errorf("creating snapshot file: %w", err)
 	}
@@ -125,10 +125,10 @@ func (fs *FileSystemSnap) Capture(agentID string, chainIndex uint64, storePath s
 				return fmt.Errorf("opening %s: %w", path, err)
 			}
 			if _, err := io.Copy(tw, fh); err != nil {
-				fh.Close()
+				_ = fh.Close()
 				return fmt.Errorf("writing %s to tar: %w", rel, err)
 			}
-			fh.Close()
+			_ = fh.Close()
 		}
 		return nil
 	})
@@ -144,7 +144,7 @@ func (fs *FileSystemSnap) Capture(agentID string, chainIndex uint64, storePath s
 
 	// Hash the entire archive, not just file bodies
 	var hashFH *os.File
-	hashFH, err = os.Open(storePath)
+	hashFH, err = os.Open(storePath) // #nosec G304
 	if err != nil {
 		return nil, fmt.Errorf("opening archive for hashing: %w", err)
 	}
@@ -256,27 +256,27 @@ func (fs *FileSystemSnap) Restore(snap *Snapshot) error {
 				return fmt.Errorf("creating directory %s: %w", target, err)
 			}
 			if !header.ModTime.IsZero() {
-				os.Chtimes(target, header.AccessTime, header.ModTime)
+				_ = os.Chtimes(target, header.AccessTime, header.ModTime)
 			}
 		case tar.TypeReg:
 			if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {
 				return fmt.Errorf("creating parent dir for %s: %w", target, err)
 			}
-			out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(header.Mode&0o777))
+			out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(header.Mode&0o777)) // #nosec G304
 			if err != nil {
 				return fmt.Errorf("creating file %s: %w", target, err)
 			}
 			if header.Size < 0 {
-				out.Close()
+				_ = out.Close()
 				return fmt.Errorf("negative size for file %s", target)
 			}
 			if _, err := io.CopyN(out, tr, header.Size); err != nil {
-				out.Close()
+				_ = out.Close()
 				return fmt.Errorf("writing file %s: %w", target, err)
 			}
-			out.Close()
+			_ = out.Close()
 			if !header.ModTime.IsZero() {
-				os.Chtimes(target, header.AccessTime, header.ModTime)
+				_ = os.Chtimes(target, header.AccessTime, header.ModTime)
 			}
 		}
 	}
@@ -325,7 +325,7 @@ func (fs *FileSystemSnap) listFiles(workspaceRoot string) (map[string][2]int64, 
 func (fs *FileSystemSnap) Diff(baseSnapPath string) (added, modified, deleted []string, err error) {
 	// Read prior snapshot file listing
 	prior := make(map[string][2]int64)
-	f, err := os.Open(baseSnapPath)
+	f, err := os.Open(baseSnapPath) // #nosec G304
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("opening base snapshot: %w", err)
 	}
@@ -382,7 +382,7 @@ func (fs *FileSystemSnap) CaptureDiff(agentID string, chainIndex uint64, storePa
 	if err = os.MkdirAll(filepath.Dir(storePath), 0700); err != nil {
 		return nil, nil, fmt.Errorf("creating snapshot dir: %w", err)
 	}
-	fh, err := os.Create(storePath)
+	fh, err := os.Create(storePath) // #nosec G304
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating snapshot file: %w", err)
 	}
@@ -426,15 +426,15 @@ func (fs *FileSystemSnap) CaptureDiff(agentID string, chainIndex uint64, storePa
 			return nil, nil, fmt.Errorf("writing tar header for %s: %w", rel, err)
 		}
 		var fOpen *os.File
-		fOpen, err = os.Open(abs)
+		fOpen, err = os.Open(abs) // #nosec G304
 		if err != nil {
 			return nil, nil, fmt.Errorf("opening %s: %w", rel, err)
 		}
 		if _, err = io.Copy(tw, fOpen); err != nil {
-			fOpen.Close()
+			_ = fOpen.Close()
 			return nil, nil, fmt.Errorf("writing %s: %w", rel, err)
 		}
-		fOpen.Close()
+		_ = fOpen.Close()
 	}
 
 	if err = tw.Close(); err != nil {
@@ -446,7 +446,7 @@ func (fs *FileSystemSnap) CaptureDiff(agentID string, chainIndex uint64, storePa
 
 	// Hash the archive
 	archiveHash := sha256.New()
-	rh, err := os.Open(storePath)
+	rh, err := os.Open(storePath) // #nosec G304
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening archive for hash: %w", err)
 	}
@@ -500,7 +500,7 @@ func (fs *FileSystemSnap) SnapshotPaths(paths []string, storePath string) (*Snap
 	if err := os.MkdirAll(filepath.Dir(storePath), 0700); err != nil {
 		return nil, fmt.Errorf("creating snapshot dir: %w", err)
 	}
-	f, err := os.Create(storePath)
+	f, err := os.Create(storePath) // #nosec G304
 	if err != nil {
 		return nil, fmt.Errorf("creating snapshot file: %w", err)
 	}
@@ -547,7 +547,7 @@ func (fs *FileSystemSnap) SnapshotPaths(paths []string, storePath string) (*Snap
 		return nil, err
 	}
 	archiveHash := sha256.New()
-	fh, err := os.Open(storePath)
+	fh, err := os.Open(storePath) // #nosec G304
 	if err != nil {
 		return nil, fmt.Errorf("opening archive for hashing: %w", err)
 	}
@@ -617,7 +617,7 @@ func (fs *FileSystemSnap) addToTar(absPath string, tw *tar.Writer, hash io.Write
 			return fmt.Errorf("opening %s: %w", path, err)
 		}
 		_, err = io.Copy(tw, fh)
-		fh.Close()
+		_ = fh.Close()
 		return err
 	})
 }

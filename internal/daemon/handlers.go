@@ -43,8 +43,8 @@ type Handler struct{ daemon *Daemon }
 
 func (h *Handler) Handle(ctx context.Context, conn net.Conn) {
 	if tcp, ok := conn.(*net.TCPConn); ok {
-		tcp.SetKeepAlive(true)
-		tcp.SetKeepAlivePeriod(15 * time.Second)
+		_ = tcp.SetKeepAlive(true)
+		_ = tcp.SetKeepAlivePeriod(15 * time.Second)
 	}
 	for {
 		select {
@@ -52,13 +52,13 @@ func (h *Handler) Handle(ctx context.Context, conn net.Conn) {
 			return
 		default:
 		}
-		conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(30 * time.Second))
 		f, err := ReadFrame(conn)
 		if err != nil {
 			return
 		}
 		// Re-arm the deadline for the next read (never zero — prevents indefinite hold)
-		conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(30 * time.Second))
 		switch f.Type {
 		case MsgPing:
 			if err := WriteFrame(conn, MsgPong, nil); err != nil {
@@ -695,7 +695,7 @@ func (h *Handler) handlePolicyRegister(conn net.Conn, body []byte) {
 func (h *Handler) handlePolicyList(conn net.Conn, body []byte) {
 	var req PolicyListReq
 	if len(body) > 0 {
-		json.Unmarshal(body, &req)
+		_ = json.Unmarshal(body, &req)
 	}
 	polStore := policy.NewStore(h.daemon.chain.DB())
 	var policies []*policy.Policy
@@ -852,7 +852,7 @@ func (h *Handler) handleCompensate(conn net.Conn, body []byte) {
 			failed++
 		} else {
 			details = append(details, fmt.Sprintf("[%d] OK: %s", c.ChainIndex, c.ReverseAction))
-			h.daemon.chain.MarkCompensationExecuted(c.ID)
+			_ = h.daemon.chain.MarkCompensationExecuted(c.ID)
 			ran++
 		}
 	}

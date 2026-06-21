@@ -78,12 +78,12 @@ func (c *Chain) Prune(upToIndex uint64) (*Anchor, error) {
 	for rows.Next() {
 		var raw string
 		if err = rows.Scan(&raw); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 		raws = append(raws, []byte(raw))
 	}
-	rows.Close()
+	_ = rows.Close()
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (c *Chain) ListAnchors() ([]Anchor, error) {
 			return nil, err
 		}
 		if treeStr != "" {
-			json.Unmarshal([]byte(treeStr), &a.MerkleTree)
+			_ = json.Unmarshal([]byte(treeStr), &a.MerkleTree)
 		}
 		a.PrunedAt = time.Unix(0, prunedNS)
 		anchors = append(anchors, a)

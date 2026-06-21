@@ -103,7 +103,7 @@ func (ks *Keystore) saveLocked(a *Agent) error {
 		PublicKey:  []byte(a.PublicKey),
 		PrivateKey: []byte(a.PrivateKey),
 	}
-	plaintext, err := json.Marshal(entry)
+	plaintext, err := json.Marshal(entry) // #nosec G117
 	if err != nil {
 		return fmt.Errorf("marshalling entry: %w", err)
 	}
@@ -131,7 +131,7 @@ func (ks *Keystore) loadLocked(agentID string) (*Agent, error) {
 	if c, ok := ks.cache[agentID]; ok && time.Now().UnixNano() < c.expiresAt {
 		return c.agent, nil
 	}
-	ciphertext, err := os.ReadFile(filepath.Join(ks.dir, agentID+".key"))
+	ciphertext, err := os.ReadFile(filepath.Join(ks.dir, agentID+".key")) // #nosec G304
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("agent %s not found in keystore", agentID)
@@ -206,7 +206,7 @@ func machineSecret() ([]byte, error) {
 		return nil, fmt.Errorf("getting home dir: %w", err)
 	}
 	secretPath := filepath.Join(home, ".ans", "machine.secret")
-	if data, readErr := os.ReadFile(secretPath); readErr == nil {
+	if data, readErr := os.ReadFile(secretPath); readErr == nil { // #nosec G304
 		if len(data) == 32 {
 			return data, nil
 		}
@@ -221,13 +221,13 @@ func machineSecret() ([]byte, error) {
 	}
 	// Use O_EXCL to atomically create the file, preventing TOCTOU race with
 	// concurrent NewKeystore calls (in-process or cross-process).
-	f, err := os.OpenFile(secretPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(secretPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600) // #nosec G304
 	if err != nil {
 		if !os.IsExist(err) {
 			return nil, fmt.Errorf("creating machine.secret: %w", err)
 		}
 		// Another process created it first; read their version.
-		data, err := os.ReadFile(secretPath)
+		data, err := os.ReadFile(secretPath) // #nosec G304
 		if err != nil {
 			return nil, fmt.Errorf("reading machine.secret after race: %w", err)
 		}
@@ -237,11 +237,11 @@ func machineSecret() ([]byte, error) {
 		return data, nil
 	}
 	if _, err := f.Write(secret); err != nil {
-		f.Close()
-		os.Remove(secretPath)
+		_ = f.Close()
+		_ = os.Remove(secretPath)
 		return nil, fmt.Errorf("writing machine.secret: %w", err)
 	}
-	f.Close()
+	_ = f.Close()
 	return secret, nil
 }
 

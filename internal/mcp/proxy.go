@@ -105,7 +105,7 @@ func (p *Proxy) Stop() error {
 	p.running = false
 	close(p.stopCh)
 	if p.listener != nil {
-		p.listener.Close()
+		_ = p.listener.Close()
 	}
 	p.wg.Wait()
 	p.stopCh = make(chan struct{})
@@ -211,7 +211,7 @@ func (ctx *proxyCtx) pipe(src, dst net.Conn, dir Direction, wg *sync.WaitGroup) 
 			return
 		default:
 		}
-		src.SetReadDeadline(time.Now().Add(30 * time.Second))
+		_ = src.SetReadDeadline(time.Now().Add(30 * time.Second))
 		lineBytes, err := reader.ReadSlice('\n')
 		if err != nil {
 			if err == bufio.ErrBufferFull {
@@ -262,7 +262,7 @@ func (ctx *proxyCtx) pipe(src, dst net.Conn, dir Direction, wg *sync.WaitGroup) 
 
 		// Audit
 		if ctx.store != nil {
-			ctx.store.Insert(entry)
+			_ = ctx.store.Insert(entry)
 		}
 
 		// Forward the (possibly modified) message
@@ -385,8 +385,8 @@ func writeError(conn net.Conn, reqID string, code int, message string) {
 		return
 	}
 	body = append(body, '\n')
-	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	conn.Write(body)
+	_ = conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	_, _ = conn.Write(body)
 }
 
 func extractToolName(params json.RawMessage) string {

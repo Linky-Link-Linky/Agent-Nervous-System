@@ -90,7 +90,7 @@ func (d *Daemon) afterAppend(rawReceipt json.RawMessage) {
 			fmt.Fprintf(os.Stderr, "ans: webhook POST failed: %v\n", err)
 			return
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}()
 }
 
@@ -102,17 +102,17 @@ func New() (*Daemon, error) {
 	}
 	ks, err := identity.NewKeystore("")
 	if err != nil {
-		c.Close()
+		_ = c.Close()
 		return nil, fmt.Errorf("opening keystore: %w", err)
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
-		c.Close()
+		_ = c.Close()
 		return nil, fmt.Errorf("getting working directory: %w", err)
 	}
 	d := &Daemon{chain: c, keystore: ks, workspaceRoot: cwd}
 	if err := d.initSnapshotStore(); err != nil {
-		c.Close()
+		_ = c.Close()
 		return nil, fmt.Errorf("initialising snapshot store: %w", err)
 	}
 	d.initPolicyExec()
@@ -129,17 +129,17 @@ func NewWithPaths(chainPath, keystorePath string) (*Daemon, error) {
 	}
 	ks, err := identity.NewKeystore(keystorePath)
 	if err != nil {
-		c.Close()
+		_ = c.Close()
 		return nil, fmt.Errorf("opening keystore: %w", err)
 	}
 	root, err := filepath.Abs(filepath.Dir(chainPath))
 	if err != nil {
-		c.Close()
+		_ = c.Close()
 		return nil, fmt.Errorf("resolving workspace root: %w", err)
 	}
 	d := &Daemon{chain: c, keystore: ks, workspaceRoot: root}
 	if err := d.initSnapshotStore(); err != nil {
-		c.Close()
+		_ = c.Close()
 		return nil, fmt.Errorf("initialising snapshot store: %w", err)
 	}
 	d.initPolicyExec()
@@ -184,8 +184,8 @@ func nociceptionMessage(n *policy.NociceptionError) string {
 
 func (d *Daemon) initBroker() {
 	d.broker = broker.NewBroker(broker.DiscardLogger{})
-	d.broker.RegisterProvider(broker.NewDevProvider())
-	d.broker.RegisterProvider(broker.NewEnvProvider())
+	_ = d.broker.RegisterProvider(broker.NewDevProvider())
+	_ = d.broker.RegisterProvider(broker.NewEnvProvider())
 }
 
 func (d *Daemon) initPolicyExec() {
@@ -215,7 +215,7 @@ func (d *Daemon) initSnapshotStore() error {
 func (d *Daemon) Run() error {
 	l, err := Listen()
 	if err != nil {
-		d.chain.Close()
+		_ = d.chain.Close()
 		return fmt.Errorf("starting listener: %w", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -228,12 +228,12 @@ func (d *Daemon) Run() error {
 		<-sig
 		fmt.Fprintln(os.Stderr, "\nans: shutting down...")
 		d.cancel()
-		l.Close()
+		_ = l.Close()
 	}()
 
 	fmt.Fprintf(os.Stderr, "ans daemon started — socket: %s\n", SocketPath())
 	d.serveListener(ctx, l)
-	d.chain.Close()
+	_ = d.chain.Close()
 	fmt.Fprintln(os.Stderr, "ans daemon stopped")
 	return nil
 }
@@ -242,7 +242,7 @@ func (d *Daemon) Run() error {
 func (d *Daemon) RunOnListener(ctx context.Context, l net.Listener) {
 	d.startedAt = time.Now()
 	d.serveListener(ctx, l)
-	d.chain.Close()
+	_ = d.chain.Close()
 }
 
 func (d *Daemon) serveListener(ctx context.Context, l net.Listener) {

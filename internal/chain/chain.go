@@ -218,12 +218,12 @@ func Open(path string) (*Chain, error) {
 	db.SetMaxOpenConns(1)
 	// Apply main schema
 	if _, err := db.Exec(schema); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("applying schema: %w", err)
 	}
 	// Apply anchor schema (for chain pruning — defined in prune.go, same package)
 	if _, err := db.Exec(anchorSchema); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("applying anchor schema: %w", err)
 	}
 	// Migration: add merkle_tree column to anchors for pre-existing databases
@@ -232,27 +232,27 @@ func Open(path string) (*Chain, error) {
 	}
 	// Apply snapshot schema (for time-travel state restore)
 	if _, err := db.Exec(snapshotSchema); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("applying snapshot schema: %w", err)
 	}
 	// Apply compensation schema (for compensating actions on rollback)
 	if _, err := db.Exec(compensationSchema); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("applying compensation schema: %w", err)
 	}
 	// Apply policy schema (for Policy-as-Code enforcement)
 	if _, err := db.Exec(policySchema); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("applying policy schema: %w", err)
 	}
 	// Apply MCP audit log schema
 	if _, err := db.Exec(mcpSchema); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("applying mcp schema: %w", err)
 	}
 	// Apply broker schema (for ephemeral identity provisioning)
 	if _, err := db.Exec(brokerSchema); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("applying broker schema: %w", err)
 	}
 	c := &Chain{db: db, lastHash: receipt.GenesisHash}

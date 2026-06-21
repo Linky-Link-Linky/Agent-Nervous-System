@@ -147,7 +147,7 @@ func (tm *TokenManager) ProvisionToken(ctx context.Context, req *TokenRequest) (
 	resp, err := tm.provider.ProvisionToken(ctx, req)
 	if err != nil {
 		// If provider fails, delete the stored token
-		tm.store.Delete(tokenID)
+		_ = tm.store.Delete(tokenID)
 		return nil, fmt.Errorf("failed to provision token from provider: %w", err)
 	}
 
