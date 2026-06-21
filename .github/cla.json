@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "repository": "Linky-Link-Linky/Agent-Nervous-System",
-  "contributors": {
-    "path": ".github/cla-contributors.json",
-    "branch": "master"
-  },
-  "message": "Thanks for contributing! Before we can merge this PR, please sign our Contributor License Agreement.\n\nRead the CLA at CLA.md (or CLA-CORPORATE.md for company contributions), then comment on this PR:\n\n> I have read the CLA and I hereby sign it.\n\nIf contributing on behalf of a company, email cla@agent-nervous-system.com to arrange a Corporate CLA first."
-}

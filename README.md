@@ -10,7 +10,6 @@
 
 [![Go 1.22+](https://img.shields.io/badge/go-1.22%2B-00ADD8?logo=go)](https://go.dev/)
 [![Apache 2.0 License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
-[![CLA Required](https://img.shields.io/badge/CLA-required-orange)](CLA.md)
 [![Python SDK](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python)](sdks/python/)
 [![TypeScript SDK](https://img.shields.io/badge/typescript-5.0%2B-3178C6?logo=typescript)](sdks/typescript/)
 [![Go Reference](https://img.shields.io/badge/go-reference-00ADD8?logo=go)](https://pkg.go.dev/github.com/Linky-Link-Linky/Agent-Nervous-System)
