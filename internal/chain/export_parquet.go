@@ -41,7 +41,7 @@ func rowFromReceipt(r *receipt.Receipt) (parquetRow, error) {
 		return parquetRow{}, fmt.Errorf("compute hash: %w", err)
 	}
 	return parquetRow{
-		ChainIndex:         int64(r.ChainIndex),
+		ChainIndex:         int64(r.ChainIndex), // #nosec G115
 		ReceiptID:          r.ReceiptID,
 		Phase:              string(r.Phase),
 		AgentID:            r.AgentID,

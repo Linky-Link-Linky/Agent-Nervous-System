@@ -73,11 +73,11 @@ func (c *Chain) VerifyChain(pubkeys map[string]ed25519.PublicKey) VerificationRe
 		// On first receipt: seed expectedPrev appropriately.
 		if first {
 			first = false
-			if anchorToIndex > 0 && uint64(idx) == anchorToIndex+1 {
+			if anchorToIndex > 0 && uint64(idx) == anchorToIndex+1 { // #nosec G115 — idx from range is non-negative
 				// First receipt is directly after an anchor — skip cross-gap hash check
 				// and seed from the first receipt's own prev_hash (anchor-trusted).
 				expectedPrev = prevHash
-			} else if uint64(idx) == 1 {
+			} else if uint64(idx) == 1 { // #nosec G115 — idx from range is non-negative
 				// Normal genesis: first receipt must link to genesis hash
 				expectedPrev = receipt.GenesisHash
 			} else {

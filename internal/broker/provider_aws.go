@@ -87,7 +87,7 @@ func (a *AWSProvider) ProvisionCredential(ctx context.Context, req *ProvisionReq
 	}
 	policyJSON, _ := json.Marshal(policyDoc)
 
-	durationSec := int32(req.TTLSeconds)
+	durationSec := int32(req.TTLSeconds) // #nosec G115 — TTL capped at 60 by broker
 	if durationSec < 900 {
 		durationSec = 900
 	}

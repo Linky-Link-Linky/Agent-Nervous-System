@@ -254,7 +254,7 @@ func cmdStart() {
 	if *webhook != "" {
 		daemonArgs = append(daemonArgs, "--webhook", *webhook)
 	}
-	cmd := exec.Command(self, daemonArgs...)
+	cmd := exec.Command(self, daemonArgs...) // #nosec G204 — self is binary path, args are flags
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {

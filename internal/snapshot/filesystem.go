@@ -106,9 +106,23 @@ func (fs *FileSystemSnap) Capture(agentID string, chainIndex uint64, storePath s
 			return fmt.Errorf("writing tar header for %s: %w", rel, err)
 		}
 		if info.Mode().IsRegular() {
-			fh, err := os.Open(path)
+			resolved, err := filepath.EvalSymlinks(path)
 			if err != nil {
-				return err
+				return fmt.Errorf("resolving %s: %w", path, err)
+			}
+			if !hasPathPrefix(filepath.Clean(resolved), filepath.Clean(fs.WorkspaceRoot)) {
+				return fmt.Errorf("%s resolved outside workspace", path)
+			}
+			fi, err := os.Stat(resolved)
+			if err != nil {
+				return fmt.Errorf("re-stating %s: %w", path, err)
+			}
+			if !fi.Mode().IsRegular() {
+				return nil
+			}
+			fh, err := os.Open(resolved) // #nosec G122 — symlinks resolved above
+			if err != nil {
+				return fmt.Errorf("opening %s: %w", path, err)
 			}
 			if _, err := io.Copy(tw, fh); err != nil {
 				fh.Close()
@@ -252,7 +266,11 @@ func (fs *FileSystemSnap) Restore(snap *Snapshot) error {
 			if err != nil {
 				return fmt.Errorf("creating file %s: %w", target, err)
 			}
-			if _, err := io.Copy(out, tr); err != nil {
+			if header.Size < 0 {
+				out.Close()
+				return fmt.Errorf("negative size for file %s", target)
+			}
+			if _, err := io.CopyN(out, tr, header.Size); err != nil {
 				out.Close()
 				return fmt.Errorf("writing file %s: %w", target, err)
 			}
@@ -587,9 +605,16 @@ func (fs *FileSystemSnap) addToTar(absPath string, tw *tar.Writer, hash io.Write
 		if err = tw.WriteHeader(header); err != nil {
 			return err
 		}
-		fh, err := os.Open(path)
+		resolved, err := filepath.EvalSymlinks(path)
 		if err != nil {
-			return err
+			return fmt.Errorf("resolving %s: %w", path, err)
+		}
+		if !hasPathPrefix(filepath.Clean(resolved), filepath.Clean(fs.WorkspaceRoot)) {
+			return fmt.Errorf("%s resolved outside workspace", path)
+		}
+		fh, err := os.Open(resolved) // #nosec G122 — symlinks resolved above
+		if err != nil {
+			return fmt.Errorf("opening %s: %w", path, err)
 		}
 		_, err = io.Copy(tw, fh)
 		fh.Close()

@@ -152,8 +152,8 @@ func (b *Broker) Provision(ctx context.Context, providerName string, req *Provis
 	// Cache the credential
 	b.cache.Store(cred)
 
-	// Schedule auto-revocation
-	go b.scheduleRevocation(cred)
+	// Schedule auto-revocation — no request context; background goroutine uses its own timeout
+	go b.scheduleRevocation(cred) // #nosec G118
 
 	b.logger.Infof("Credential %s issued for agent %s (expires in %ds)",
 		cred.CredentialID, cred.AgentID, req.TTLSeconds)
@@ -216,7 +216,7 @@ func (b *Broker) scheduleRevocation(cred *Credential) {
 	case <-time.After(ttl):
 	}
 
-	// Best-effort revocation
+	// Best-effort revocation; no request context available in background goroutine
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
