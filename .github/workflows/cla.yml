@@ -23,7 +23,7 @@ jobs:
         with:
           path-to-signatures: 'signatures/version1/cla.json'
           path-to-document: 'https://gist.github.com/Linky-Link-Linky/eb643401c2b939f743504bca5b5e7d7e'
-          branch: 'master'
+          branch: 'cla-signatures'
           allowlist: dependabot[bot],renovate[bot],github-actions[bot],Linky-Link-Linky
           lock-pullrequest-aftermerge: false
           custom-notsigned-prcomment: 'Thank you for your contribution! Before this pull request can be merged, you must read and sign the **Individual Contributor License Agreement (CLA)**. Please read the full agreement at the link below, then post a comment on this PR with the following exact text to indicate your acceptance:
