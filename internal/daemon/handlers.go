@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -30,6 +32,30 @@ var execCommandContext = exec.CommandContext
 
 // safeCmdPattern allows only alphanumeric, spaces, common path chars, and shell-safe punctuation.
 var safeCmdPattern = regexp.MustCompile(`^[a-zA-Z0-9_\-\/\\\.\:\@\,\=\+\~\%\s]+$`)
+
+// allowedCompensationCmds is the allowlist of commands permitted for compensation execution.
+var allowedCompensationCmds = map[string]bool{
+	"curl":      true,
+	"wget":      true,
+	"rm":        true,
+	"mv":        true,
+	"cp":        true,
+	"mkdir":     true,
+	"rmdir":     true,
+	"touch":     true,
+	"chmod":     true,
+	"chown":     true,
+	"ln":        true,
+	"cat":       true,
+	"echo":      true,
+	"tee":       true,
+	"git":       true,
+	"docker":    true,
+	"systemctl": true,
+	"service":   true,
+	"kill":      true,
+	"pkill":     true,
+}
 
 // writeOK writes a JSON response frame to conn. Connection errors are expected
 // (e.g. client disconnect) and silently discarded after logging.
@@ -398,7 +424,8 @@ func (h *Handler) handleTokenRequest(conn net.Conn, body []byte, ctx context.Con
 		cred *broker.Credential
 		provErr error
 	)
-	for _, name := range []string{"dev", "env"} {
+	// env (real credentials) tried first; dev (fake credentials) last fallback
+	for _, name := range []string{"env", "dev"} {
 		cred, provErr = h.daemon.broker.Provision(ctx, name, provReq)
 		if provErr == nil {
 			break
@@ -461,6 +488,11 @@ func (h *Handler) handleMCPStart(conn net.Conn, body []byte) {
 	}
 	if req.ListenAddr == "" || req.TargetURL == "" {
 		writeOK(conn, MsgError, ErrorResp{Message: "listen_addr and target_url required"})
+		return
+	}
+	// SSRF protection: validate target URL points to a non-private address
+	if err := validateTargetURL(req.TargetURL); err != nil {
+		writeOK(conn, MsgError, ErrorResp{Message: "invalid target_url: " + err.Error()})
 		return
 	}
 	h.daemon.mcpMu.Lock()
@@ -871,12 +903,54 @@ func (h *Handler) executeCompensation(c chain.CompensationRecord, parentCtx cont
 	if len(parts) == 0 {
 		return fmt.Errorf("empty reverse_cmd")
 	}
+	// Check command against allowlist
+	if !allowedCompensationCmds[filepath.Base(parts[0])] {
+		return fmt.Errorf("compensation command %q is not in the allowed list", parts[0])
+	}
 	ctx, cancel := context.WithTimeout(parentCtx, 30*time.Second)
 	defer cancel()
 	cmd := execCommandContext(ctx, parts[0], parts[1:]...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("compensation %q failed: %w\noutput: %s", c.ReverseCmd, err, string(output))
+		// Truncate output to prevent sensitive data leakage in error messages
+		outStr := string(output)
+		if len(outStr) > 512 {
+			outStr = outStr[:512] + "... (truncated)"
+		}
+		return fmt.Errorf("compensation %q failed: %w\noutput: %s", c.ReverseCmd, err, outStr)
+	}
+	return nil
+}
+
+// validateTargetURL checks that the target URL does not point to a loopback
+// or private address (SSRF protection). Allows http:// for local development
+// only when ANS_DEV=1.
+func validateTargetURL(targetURL string) error {
+	u, err := url.Parse(targetURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+	host := u.Hostname()
+	if host == "" {
+		return fmt.Errorf("empty hostname")
+	}
+	// Always require HTTPS in production-like settings
+	if os.Getenv("ANS_DEV") != "1" && u.Scheme != "https" && u.Scheme != "wss" {
+		return fmt.Errorf("target URL scheme must be https or wss (set ANS_DEV=1 to allow plaintext)")
+	}
+	// Resolve the hostname to check for private addresses
+	ips, err := net.LookupHost(host)
+	if err != nil {
+		return fmt.Errorf("cannot resolve target host %q: %w", host, err)
+	}
+	for _, ip := range ips {
+		parsed := net.ParseIP(ip)
+		if parsed == nil {
+			continue
+		}
+		if parsed.IsLoopback() || parsed.IsPrivate() || parsed.IsUnspecified() {
+			return fmt.Errorf("target URL resolves to a private/loopback address (%s) — not allowed", ip)
+		}
 	}
 	return nil
 }

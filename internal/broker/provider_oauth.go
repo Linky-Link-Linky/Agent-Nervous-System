@@ -38,7 +38,13 @@ func NewOAuth2Provider(tokenURL, clientID, secret string, scopes []string, opts 
 		opt(p)
 	}
 	if p.httpClient == nil {
-		p.httpClient = http.DefaultClient
+		p.httpClient = &http.Client{
+			Timeout: 10 * time.Second,
+			Transport: &http.Transport{
+				TLSHandshakeTimeout: 5 * time.Second,
+				ResponseHeaderTimeout: 5 * time.Second,
+			},
+		}
 	}
 	return p
 }
@@ -123,7 +129,7 @@ func (o *OAuth2Provider) ProvisionCredential(ctx context.Context, req *Provision
 }
 
 func (o *OAuth2Provider) RevokeCredential(ctx context.Context, credentialID string) error {
-	return nil
+	return fmt.Errorf("oauth2 provider: revocation not implemented — use short TTLs")
 }
 
 func (o *OAuth2Provider) ValidateScope(scope Scope) error {

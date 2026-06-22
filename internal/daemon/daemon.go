@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -58,6 +59,11 @@ func (d *Daemon) afterAppend(rawReceipt json.RawMessage) {
 	}
 
 	if d.WebhookURL == "" {
+		return
+	}
+	// Reject non-HTTPS webhook URLs (allow http only with ANS_DEV=1)
+	if !strings.HasPrefix(d.WebhookURL, "https://") && os.Getenv("ANS_DEV") != "1" {
+		fmt.Fprintf(os.Stderr, "ans: webhook URL must use https (set ANS_DEV=1 to allow http): %s\n", d.WebhookURL)
 		return
 	}
 
@@ -184,8 +190,11 @@ func nociceptionMessage(n *policy.NociceptionError) string {
 
 func (d *Daemon) initBroker() {
 	d.broker = broker.NewBroker(broker.DiscardLogger{})
-	_ = d.broker.RegisterProvider(broker.NewDevProvider())
 	_ = d.broker.RegisterProvider(broker.NewEnvProvider())
+	// DevProvider only registered when ANS_DEV=1 — provides fake credentials for testing
+	if os.Getenv("ANS_DEV") == "1" {
+		_ = d.broker.RegisterProvider(broker.NewDevProvider())
+	}
 }
 
 func (d *Daemon) initPolicyExec() {

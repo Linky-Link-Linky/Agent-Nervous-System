@@ -37,7 +37,7 @@ func (p *EnvProvider) ProvisionCredential(ctx context.Context, req *ProvisionReq
 }
 
 func (p *EnvProvider) RevokeCredential(ctx context.Context, credentialID string) error {
-	return nil
+	return fmt.Errorf("env provider: revocation not implemented — environment variables cannot be revoked")
 }
 
 func (p *EnvProvider) ValidateScope(scope Scope) error {

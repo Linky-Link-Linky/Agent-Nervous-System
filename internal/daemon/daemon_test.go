@@ -376,6 +376,7 @@ func TestConcurrentClients(t *testing.T) {
 }
 
 func TestDaemonTokenLifecycle(t *testing.T) {
+	t.Setenv("ANS_DEV", "1")
 	chainPath := filepath.Join(t.TempDir(), "chain.db")
 	keystorePath := t.TempDir()
 	d, err := NewWithPaths(chainPath, keystorePath)
@@ -443,15 +444,15 @@ func TestDaemonTokenLifecycle(t *testing.T) {
 		t.Error("Listed tokens does not contain newly created token")
 	}
 
-	// Revoke token
+	// Revoke token — expected to fail because dev provider revocation is not implemented
 	body, _ = json.Marshal(TokenRevokeReq{TokenID: tokenResp.TokenID})
 	if err := WriteFrame(conn, MsgTokenRevoke, body); err != nil {
 		t.Fatalf("WriteFrame(MsgTokenRevoke) failed: %v", err)
 	}
-	var revokeResp TokenRevokeResp
-	recvExpect(t, conn, MsgTokenRevokeResp, &revokeResp)
-	if !revokeResp.Success {
-		t.Errorf("Revoke failed: %s", revokeResp.Message)
+	var errResp ErrorResp
+	recvExpect(t, conn, MsgError, &errResp)
+	if errResp.Message == "" {
+		t.Error("expected error message from revoke")
 	}
 }
 

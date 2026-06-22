@@ -43,7 +43,13 @@ func NewAzureProvider(tenantID, clientID, clientSecret string, opts ...AzureProv
 		opt(p)
 	}
 	if p.httpClient == nil {
-		p.httpClient = http.DefaultClient
+		p.httpClient = &http.Client{
+			Timeout: 10 * time.Second,
+			Transport: &http.Transport{
+				TLSHandshakeTimeout: 5 * time.Second,
+				ResponseHeaderTimeout: 5 * time.Second,
+			},
+		}
 	}
 	return p
 }
@@ -129,7 +135,7 @@ func (a *AzureProvider) ProvisionCredential(ctx context.Context, req *ProvisionR
 }
 
 func (a *AzureProvider) RevokeCredential(ctx context.Context, credentialID string) error {
-	return nil
+	return fmt.Errorf("azure provider: revocation not implemented — use short TTLs")
 }
 
 func (a *AzureProvider) ValidateScope(scope Scope) error {

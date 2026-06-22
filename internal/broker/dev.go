@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -29,7 +30,7 @@ func (p *DevProvider) ProvisionCredential(ctx context.Context, req *ProvisionReq
 }
 
 func (p *DevProvider) RevokeCredential(ctx context.Context, credentialID string) error {
-	return nil
+	return fmt.Errorf("dev provider: revocation not implemented")
 }
 
 func (p *DevProvider) ValidateScope(scope Scope) error {

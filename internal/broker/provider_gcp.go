@@ -44,7 +44,13 @@ func NewGCPProvider(credentialsFile, projectID string, opts ...GCPProviderOption
 		opt(p)
 	}
 	if p.httpClient == nil {
-		p.httpClient = http.DefaultClient
+		p.httpClient = &http.Client{
+			Timeout: 10 * time.Second,
+			Transport: &http.Transport{
+				TLSHandshakeTimeout: 5 * time.Second,
+				ResponseHeaderTimeout: 5 * time.Second,
+			},
+		}
 	}
 	return p
 }
@@ -127,7 +133,7 @@ func (g *GCPProvider) ProvisionCredential(ctx context.Context, req *ProvisionReq
 }
 
 func (g *GCPProvider) RevokeCredential(ctx context.Context, credentialID string) error {
-	return nil
+	return fmt.Errorf("gcp provider: revocation not implemented — use short TTLs")
 }
 
 func (g *GCPProvider) ValidateScope(scope Scope) error {

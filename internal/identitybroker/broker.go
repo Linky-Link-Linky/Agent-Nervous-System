@@ -2,6 +2,8 @@ package identitybroker
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"sync"
 	"time"
@@ -252,7 +254,11 @@ func (tm *TokenManager) CleanupExpired() (int, error) {
 	return tm.store.CleanupExpired()
 }
 
-// generateTokenID generates a unique token ID.
+// generateTokenID generates a unique token ID using cryptographically random bytes.
 func generateTokenID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano())
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("fallback-%d", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b)
 }

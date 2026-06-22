@@ -195,7 +195,7 @@ func PrintVerifyResult(w io.Writer, resp map[string]interface{}, noColor bool) {
 	for _, key := range []string{"receipt_id", "agent_id", "agent_name", "action_type",
 		"phase", "policy_decision", "outcome", "chain_index"} {
 		if v, ok := resp[key]; ok && v != nil && v != "" {
-			fmt.Fprintf(w, "  %s%-18s%s %v\n", gray, key, reset, v)
+			fmt.Fprintf(w, "  %s%-18s%s %v\n", gray, key, reset, stripANSI(fmt.Sprint(v)))
 		}
 	}
 	if errMsg, ok := resp["error"].(string); ok && errMsg != "" {

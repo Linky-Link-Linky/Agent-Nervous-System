@@ -49,7 +49,13 @@ func NewAWSProvider(region, accountID string, opts ...AWSProviderOption) *AWSPro
 		opt(provider)
 	}
 	if provider.httpClient == nil {
-		provider.httpClient = http.DefaultClient
+		provider.httpClient = &http.Client{
+			Timeout: 10 * time.Second,
+			Transport: &http.Transport{
+				TLSHandshakeTimeout: 5 * time.Second,
+				ResponseHeaderTimeout: 5 * time.Second,
+			},
+		}
 	}
 	return provider
 }
@@ -134,7 +140,9 @@ func (a *AWSProvider) ProvisionCredential(ctx context.Context, req *ProvisionReq
 }
 
 func (a *AWSProvider) RevokeCredential(ctx context.Context, credentialID string) error {
-	return nil
+	// AWS STS credentials cannot be explicitly revoked; AWS recommends
+	// short TTLs and blocking the underlying IAM role if needed.
+	return fmt.Errorf("aws provider: STS credentials cannot be explicitly revoked — use short TTLs")
 }
 
 func (a *AWSProvider) ValidateScope(scope Scope) error {

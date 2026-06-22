@@ -36,7 +36,13 @@ func NewVaultProvider(address, token, namespace string, opts ...VaultProviderOpt
 		opt(p)
 	}
 	if p.httpClient == nil {
-		p.httpClient = http.DefaultClient
+		p.httpClient = &http.Client{
+			Timeout: 10 * time.Second,
+			Transport: &http.Transport{
+				TLSHandshakeTimeout: 5 * time.Second,
+				ResponseHeaderTimeout: 5 * time.Second,
+			},
+		}
 	}
 	return p
 }
