@@ -79,14 +79,48 @@ fi
 echo ""
 echo " ANS installed: $DEST" | sed "s|$HOME|~|g"
 
-# Check PATH
+# -- PATH setup -----------------------------------------------------------
 INSTALL_DIR="$(dirname "$DEST")"
-case ":$PATH:" in
-  *":$INSTALL_DIR:"*) ;;
-  *) echo " ⚠  Add $INSTALL_DIR to your PATH (not currently in PATH)" | sed "s|$HOME|~|g" ;;
-esac
 
-echo ""
+ensure_path_entry() {
+  case ":$PATH:" in
+    *":$1:"*) return 0 ;;  # already in PATH
+    *) return 1 ;;
+  esac
+}
+
+if ensure_path_entry "$INSTALL_DIR"; then
+  : # already in PATH, nothing to do
+else
+  # Determine shell config file
+  SHELL_NAME="${SHELL##*/}"
+  case "$SHELL_NAME" in
+    zsh)  RC_FILE="${ZDOTDIR:-$HOME}/.zshrc" ;;
+    bash) RC_FILE="$HOME/.bashrc" ;;
+    dash|sh) RC_FILE="$HOME/.profile" ;;
+    *)    RC_FILE="$HOME/.profile" ;;
+  esac
+
+  LINE="export PATH=\"\$PATH:$INSTALL_DIR\""
+
+  if [ -f "$RC_FILE" ] && grep -qsF "$INSTALL_DIR" "$RC_FILE" 2>/dev/null; then
+    : # already in config file but not yet in this session's PATH
+  elif [ -f "$RC_FILE" ] && [ -w "$RC_FILE" ]; then
+    printf '\n%s\n' "$LINE" >> "$RC_FILE"
+    echo " Added to $RC_FILE"
+  elif [ -w "$HOME" ]; then
+    printf '\n%s\n' "$LINE" >> "$RC_FILE" 2>/dev/null || true
+    echo " Created $RC_FILE with PATH entry"
+  fi
+
+  echo ""
+  echo " To use 'ans' now, run:"
+  echo "   export PATH=\"\$PATH:$INSTALL_DIR\""
+  echo ""
+  echo " Or open a new terminal window (it will pick up $RC_FILE)."
+  echo ""
+fi
+
 echo " Start the daemon:   ans start"
 echo " Register an agent:  ans register --name my-agent --version 1.0.0"
 echo " View the chain:     ans chain"
