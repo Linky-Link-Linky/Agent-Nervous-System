@@ -81,6 +81,22 @@ You are not obligated to provide support for Your Contributions. You provide the
 
 You agree to notify the Company if You become aware of any facts that would make the above representations inaccurate.
 
-#### 7. Signature
+#### 7. Miscellaneous
 
-When you submit your first pull request, comment with "I have read the CLA Document and I hereby sign the CLA". The CLA Assistant bot will record your signature. Signing is required once per GitHub account before contributions can be merged.
+(a) **Entire Agreement.** This Agreement constitutes the entire agreement between the parties regarding its subject matter and supersedes all prior agreements and understandings, whether written or oral.
+
+(b) **Governing Law.** This Agreement shall be governed by and construed in accordance with the laws governing the Project's license, without regard to conflict of law principles.
+
+(c) **Severability.** If any provision of this Agreement is found to be unenforceable or invalid, that provision shall be limited or eliminated to the minimum extent necessary so that this Agreement shall otherwise remain in full force and effect.
+
+(d) **No Waiver.** The failure of either party to enforce any right or provision of this Agreement shall not constitute a waiver of future enforcement of that right or provision.
+
+(e) **Assignment.** You may not assign or transfer this Agreement, or any of Your rights or obligations hereunder, by operation of law or otherwise, without the prior written consent of the Company. The Company may freely assign this Agreement.
+
+#### 8. Signature
+
+When you submit your first pull request, comment on the PR with the following exact text to indicate your acceptance:
+
+**I have read the CLA Document and I hereby sign the CLA**
+
+The CLA automation will record your signature on the `cla-signatures` branch of the repository and update the PR status. Signing is required once per GitHub account before contributions can be merged.
