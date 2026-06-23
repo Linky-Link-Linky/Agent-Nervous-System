@@ -1,0 +1,18 @@
+services:
+  ans:
+    build: .
+    image: ghcr.io/linky-link-linky/agent-nervous-system:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ans-data:/var/lib/ans
+      - ans-socket:/tmp/ans
+    environment:
+      - ANS_DATA_DIR=/var/lib/ans
+      - ANS_SOCKET_PATH=/tmp/ans/ans.sock
+    restart: unless-stopped
+    command: ["start", "--ndjson"]
+
+volumes:
+  ans-data:
+  ans-socket:

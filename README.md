@@ -70,33 +70,66 @@ Agents call tools, read databases, write files, execute code, delegate to sub-ag
 
 ## Quick Start — 30 Seconds
 
-### Download & Install
+One command per platform. Choose yours:
 
-Download the binary for your OS from the [Releases page](https://github.com/Linky-Link-Linky/Agent-Nervous-System/releases), or build from source (requires Go 1.22+):
+### Linux / macOS (bash)
 
 ```bash
-# Pre-built binary (Linux/Mac)
-chmod +x ans_linux_amd64 && sudo mv ans_linux_amd64 /usr/local/bin/ans
-# Windows: move ans_windows_amd64.exe to a folder in your PATH
-
-# Or build from source
-git clone https://github.com/Linky-Link-Linky/Agent-Nervous-System.git && cd Agent-Nervous-System
-make build && sudo make install   # Linux/Mac — produces bin/ans
-# Windows: make build then copy bin\ans.exe to %USERPROFILE% and add to PATH
-
-ans version
+curl -fsSL https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.sh | sh
 ```
 
-### Run
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.ps1 | iex
+```
+
+### Docker (any OS)
 
 ```bash
+docker run -d --name ans -v ans-data:/var/lib/ans ghcr.io/linky-link-linky/agent-nervous-system:latest
+```
+
+Or build locally with Docker Compose:
+
+```bash
+git clone https://github.com/Linky-Link-Linky/Agent-Nervous-System.git && cd Agent-Nervous-System
+docker compose up -d
+```
+
+### Or build from source (requires Go 1.22+)
+
+```bash
+git clone https://github.com/Linky-Link-Linky/Agent-Nervous-System.git && cd Agent-Nervous-System
+make build && sudo make install
+```
+
+### First-Time Setup
+
+```bash
+ans init                      # create ~/.ans/ and default config
+ans init --service            # optional: install as system service (systemd/launchd)
+```
+
+### Verify & Run
+
+```bash
+ans version                   # confirm installation
 ans start                     # start the daemon (background)
 ans register --name my-agent --version 1.0.0   # create an agent identity
 ans chain                     # see the receipt chain
 ans verify --chain            # prove integrity: hashes + Ed25519 signatures ✓
 ```
 
-That's it — your agent nervous system is live.
+### Persistent Settings
+
+Settings persist across restarts via `~/.ans/config.json`. Set defaults with:
+
+```bash
+ans init --webhook https://hooks.example.com/ans --ndjson
+```
+
+After this, `ans start` will automatically use the webhook and NDJSON output without needing flags each time. CLI flags still override config values.
 
 ### (Optional) Use from Python
 
@@ -134,10 +167,11 @@ Run it, then `ans chain` again — a new receipt appears.
 | `go: command not found` | Install Go from [go.dev/dl](https://go.dev/dl/) |
 | `make: command not found` | Windows: [GnuWin32 Make](https://gnuwin32.sourceforge.net/packages/make.htm). Mac: `xcode-select --install`. Linux: `sudo apt install make` |
 | `ans: command not found` | Run `sudo make install` (Linux/Mac) or the Windows copy command above |
-| Daemon won't start | `ans stop` then `ans start` again |
+| `ans: no config` | Run `ans init` first to create the data directory |
+| Daemon won't start | Run `ans doctor` to check the socket, PID, and config. Then `ans stop` and `ans start` again |
 | `ans chain` shows nothing | Register an agent first (`ans register --name test --version 1`) |
 | Permission denied | Prefix with `sudo` (Linux/Mac) or run terminal as Administrator (Windows) |
-| Something else | [Open a GitHub issue](https://github.com/Linky-Link-Linky/Agent-Nervous-System/issues) |
+| Something else | Run `ans doctor` and include the output when [opening a GitHub issue](https://github.com/Linky-Link-Linky/Agent-Nervous-System/issues) |
 
 ---
 
@@ -981,10 +1015,15 @@ ans.wrapAllTools();
 ## CLI Reference
 
 ```
-Start / Stop / Status
+Setup & Diagnostics
+  ans init                    Create ~/.ans/ and default config
+    --webhook <url>           Default webhook URL for ans start
+    --ndjson                  Enable NDJSON output by default
+    --service                 Install as a system service (systemd/launchd)
+  ans doctor                  Show diagnostics (socket, PID, config, chain status)
   ans start                   Start the daemon (background, persistent)
-    --ndjson                  Emit NDJSON receipt stream to stdout
-    --webhook <url>           POST CloudEvents to URL per new receipt
+    --ndjson                  Emit NDJSON receipt stream to stdout (overrides config)
+    --webhook <url>           POST CloudEvents to URL per new receipt (overrides config)
   ans stop                    Stop the daemon
   ans status                  Uptime, chain length, agent count, DB size
 

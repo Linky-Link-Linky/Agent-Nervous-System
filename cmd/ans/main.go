@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/chain"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/config"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/daemon"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/identity"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/pretty"
@@ -33,9 +34,11 @@ USAGE
   ans <command> [flags]
 
 COMMANDS
+  init               Create default config and data directory (--service to install system service)
   start              Start the ANS daemon in the background
   stop               Stop the running ANS daemon
   status             Show daemon status, chain stats, and uptime
+  doctor             Show diagnostics (socket, PID, chain health)
   verify [id]        Verify a receipt by ID (use --chain for full chain)
   chain              Print the receipt chain (pretty tree)
   agents             List registered agents
@@ -93,6 +96,8 @@ func main() {
 	}
 
 	switch os.Args[1] {
+	case "init":
+		cmdInit()
 	case "start":
 		cmdStart()
 	case "stop":
@@ -187,6 +192,8 @@ func main() {
 		cmdTimeTravel(os.Args[2:])
 	case "snapshots":
 		cmdSnapshots(os.Args[2:])
+	case "doctor":
+		cmdDoctor()
 	case "version", "--version", "-v":
 		fmt.Printf("ans version %s (%s/%s)\n", version, runtime.GOOS, runtime.GOARCH)
 	case "help", "--help", "-h":
@@ -243,6 +250,16 @@ func cmdStart() {
 		fmt.Fprintln(os.Stderr, "ans: daemon is already running")
 		return
 	}
+
+	// Load config for defaults if flags not set
+	cfg, _ := config.Load()
+	if !*ndjson {
+		*ndjson = cfg.NDJSON
+	}
+	if *webhook == "" {
+		*webhook = cfg.Webhook
+	}
+
 	self, err := os.Executable()
 	if err != nil {
 		fatalf("resolving executable: %v", err)
@@ -1192,6 +1209,238 @@ func cmdMCPLog(args []string) {
 			content = content[:35] + "…"
 		}
 		fmt.Printf("%-6d %-5s %-28s %-7d %-6s %s\n", e.ID, e.Direction, method, e.ToksEst, inj, content)
+	}
+}
+
+// --- init ---
+
+func cmdInit() {
+	fs := flag.NewFlagSet("init", flag.ExitOnError)
+	svc := fs.Bool("service", false, "Install system service (systemd/launchd)")
+	webhook := fs.String("webhook", "", "Default webhook URL")
+	ndjson := fs.Bool("ndjson", false, "Default NDJSON output")
+	_ = fs.Parse(os.Args[2:])
+
+	dir, err := config.EnsureDir()
+	if err != nil {
+		fatalf("creating data directory: %v", err)
+	}
+	fmt.Fprintf(os.Stderr, "ans: data directory ready: %s\n", dir)
+
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ans: warning: loading config: %v\n", err)
+		cfg = config.DefaultConfig()
+	}
+	if *webhook != "" {
+		cfg.Webhook = *webhook
+	}
+	if *ndjson {
+		cfg.NDJSON = true
+	}
+	if err := config.Save(cfg); err != nil {
+		fatalf("saving config: %v", err)
+	}
+	fmt.Fprintln(os.Stderr, "ans: config written")
+
+	if *svc {
+		installService()
+	}
+
+	fmt.Fprintf(os.Stderr, "\n\033[32m\u2713\033[0m ANS is ready. Run \033[1mans start\033[0m to start the daemon.\n")
+}
+
+func installService() {
+	switch runtime.GOOS {
+	case "linux":
+		installSystemd()
+	case "darwin":
+		installLaunchd()
+	case "windows":
+		installWinService()
+	default:
+		fmt.Fprintf(os.Stderr, "ans: unsupported OS for service: %s\n", runtime.GOOS)
+		os.Exit(1)
+	}
+}
+
+func installSystemd() {
+	self, err := os.Executable()
+	if err != nil {
+		fatalf("resolving executable: %v", err)
+	}
+	unit := fmt.Sprintf(`[Unit]
+Description=Agent Nervous System Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%s start
+Restart=on-failure
+RestartSec=5
+Environment=ANS_SERVICE=1
+
+[Install]
+WantedBy=multi-user.target
+`, self)
+	paths := []string{
+		"/etc/systemd/system/ans.service",
+		filepath.Join(os.Getenv("HOME"), ".config", "systemd", "user", "ans.service"),
+	}
+	installed := false
+	for _, p := range paths {
+		dir := filepath.Dir(p)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			continue
+		}
+		if err := os.WriteFile(p, []byte(unit), 0644); err != nil {
+			continue
+		}
+		fmt.Fprintf(os.Stderr, "ans: systemd unit written: %s\n", p)
+		installed = true
+		user := strings.Contains(p, "HOME")
+		if user {
+			_ = exec.Command("systemctl", "--user", "daemon-reload").Run()
+			_ = exec.Command("systemctl", "--user", "enable", "ans").Run()
+		} else {
+			_ = exec.Command("systemctl", "daemon-reload").Run()
+			_ = exec.Command("systemctl", "enable", "ans").Run()
+		}
+		fmt.Fprintf(os.Stderr, "ans: systemd service enabled. Start with: systemctl %s start ans\n",
+			map[bool]string{true: "--user", false: ""}[user])
+	}
+	if !installed {
+		fmt.Fprintf(os.Stderr, "ans: warning: could not write systemd unit. Try running as root.\n")
+		fmt.Fprintf(os.Stderr, "ans: unit content:\n%s\n", unit)
+	}
+}
+
+func installLaunchd() {
+	self, err := os.Executable()
+	if err != nil {
+		fatalf("resolving executable: %v", err)
+	}
+	home, _ := os.UserHomeDir()
+	label := "com.ans.daemon"
+	plist := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>%s</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>%s</string>
+        <string>start</string>
+    </array>
+    <key>KeepAlive</key>
+    <true/>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>ANS_SERVICE</key>
+        <string>1</string>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/ans-daemon.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/ans-daemon.log</string>
+</dict>
+</plist>
+`, label, self)
+	plistPath := filepath.Join(home, "Library", "LaunchAgents", label+".plist")
+	if err := os.MkdirAll(filepath.Dir(plistPath), 0755); err != nil {
+		fatalf("creating LaunchAgents dir: %v", err)
+	}
+	if err := os.WriteFile(plistPath, []byte(plist), 0644); err != nil {
+		fatalf("writing launchd plist: %v", err)
+	}
+	fmt.Fprintf(os.Stderr, "ans: launchd plist written: %s\n", plistPath)
+	_ = exec.Command("launchctl", "load", plistPath).Run()
+	fmt.Fprintf(os.Stderr, "ans: launchd service loaded. Manage with: launchctl %s\n", label)
+}
+
+func installWinService() {
+	self, err := os.Executable()
+	if err != nil {
+		fatalf("resolving executable: %v", err)
+	}
+	script := fmt.Sprintf(`@echo off
+:: ANS Daemon startup — generated by ans init --service
+start /B "" "%s" start
+`, self)
+	startupDir := filepath.Join(os.Getenv("APPDATA"), "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+	scriptPath := filepath.Join(startupDir, "ans-daemon.bat")
+	if err := os.MkdirAll(filepath.Dir(scriptPath), 0755); err != nil {
+		fatalf("creating Startup dir: %v", err)
+	}
+	if err := os.WriteFile(scriptPath, []byte(script), 0644); err != nil {
+		fatalf("writing startup script: %v", err)
+	}
+	fmt.Fprintf(os.Stderr, "ans: startup script written: %s\n", scriptPath)
+	fmt.Fprintln(os.Stderr, "ans: ANS will start automatically on next login.")
+}
+
+// --- doctor ---
+
+func cmdDoctor() {
+	fmt.Fprintln(os.Stderr, "=== ANS Diagnostics ===")
+
+	// Socket
+	socketPath := daemon.SocketPath()
+	fmt.Fprintf(os.Stderr, "Socket: %s\n", socketPath)
+	if conn, err := daemon.Dial(); err == nil {
+		_ = conn.Close()
+		fmt.Fprintln(os.Stderr, "  Status: \033[32mconnected\033[0m")
+	} else {
+		fmt.Fprintf(os.Stderr, "  Status: \033[33mnot running\033[0m (%v)\n", err)
+	}
+
+	// PID file
+	pidPath := pidFilePath()
+	fmt.Fprintf(os.Stderr, "PID file: %s\n", pidPath)
+	if data, err := os.ReadFile(pidPath); err == nil {
+		pid := strings.TrimSpace(string(data))
+		fmt.Fprintf(os.Stderr, "  PID: %s\n", pid)
+	} else {
+		fmt.Fprintf(os.Stderr, "  Status: \033[33mnot found\033[0m\n")
+	}
+
+	// Config
+	cfgPath, _ := config.Path()
+	fmt.Fprintf(os.Stderr, "Config: %s\n", cfgPath)
+	if _, err := os.Stat(cfgPath); err == nil {
+		fmt.Fprintln(os.Stderr, "  Status: \033[32mpresent\033[0m")
+	} else {
+		fmt.Fprintln(os.Stderr, "  Status: \033[33mnot found\033[0m (run \033[1mans init\033[0m)")
+	}
+
+	// Data directory
+	dataDir, _ := config.Dir()
+	fmt.Fprintf(os.Stderr, "Data dir: %s\n", dataDir)
+	if entries, err := os.ReadDir(dataDir); err == nil {
+		fmt.Fprintf(os.Stderr, "  Contents: %d items\n", len(entries))
+	} else {
+		fmt.Fprintf(os.Stderr, "  Status: \033[33mnot found\033[0m (run \033[1mans init\033[0m)\n")
+	}
+
+	// Chain
+	fmt.Fprintf(os.Stderr, "Chain DB: ~/.ans/chain.db\n")
+	if _, err := os.Stat(filepath.Join(dataDir, "chain.db")); err == nil {
+		fmt.Fprintln(os.Stderr, "  Status: \033[32mpresent\033[0m")
+	} else {
+		fmt.Fprintln(os.Stderr, "  Status: \033[33mnot found\033[0m (will be created on first start)")
+	}
+
+	// Version
+	fmt.Fprintf(os.Stderr, "\nVersion: %s (%s/%s)\n", version, runtime.GOOS, runtime.GOARCH)
+
+	// Advice
+	fmt.Fprintln(os.Stderr, "\nNext steps:")
+	if _, err := daemon.Dial(); err != nil {
+		fmt.Fprintln(os.Stderr, "  \033[1mans init\033[0m  — if first-time setup needed")
+		fmt.Fprintln(os.Stderr, "  \033[1mans start\033[0m — start the daemon")
 	}
 }
 
