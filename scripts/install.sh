@@ -61,7 +61,7 @@ ASSET="ans_${OS}_${ARCH}"
 if [ "$VERSION" = "latest" ]; then
   BASE="https://github.com/${REPO}/releases/latest/download"
 else
-  BASE="https://github.com/${REPO}/releases/${VERSION}/download"
+  BASE="https://github.com/${REPO}/releases/download/${VERSION}"
 fi
 
 TMP="$(mktemp -d)"

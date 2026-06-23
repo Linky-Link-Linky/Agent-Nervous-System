@@ -26,19 +26,19 @@ function Write-Step($num, $text) {
 }
 
 function Write-Done($text) {
-    Write-Host "  `u{2714} $text" -ForegroundColor Green
+    Write-Host "  $([char]0x2714) $text" -ForegroundColor Green
 }
 
 function Write-Warn($text) {
-    Write-Host "  ! $text" -ForegroundColor Yellow
+    Write-Host "  $([char]0x26A0) $text" -ForegroundColor Yellow
 }
 
 function Write-Cmd($text) {
-    Write-Host "  `$ $text" -ForegroundColor White
+    Write-Host "  $([char]0x25B6) $text" -ForegroundColor White
 }
 
 function Write-Err($text) {
-    Write-Host "  x $text" -ForegroundColor Red
+    Write-Host "  $([char]0x2716) $text" -ForegroundColor Red
 }
 
 # --- Architecture detection ---
@@ -50,7 +50,7 @@ switch ($env:PROCESSOR_ARCHITECTURE) {
 }
 
 $Asset = "ans_windows_${Arch}.exe"
-$Base = "https://github.com/${Repo}/releases/$($Version)/download"
+$Base = "https://github.com/${Repo}/releases/download/$($Version)"
 if ($Version -eq "latest") { $Base = "https://github.com/${Repo}/releases/latest/download" }
 
 $TmpDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
@@ -75,10 +75,10 @@ try {
     if ($SacState -eq 1) {
         Write-Warn "Smart App Control is ON"
         Write-Host "     Windows 11 blocks unsigned downloaded binaries by default." -ForegroundColor Yellow
-        Write-Host "     I'll build from source instead — this works everywhere." -ForegroundColor Yellow
+        Write-Host "     I'll build from source instead ? this works everywhere." -ForegroundColor Yellow
         $script:BuildFromSource = $true
     } else {
-        Write-Done "Smart App Control is off — downloading binary"
+        Write-Done "Smart App Control is off ? downloading binary"
     }
     Start-Sleep -Milliseconds 300
 
@@ -102,7 +102,7 @@ try {
                 Write-Done "Checksum verified"
             }
         } catch {
-            Write-Warn "Checksum file not available — skipped"
+            Write-Warn "Checksum file not available ? skipped"
         }
 
         # Step 5: Install binary
@@ -154,7 +154,8 @@ try {
     }
 
     # Step 6: Add to PATH
-    Write-Step (if ($script:BuildFromSource) { 6 } else { 5 }) "Adding to system PATH..."
+    $StepNum = if ($script:BuildFromSource) { 6 } else { 5 }
+Write-Step $StepNum "Adding to system PATH..."
     if ($env:Path -split ';' -notcontains $InstallDir) {
         $CurrentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
         if (-not $CurrentUserPath.EndsWith(';')) { $CurrentUserPath += ';' }
