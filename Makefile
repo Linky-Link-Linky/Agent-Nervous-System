@@ -54,3 +54,14 @@ checksums: build-all
 			echo "no sha256sum or shasum found" >&2; exit 1; \
 		fi && \
 		cat checksums.txt
+
+DOCKER_IMAGE   ?= ghcr.io/linky-link-linky/agent-nervous-system
+DOCKER_TAG     ?= latest
+
+docker-build:
+	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
+
+docker-push: docker-build
+	docker push $(DOCKER_IMAGE):$(DOCKER_TAG)
+
+.PHONY: docker-build docker-push
