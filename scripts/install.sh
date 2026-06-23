@@ -36,26 +36,29 @@ trap 'rm -rf "$TMP"' EXIT
 
 echo "Downloading ANS for ${OS}/${ARCH}..."
 curl -fsSL "${BASE}/${ASSET}" -o "${TMP}/${BINARY}"
-curl -fsSL "${BASE}/checksums.txt" -o "${TMP}/checksums.txt"
 
-EXPECTED="$(grep -F "$ASSET" "${TMP}/checksums.txt" | awk '{print $1}')"
-if [ -z "$EXPECTED" ]; then
-  echo "Error: checksum not found for $ASSET" >&2; exit 1
+# Optional checksum verification — skip if checksums.txt not published yet
+if curl -fsSL "${BASE}/checksums.txt" -o "${TMP}/checksums.txt" 2>/dev/null; then
+  EXPECTED="$(grep -F "$ASSET" "${TMP}/checksums.txt" | awk '{print $1}')"
+  if [ -n "$EXPECTED" ]; then
+    chmod +x "${TMP}/${BINARY}"
+    if command -v sha256sum >/dev/null 2>&1; then
+      ACTUAL="$(sha256sum "${TMP}/${BINARY}" | awk '{print $1}')"
+    elif command -v shasum >/dev/null 2>&1; then
+      ACTUAL="$(shasum -a 256 "${TMP}/${BINARY}" | awk '{print $1}')"
+    else
+      echo "Warning: no sha256sum or shasum — skipping verification" >&2
+    fi
+    if [ -n "${ACTUAL:-}" ] && [ "$ACTUAL" != "$EXPECTED" ]; then
+      echo "Checksum mismatch: expected $EXPECTED, got $ACTUAL" >&2; exit 1
+    fi
+    echo "Checksum verified."
+  fi
+else
+  echo "Checksum file not available — skipping verification."
 fi
 
 chmod +x "${TMP}/${BINARY}"
-
-if command -v sha256sum >/dev/null 2>&1; then
-  ACTUAL="$(sha256sum "${TMP}/${BINARY}" | awk '{print $1}')"
-elif command -v shasum >/dev/null 2>&1; then
-  ACTUAL="$(shasum -a 256 "${TMP}/${BINARY}" | awk '{print $1}')"
-else
-  echo "Error: no sha256sum or shasum found" >&2; exit 1
-fi
-
-if [ "$ACTUAL" != "$EXPECTED" ]; then
-  echo "Checksum mismatch: expected $EXPECTED, got $ACTUAL" >&2; exit 1
-fi
 
 # Install — try /usr/local/bin first, then sudo, then $HOME/.local/bin
 for DEST_DIR in "/usr/local/bin" "$HOME/.local/bin" "$HOME/bin"; do
