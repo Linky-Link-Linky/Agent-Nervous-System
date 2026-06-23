@@ -50,6 +50,9 @@ try {
     }
     Copy-Item (Join-Path $TmpDir $Binary) (Join-Path $InstallDir $Binary) -Force
 
+    # Remove Windows Zone Identifier (downloaded-from-internet marker) so the binary can run
+    Unblock-File -Path (Join-Path $InstallDir $Binary) -ErrorAction SilentlyContinue
+
     # Only touch User PATH if InstallDir is not already in the effective PATH
     if ($env:Path -split ';' -notcontains $InstallDir) {
         $CurrentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
