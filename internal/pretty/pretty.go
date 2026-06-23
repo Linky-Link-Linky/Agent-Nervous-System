@@ -39,7 +39,7 @@ var ansiRE = regexp.MustCompile(`\033\[[0-9;]*[a-zA-Z]|\033][^\a]*(\a|\033\\)`)
 // stripANSI removes ANSI escape sequences from s.
 func stripANSI(s string) string { return ansiRE.ReplaceAllString(s, "") }
 
-// Color palette — soft, relaxing, productivity-boosting colors.
+// Color palette — Claude Code-inspired purple theme.
 // Uses 256-color ANSI codes for rich rendering on modern terminals
 // while falling back gracefully on older terminals.
 const (
@@ -54,13 +54,14 @@ const (
 	Cyan   = "\033[36m"
 	Gray   = "\033[90m"
 
-	// Extended palette — soft tones
-	Primary = "\033[38;5;45m"  // soft cyan
-	Success = "\033[38;5;42m"  // mint green
+	// Extended palette — purple theme
+	Primary = "\033[38;5;141m" // soft lavender purple — main accent
+	Success = "\033[38;5;42m"  // mint green — keep for contrast
 	Warning = "\033[38;5;221m" // warm amber
 	errClr  = "\033[38;5;204m" // soft coral
-	Accent  = "\033[38;5;147m" // lavender
+	Accent  = "\033[38;5;147m" // light periwinkle — secondary
 	Muted   = "\033[38;5;245m" // warm gray
+	Purple  = "\033[38;5;99m"  // rich purple — emphasis
 )
 
 // Backward-compat aliases for internal use
@@ -78,6 +79,7 @@ var (
 	warning = Warning
 	accent  = Accent
 	muted   = Muted
+	purple  = Purple
 )
 
 // HasColor returns true if the terminal supports color output.
@@ -92,7 +94,7 @@ func HasColor() bool {
 	return true
 }
 
-// --- Styled output helpers ------------------------------------------------
+// --- Styled output helpers — Claude Code-inspired purple theme -------
 
 // Fprint styled text to w with the given ANSI codes and args.
 func Fprint(w io.Writer, style string, args ...interface{}) {
@@ -115,65 +117,62 @@ func Fprintln(w io.Writer, style string, args ...interface{}) {
 	fmt.Fprintln(w, reset)
 }
 
-// Header prints a bold section header.
+// Banner prints the ANS branding header — clean and minimal.
+func Banner(w io.Writer) {
+	fmt.Fprintf(w, "\n  %s✦%s  %s%s%s  %s%s%s\n",
+		purple, reset, bold, "Agent Nervous System", reset, muted, "Secure AI Agent Auditing", reset)
+	fmt.Fprintf(w, "  %s%s%s\n", muted, strings.Repeat("─", 48), reset)
+}
+
+// Header prints a section title with purple accent.
 func Header(w io.Writer, text string) {
-	fmt.Fprintf(w, "\n%s%s%s%s\n", bold, primary, text, reset)
-	fmt.Fprintf(w, "%s%s%s\n", muted, strings.Repeat("─", len(text)), reset)
+	fmt.Fprintf(w, "\n  %s%s%s\n", bold, primary, text)
+	fmt.Fprintf(w, "  %s%s%s\n", muted, strings.Repeat("─", len(text)), reset)
 }
 
-// Subheader prints a subsection header.
+// Subheader prints a subsection with a small dot prefix.
 func Subheader(w io.Writer, text string) {
-	fmt.Fprintf(w, "\n%s%s  %s%s\n", accent, "◆", text, reset)
+	fmt.Fprintf(w, "\n  %s·%s  %s%s%s\n", primary, reset, bold, text, reset)
 }
 
-// Step prints a numbered step with checkmark.
+// Step prints a numbered step in compact form.
 func Step(w io.Writer, num int, text string) {
-	fmt.Fprintf(w, "  %s%s%s %s%s%s %s\n", primary, fmt.Sprintf("%d.", num), reset, bold, text, reset, dim)
+	fmt.Fprintf(w, "  %s%s %s%s%s\n", primary, fmt.Sprintf("%d.", num), bold, text, reset)
 }
 
-// Done prints a completed step indicator.
+// Done prints a completed item with a subtle check.
 func Done(w io.Writer, text string) {
-	fmt.Fprintf(w, "  %s✔%s %s%s%s\n", success, reset, bold, text, reset)
+	fmt.Fprintf(w, "  %s✓%s  %s\n", success, reset, text)
 }
 
-// Item prints a labeled value pair.
+// Item prints a labeled value pair in compact form.
 func Item(w io.Writer, label, value string) {
-	fmt.Fprintf(w, "  %s%-14s%s %s\n", muted, label+":", reset, value)
+	fmt.Fprintf(w, "  %s%s%s %s\n", muted, label+":", reset, value)
 }
 
-// Code prints a command-style line with prompt.
+// Code prints a command with a purple $ prompt.
 func Code(w io.Writer, cmd string) {
-	fmt.Fprintf(w, "  %s$%s %s%s%s\n", green, reset, bold, cmd, reset)
+	fmt.Fprintf(w, "    %s$%s %s\n", purple, reset, cmd)
 }
 
-// Link prints a URL.
+// Link prints a clickable resource reference.
 func Link(w io.Writer, label, url string) {
 	fmt.Fprintf(w, "  %s%s:%s %s\n", muted, label, reset, url)
 }
 
-// Ok prints a success banner.
+// Ok prints a success banner with clean formatting.
 func Ok(w io.Writer, text string) {
-	fmt.Fprintf(w, "\n  %s━━━ %s%s%s %s━━━%s\n\n", success, bold, text, success, strings.Repeat("━", 50-len(text)), reset)
+	fmt.Fprintf(w, "\n  %s┃%s %s%s%s\n", success, reset, bold, text, reset)
 }
 
 // Warn prints a warning banner.
 func Warn(w io.Writer, text string) {
-	fmt.Fprintf(w, "\n  %s━━━ %s%s%s %s━━━%s\n", warning, bold, text, warning, strings.Repeat("━", 50-len(text)), reset)
+	fmt.Fprintf(w, "\n  %s┃%s %s%s%s\n", warning, reset, bold, text, reset)
 }
 
 // Err prints an error banner.
 func Err(w io.Writer, text string) {
-	fmt.Fprintf(w, "\n  %s━━━ %s%s%s %s━━━%s\n", errClr, bold, text, errClr, strings.Repeat("━", 50-len(text)), reset)
-}
-
-// Banner prints the ANS branding header.
-func Banner(w io.Writer) {
-	fmt.Fprintf(w, `
-  %s╔══════════════════════════════════════════╗
-  ║        %sAgent Nervous System%s%s       ║
-  ║        %s%sSecure AI Agent Auditing%s%s%s       ║
-  ╚══════════════════════════════════════════╝%s
-`, primary, bold, primary, reset, dim, muted, dim, reset, primary, reset)
+	fmt.Fprintf(w, "\n  %s┃%s %s%s%s\n", errClr, reset, bold, text, reset)
 }
 
 // safeID returns the first 8 chars of id, or the full id if shorter, with ANSI stripped.

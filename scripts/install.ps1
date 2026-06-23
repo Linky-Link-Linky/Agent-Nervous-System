@@ -14,15 +14,15 @@ $Version = if ($env:ANS_VERSION) { $env:ANS_VERSION } else { "latest" }
 
 function Write-Banner {
     Write-Host ""
-    Write-Host "  ==========================================" -ForegroundColor Cyan
-    Write-Host "       Agent Nervous System" -ForegroundColor Cyan
+    Write-Host "  ==========================================" -ForegroundColor Magenta
+    Write-Host "       Agent Nervous System" -ForegroundColor Magenta
     Write-Host "       Secure AI Agent Auditing" -ForegroundColor DarkGray
-    Write-Host "  ==========================================" -ForegroundColor Cyan
+    Write-Host "  ==========================================" -ForegroundColor Magenta
     Write-Host ""
 }
 
 function Write-Step($num, $text) {
-    Write-Host "  $num. $text" -ForegroundColor Cyan
+    Write-Host "  $num. $text" -ForegroundColor Magenta
 }
 
 function Write-Done($text) {
@@ -34,7 +34,7 @@ function Write-Warn($text) {
 }
 
 function Write-Cmd($text) {
-    Write-Host "  $([char]0x25B6) $text" -ForegroundColor White
+    Write-Host "    $ $text" -ForegroundColor Magenta
 }
 
 function Write-Err($text) {
@@ -166,9 +166,9 @@ Write-Step $StepNum "Adding to system PATH..."
 
     # --- Success message ---
     Write-Host ""
-    Write-Host "  ==========================================" -ForegroundColor Green
-    Write-Host "       ANS is installed!" -ForegroundColor Green
-    Write-Host "  ==========================================" -ForegroundColor Green
+    Write-Host "  ==========================================" -ForegroundColor Magenta
+    Write-Host "       ANS is installed!" -ForegroundColor Magenta
+    Write-Host "  ==========================================" -ForegroundColor Magenta
     Write-Host ""
     Write-Host "  To get started, open a NEW PowerShell window and run:" -ForegroundColor White
     Write-Host ""
@@ -184,7 +184,7 @@ Write-Step $StepNum "Adding to system PATH..."
     Write-Cmd "ans chain"
     Write-Host "      View the receipt chain" -ForegroundColor DarkGray
     Write-Host ""
-    Write-Host "  Need help? Run: ans doctor" -ForegroundColor Cyan
+    Write-Host "  Need help? Run: ans doctor" -ForegroundColor Magenta
     Write-Host ""
     Write-Host "  Or open a new PowerShell and type: ans init" -ForegroundColor Yellow
     Write-Host ""
@@ -194,12 +194,12 @@ catch {
     Write-Err "Installation failed: $_"
     Write-Host ""
     Write-Host "  Don't worry! Try one of these:" -ForegroundColor Yellow
-    Write-Host "  1. Build from source (works everywhere):" -ForegroundColor Cyan
+    Write-Host "  1. Build from source (works everywhere):" -ForegroundColor Magenta
     Write-Host "     git clone https://github.com/$Repo.git" -ForegroundColor DarkGray
     Write-Host "     cd Agent-Nervous-System/ans" -ForegroundColor DarkGray
     Write-Host "     go build -o ans.exe ./cmd/ans" -ForegroundColor DarkGray
     Write-Host ""
-    Write-Host "  2. Get help: https://github.com/$Repo/issues" -ForegroundColor Cyan
+    Write-Host "  2. Get help: https://github.com/$Repo/issues" -ForegroundColor Magenta
     Write-Host ""
     throw
 }
