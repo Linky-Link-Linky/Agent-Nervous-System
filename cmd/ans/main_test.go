@@ -121,8 +121,8 @@ func TestVersionCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("version command failed: %v", err)
 	}
-	if !strings.Contains(string(out), "ans version") {
-		t.Errorf("output = %q, want to contain 'ans version'", string(out))
+	if !strings.Contains(string(out), "0.1.0") {
+		t.Errorf("output = %q, want to contain version number", string(out))
 	}
 }
 
@@ -169,7 +169,7 @@ func TestVersionFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("--version command failed: %v", err)
 	}
-	if !strings.Contains(string(out), "ans version") {
+	if !strings.Contains(string(out), "0.1.0") {
 		t.Errorf("output = %q", string(out))
 	}
 }

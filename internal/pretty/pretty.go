@@ -7,6 +7,7 @@ package pretty
 import (
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -20,16 +21,142 @@ var ansiRE = regexp.MustCompile(`\033\[[0-9;]*[a-zA-Z]|\033][^\a]*(\a|\033\\)`)
 // stripANSI removes ANSI escape sequences from s.
 func stripANSI(s string) string { return ansiRE.ReplaceAllString(s, "") }
 
+// Color palette — soft, relaxing, productivity-boosting colors.
+// Uses 256-color ANSI codes for rich rendering on modern terminals
+// while falling back gracefully on older terminals.
 const (
-	reset  = "\033[0m"
-	bold   = "\033[1m"
-	dim    = "\033[2m"
-	green  = "\033[32m"
-	red    = "\033[31m"
-	yellow = "\033[33m"
-	cyan   = "\033[36m"
-	gray   = "\033[90m"
+	Reset = "\033[0m"
+	Bold  = "\033[1m"
+	Dim   = "\033[2m"
+
+	// Base 8-color (safe fallbacks)
+	Green  = "\033[32m"
+	Red    = "\033[31m"
+	Yellow = "\033[33m"
+	Cyan   = "\033[36m"
+	Gray   = "\033[90m"
+
+	// Extended palette — soft tones
+	Primary = "\033[38;5;45m"  // soft cyan
+	Success = "\033[38;5;42m"  // mint green
+	Warning = "\033[38;5;221m" // warm amber
+	errClr  = "\033[38;5;204m" // soft coral
+	Accent  = "\033[38;5;147m" // lavender
+	Muted   = "\033[38;5;245m" // warm gray
 )
+
+// Backward-compat aliases for internal use
+var (
+	reset  = Reset
+	bold   = Bold
+	dim    = Dim
+	green  = Green
+	red    = Red
+	yellow = Yellow
+	cyan   = Cyan
+	gray   = Gray
+	primary = Primary
+	success = Success
+	warning = Warning
+	accent  = Accent
+	muted   = Muted
+)
+
+// HasColor returns true if the terminal supports color output.
+// Checks NO_COLOR env var (https://no-color.org/) and TERM=dumb.
+func HasColor() bool {
+	if os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+	if os.Getenv("TERM") == "dumb" {
+		return false
+	}
+	return true
+}
+
+// --- Styled output helpers ------------------------------------------------
+
+// Fprint styled text to w with the given ANSI codes and args.
+func Fprint(w io.Writer, style string, args ...interface{}) {
+	fmt.Fprint(w, style)
+	fmt.Fprint(w, args...)
+	fmt.Fprint(w, reset)
+}
+
+// Fprintf styled formatted text to w.
+func Fprintf(w io.Writer, style, format string, args ...interface{}) {
+	fmt.Fprint(w, style)
+	fmt.Fprintf(w, format, args...)
+	fmt.Fprint(w, reset)
+}
+
+// Fprintln styled text to w followed by newline.
+func Fprintln(w io.Writer, style string, args ...interface{}) {
+	fmt.Fprint(w, style)
+	fmt.Fprint(w, args...)
+	fmt.Fprintln(w, reset)
+}
+
+// Header prints a bold section header.
+func Header(w io.Writer, text string) {
+	fmt.Fprintf(w, "\n%s%s%s%s\n", bold, primary, text, reset)
+	fmt.Fprintf(w, "%s%s%s\n", muted, strings.Repeat("─", len(text)), reset)
+}
+
+// Subheader prints a subsection header.
+func Subheader(w io.Writer, text string) {
+	fmt.Fprintf(w, "\n%s%s  %s%s\n", accent, "◆", text, reset)
+}
+
+// Step prints a numbered step with checkmark.
+func Step(w io.Writer, num int, text string) {
+	fmt.Fprintf(w, "  %s%s%s %s%s%s %s\n", primary, fmt.Sprintf("%d.", num), reset, bold, text, reset, dim)
+}
+
+// Done prints a completed step indicator.
+func Done(w io.Writer, text string) {
+	fmt.Fprintf(w, "  %s✔%s %s%s%s\n", success, reset, bold, text, reset)
+}
+
+// Item prints a labeled value pair.
+func Item(w io.Writer, label, value string) {
+	fmt.Fprintf(w, "  %s%-14s%s %s\n", muted, label+":", reset, value)
+}
+
+// Code prints a command-style line with prompt.
+func Code(w io.Writer, cmd string) {
+	fmt.Fprintf(w, "  %s$%s %s%s%s\n", green, reset, bold, cmd, reset)
+}
+
+// Link prints a URL.
+func Link(w io.Writer, label, url string) {
+	fmt.Fprintf(w, "  %s%s:%s %s\n", muted, label, reset, url)
+}
+
+// Ok prints a success banner.
+func Ok(w io.Writer, text string) {
+	fmt.Fprintf(w, "\n  %s━━━ %s%s%s %s━━━%s\n\n", success, bold, text, success, strings.Repeat("━", 50-len(text)), reset)
+}
+
+// Warn prints a warning banner.
+func Warn(w io.Writer, text string) {
+	fmt.Fprintf(w, "\n  %s━━━ %s%s%s %s━━━%s\n", warning, bold, text, warning, strings.Repeat("━", 50-len(text)), reset)
+}
+
+// Err prints an error banner.
+func Err(w io.Writer, text string) {
+	fmt.Fprintf(w, "\n  %s━━━ %s%s%s %s━━━%s\n", errClr, bold, text, errClr, strings.Repeat("━", 50-len(text)), reset)
+}
+
+// Banner prints the ANS branding header.
+func Banner(w io.Writer) {
+	fmt.Fprintf(w, `
+  %s╔══════════════════════════════════════════╗
+  ║        %sAgent Nervous System%s%s       ║
+  ║        %s%sSecure AI Agent Auditing%s%s%s       ║
+  ╚══════════════════════════════════════════╝%s
+`, primary, bold, primary, reset, dim, muted, dim, reset, primary, reset)
+}
 
 // safeID returns the first 8 chars of id, or the full id if shorter, with ANSI stripped.
 func safeID(id string) string {

@@ -195,7 +195,10 @@ func main() {
 	case "doctor":
 		cmdDoctor()
 	case "version", "--version", "-v":
-		fmt.Printf("ans version %s (%s/%s)\n", version, runtime.GOOS, runtime.GOARCH)
+		pretty.Banner(os.Stderr)
+		pretty.Item(os.Stderr, "Version", version)
+		pretty.Item(os.Stderr, "Platform", runtime.GOOS+"/"+runtime.GOARCH)
+		fmt.Fprintln(os.Stderr)
 	case "help", "--help", "-h":
 		fmt.Print(usageText)
 	default:
@@ -245,13 +248,15 @@ func cmdStart() {
 		fatalf("flag error: %v", err)
 	}
 
+	w := os.Stderr
+
 	if conn, err := daemon.Dial(); err == nil {
 		_ = conn.Close()
-		fmt.Fprintln(os.Stderr, "ans: daemon is already running")
+		pretty.Warn(w, "Daemon is already running")
+		pretty.Item(w, "Socket", daemon.SocketPath())
 		return
 	}
 
-	// Load config for defaults if flags not set
 	cfg, _ := config.Load()
 	if !*ndjson {
 		*ndjson = cfg.NDJSON
@@ -259,6 +264,10 @@ func cmdStart() {
 	if *webhook == "" {
 		*webhook = cfg.Webhook
 	}
+
+	pretty.Banner(w)
+	pretty.Header(w, "Starting ANS Daemon")
+	fmt.Fprintln(w)
 
 	self, err := os.Executable()
 	if err != nil {
@@ -277,12 +286,20 @@ func cmdStart() {
 	if err := cmd.Start(); err != nil {
 		fatalf("starting daemon: %v", err)
 	}
-	// Poll until socket is ready (up to 3 seconds)
+	pretty.Done(w, "Daemon process launched")
 	for i := 0; i < 30; i++ {
 		time.Sleep(100 * time.Millisecond)
 		if conn, err := daemon.Dial(); err == nil {
 			_ = conn.Close()
-			fmt.Fprintf(os.Stderr, "ans: daemon started (socket: %s)\n", daemon.SocketPath())
+			pretty.Ok(w, "ANS Daemon is running!")
+			pretty.Item(w, "Socket", daemon.SocketPath())
+			fmt.Fprintln(w)
+			pretty.Step(w, 1, "Register an agent:")
+			pretty.Code(w, "ans register --name my-agent --version 1.0.0")
+			fmt.Fprintln(w)
+			pretty.Step(w, 2, "View the chain:")
+			pretty.Code(w, "ans chain")
+			fmt.Fprintln(w)
 			return
 		}
 	}
@@ -1221,15 +1238,20 @@ func cmdInit() {
 	ndjson := fs.Bool("ndjson", false, "Default NDJSON output")
 	_ = fs.Parse(os.Args[2:])
 
+	w := os.Stderr
+	pretty.Banner(w)
+	pretty.Header(w, "Initializing ANS")
+	fmt.Fprintln(w)
+
 	dir, err := config.EnsureDir()
 	if err != nil {
 		fatalf("creating data directory: %v", err)
 	}
-	fmt.Fprintf(os.Stderr, "ans: data directory ready: %s\n", dir)
+	pretty.Done(w, "Data directory ready: "+dir)
 
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ans: warning: loading config: %v\n", err)
+		pretty.Warn(w, "Loading config: "+err.Error())
 		cfg = config.DefaultConfig()
 	}
 	if *webhook != "" {
@@ -1241,13 +1263,22 @@ func cmdInit() {
 	if err := config.Save(cfg); err != nil {
 		fatalf("saving config: %v", err)
 	}
-	fmt.Fprintln(os.Stderr, "ans: config written")
+	pretty.Done(w, "Configuration written")
 
 	if *svc {
 		installService()
 	}
 
-	fmt.Fprintf(os.Stderr, "\n\033[32m\u2713\033[0m ANS is ready. Run \033[1mans start\033[0m to start the daemon.\n")
+	pretty.Ok(w, "ANS is ready!")
+	pretty.Step(w, 1, "Start the daemon:")
+	pretty.Code(w, "ans start")
+	fmt.Fprintln(w)
+	pretty.Step(w, 2, "Register an agent:")
+	pretty.Code(w, "ans register --name my-agent --version 1.0.0")
+	fmt.Fprintln(w)
+	pretty.Step(w, 3, "View the receipt chain:")
+	pretty.Code(w, "ans chain")
+	fmt.Fprintln(w)
 }
 
 func installService() {
@@ -1385,62 +1416,88 @@ start /B "" "%s" start
 // --- doctor ---
 
 func cmdDoctor() {
-	fmt.Fprintln(os.Stderr, "=== ANS Diagnostics ===")
+	w := os.Stderr
+	pretty.Banner(w)
+	pretty.Header(w, "ANS Diagnostics")
+	fmt.Fprintln(w)
 
-	// Socket
+	status := func(ok bool, label string) string {
+		if ok {
+			return pretty.Green + pretty.Bold + "OK" + pretty.Reset
+		}
+		return pretty.Yellow + pretty.Bold + "MISSING" + pretty.Reset
+	}
+
 	socketPath := daemon.SocketPath()
-	fmt.Fprintf(os.Stderr, "Socket: %s\n", socketPath)
+	daemonOK := false
 	if conn, err := daemon.Dial(); err == nil {
 		_ = conn.Close()
-		fmt.Fprintln(os.Stderr, "  Status: \033[32mconnected\033[0m")
-	} else {
-		fmt.Fprintf(os.Stderr, "  Status: \033[33mnot running\033[0m (%v)\n", err)
+		daemonOK = true
 	}
+	pretty.Item(w, "Daemon", status(daemonOK, ""))
+	pretty.Item(w, "  Socket", socketPath)
 
-	// PID file
 	pidPath := pidFilePath()
-	fmt.Fprintf(os.Stderr, "PID file: %s\n", pidPath)
+	pidOK := false
+	pid := ""
 	if data, err := os.ReadFile(pidPath); err == nil {
-		pid := strings.TrimSpace(string(data))
-		fmt.Fprintf(os.Stderr, "  PID: %s\n", pid)
-	} else {
-		fmt.Fprintf(os.Stderr, "  Status: \033[33mnot found\033[0m\n")
+		pid = strings.TrimSpace(string(data))
+		pidOK = true
+	}
+	pretty.Item(w, "  PID file", pidPath)
+	if pidOK {
+		pretty.Item(w, "  PID", pid)
 	}
 
-	// Config
 	cfgPath, _ := config.Path()
-	fmt.Fprintf(os.Stderr, "Config: %s\n", cfgPath)
+	cfgOK := false
 	if _, err := os.Stat(cfgPath); err == nil {
-		fmt.Fprintln(os.Stderr, "  Status: \033[32mpresent\033[0m")
-	} else {
-		fmt.Fprintln(os.Stderr, "  Status: \033[33mnot found\033[0m (run \033[1mans init\033[0m)")
+		cfgOK = true
+	}
+	pretty.Item(w, "Config", status(cfgOK, ""))
+	if !cfgOK {
+		pretty.Item(w, "  Path", cfgPath)
 	}
 
-	// Data directory
 	dataDir, _ := config.Dir()
-	fmt.Fprintf(os.Stderr, "Data dir: %s\n", dataDir)
+	dirOK := false
+	items := 0
 	if entries, err := os.ReadDir(dataDir); err == nil {
-		fmt.Fprintf(os.Stderr, "  Contents: %d items\n", len(entries))
-	} else {
-		fmt.Fprintf(os.Stderr, "  Status: \033[33mnot found\033[0m (run \033[1mans init\033[0m)\n")
+		dirOK = true
+		items = len(entries)
+	}
+	pretty.Item(w, "Data dir", status(dirOK, ""))
+	pretty.Item(w, "  Path", dataDir)
+	if dirOK {
+		pretty.Item(w, "  Items", fmt.Sprintf("%d", items))
 	}
 
-	// Chain
-	fmt.Fprintf(os.Stderr, "Chain DB: ~/.ans/chain.db\n")
-	if _, err := os.Stat(filepath.Join(dataDir, "chain.db")); err == nil {
-		fmt.Fprintln(os.Stderr, "  Status: \033[32mpresent\033[0m")
-	} else {
-		fmt.Fprintln(os.Stderr, "  Status: \033[33mnot found\033[0m (will be created on first start)")
+	chainPath := filepath.Join(dataDir, "chain.db")
+	chainOK := false
+	if _, err := os.Stat(chainPath); err == nil {
+		chainOK = true
+	}
+	pretty.Item(w, "Chain DB", status(chainOK, ""))
+	if !chainOK {
+		pretty.Item(w, "  Note", "Created on first start")
 	}
 
-	// Version
-	fmt.Fprintf(os.Stderr, "\nVersion: %s (%s/%s)\n", version, runtime.GOOS, runtime.GOARCH)
+	pretty.Item(w, "Version", version+" ("+runtime.GOOS+"/"+runtime.GOARCH+")")
 
-	// Advice
-	fmt.Fprintln(os.Stderr, "\nNext steps:")
-	if _, err := daemon.Dial(); err != nil {
-		fmt.Fprintln(os.Stderr, "  \033[1mans init\033[0m  — if first-time setup needed")
-		fmt.Fprintln(os.Stderr, "  \033[1mans start\033[0m — start the daemon")
+	fmt.Fprintln(w)
+	if !cfgOK || !dirOK {
+		pretty.Warn(w, "Not fully set up yet")
+		pretty.Step(w, 1, "Run first-time setup:")
+		pretty.Code(w, "ans init")
+		fmt.Fprintln(w)
+	}
+	if !daemonOK {
+		pretty.Step(w, 2, "Start the daemon:")
+		pretty.Code(w, "ans start")
+		fmt.Fprintln(w)
+	}
+	if daemonOK {
+		pretty.Ok(w, "Everything looks good!")
 	}
 }
 
