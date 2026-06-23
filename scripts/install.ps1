@@ -23,6 +23,7 @@ if ($Version -eq "latest") { $Base = "https://github.com/${Repo}/releases/latest
 
 $TmpDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Path $TmpDir -Force | Out-Null
+$script:InstallFailed = $false
 
 try {
     Write-Host "Downloading ANS for Windows/${Arch}..."
@@ -50,8 +51,32 @@ try {
     }
     Copy-Item (Join-Path $TmpDir $Binary) (Join-Path $InstallDir $Binary) -Force
 
-    # Remove Windows Zone Identifier (downloaded-from-internet marker) so the binary can run
+    # Remove Windows Zone Identifier (downloaded-from-internet marker)
     Unblock-File -Path (Join-Path $InstallDir $Binary) -ErrorAction SilentlyContinue
+
+    # Detect Smart App Control (Windows 11), which blocks unsigned binaries by reputation.
+    # When enabled, build-from-source is the only workaround.
+    $SacState = (Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy -Name VerifiedAndReputablePolicyState -ErrorAction SilentlyContinue).VerifiedAndReputablePolicyState
+    if ($SacState -eq 1) {
+        Write-Host ""
+        Write-Host "Smart App Control is ON" -ForegroundColor Yellow
+        Write-Host "Windows 11 Smart App Control blocks unsigned binaries downloaded from the internet." -ForegroundColor Yellow
+        Write-Host "The downloaded binary will NOT run until you do one of the following:" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  Option A — Turn off Smart App Control (recommended):" -ForegroundColor Cyan
+        Write-Host "    Windows Security > App & browser control > Smart App Control > Off"
+        Write-Host ""
+        Write-Host "  Option B — Build from source (no restrictions):" -ForegroundColor Cyan
+        Write-Host "    cd $(Split-Path $InstallDir)"
+        Write-Host "    git clone https://github.com/$Repo.git"
+        Write-Host "    cd Agent-Nervous-System\ans"
+        Write-Host "    go build -o $(Join-Path $InstallDir $Binary) ./cmd/ans"
+        Write-Host ""
+        Write-Host "  Option C — Add a path exclusion (may not bypass SAC):" -ForegroundColor Cyan
+        Write-Host "    Add-MpPreference -ExclusionPath ""$InstallDir"""
+        Write-Host ""
+        $script:InstallFailed = $true
+    }
 
     # Only touch User PATH if InstallDir is not already in the effective PATH
     if ($env:Path -split ';' -notcontains $InstallDir) {
@@ -61,20 +86,22 @@ try {
         $env:Path += ";$InstallDir"
     }
 
-    Write-Host ""
-    Write-Host "ANS installed to $InstallDir" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "Start the daemon:" -ForegroundColor Cyan
-    Write-Host "  ans start"
-    Write-Host ""
-    Write-Host "Register an agent:"
-    Write-Host "  ans register --name my-agent --version 1.0.0"
-    Write-Host ""
-    Write-Host "View the receipt chain:"
-    Write-Host "  ans chain"
-    Write-Host ""
-    Write-Host "IMPORTANT: Open a NEW PowerShell window before running 'ans'." -ForegroundColor Yellow
-    Write-Host "  The PATH change takes effect in new sessions." -ForegroundColor Yellow
+    if (-not $script:InstallFailed) {
+        Write-Host ""
+        Write-Host "ANS installed to $InstallDir" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "Start the daemon:" -ForegroundColor Cyan
+        Write-Host "  ans start"
+        Write-Host ""
+        Write-Host "Register an agent:"
+        Write-Host "  ans register --name my-agent --version 1.0.0"
+        Write-Host ""
+        Write-Host "View the receipt chain:"
+        Write-Host "  ans chain"
+        Write-Host ""
+        Write-Host "IMPORTANT: Open a NEW PowerShell window before running 'ans'." -ForegroundColor Yellow
+        Write-Host "  The PATH change takes effect in new sessions." -ForegroundColor Yellow
+    }
 }
 catch {
     Write-Host ""
