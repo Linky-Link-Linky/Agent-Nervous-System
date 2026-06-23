@@ -84,19 +84,6 @@ curl -fsSL https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-Syst
 irm https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.ps1 | iex
 ```
 
-### Docker (any OS)
-
-```bash
-docker run -d --name ans -v ans-data:/var/lib/ans ghcr.io/linky-link-linky/agent-nervous-system:latest
-```
-
-Or build locally with Docker Compose:
-
-```bash
-git clone https://github.com/Linky-Link-Linky/Agent-Nervous-System.git && cd Agent-Nervous-System
-docker compose up -d
-```
-
 ### Or build from source (requires Go 1.22+)
 
 ```bash
