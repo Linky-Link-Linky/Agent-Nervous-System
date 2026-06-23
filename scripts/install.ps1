@@ -3,6 +3,9 @@
 #   irm https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.ps1 | iex
 # SPDX-License-Identifier: Apache-2.0
 
+# Enable TLS 1.2 for older PowerShell 5.1 (GitHub requires it)
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
 $Repo = "Linky-Link-Linky/Agent-Nervous-System"
 $Binary = "ans.exe"
 $InstallDir = Join-Path $env:USERPROFILE ".ans\bin"
@@ -11,7 +14,7 @@ $Version = if ($env:ANS_VERSION) { $env:ANS_VERSION } else { "latest" }
 switch ($env:PROCESSOR_ARCHITECTURE) {
     "AMD64" { $Arch = "amd64" }
     "ARM64" { $Arch = "arm64" }
-    default { Write-Error "Unsupported architecture: $env:PROCESSOR_ARCHITECTURE"; exit 1 }
+    default { throw "Unsupported architecture: $env:PROCESSOR_ARCHITECTURE" }
 }
 
 $Asset = "ans_windows_${Arch}.exe"
@@ -28,13 +31,13 @@ try {
 
     $ChecksumLine = Get-Content (Join-Path $TmpDir "checksums.txt") | Select-String -Pattern $Asset
     if (-not $ChecksumLine) {
-        Write-Error "Checksum not found for $Asset"; exit 1
+        throw "Checksum not found for $Asset"
     }
     $Expected = ($ChecksumLine -split '\s+')[0]
     $Actual = (Get-FileHash (Join-Path $TmpDir $Binary) -Algorithm SHA256).Hash.ToLower()
 
     if ($Expected.ToLower() -ne $Actual) {
-        Write-Error "Checksum mismatch: expected $Expected, got $Actual"; exit 1
+        throw "Checksum mismatch: expected $Expected, got $Actual"
     }
 
     if (-not (Test-Path $InstallDir)) {
@@ -42,25 +45,40 @@ try {
     }
     Copy-Item (Join-Path $TmpDir $Binary) (Join-Path $InstallDir $Binary) -Force
 
-    $CurrentPath = [Environment]::GetEnvironmentVariable("Path", "User")
-    if ($CurrentPath -notlike "*$InstallDir*") {
-        [Environment]::SetEnvironmentVariable("Path", "$CurrentPath;$InstallDir", "User")
-        $env:Path = "$env:Path;$InstallDir"
+    # Only touch User PATH if InstallDir is not already in the effective PATH
+    if ($env:Path -split ';' -notcontains $InstallDir) {
+        $CurrentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+        if (-not $CurrentUserPath.EndsWith(';')) { $CurrentUserPath += ';' }
+        [Environment]::SetEnvironmentVariable("Path", "${CurrentUserPath}${InstallDir}", "User")
+        $env:Path += ";$InstallDir"
     }
 
-    Write-Host "ANS installed to $InstallDir"
     Write-Host ""
-    Write-Host "Start the daemon:" -ForegroundColor Green
-    Write-Host "  ans start" -ForegroundColor Cyan
+    Write-Host "ANS installed to $InstallDir" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Start the daemon:" -ForegroundColor Cyan
+    Write-Host "  ans start"
+    Write-Host ""
     Write-Host "Register an agent:"
     Write-Host "  ans register --name my-agent --version 1.0.0"
+    Write-Host ""
     Write-Host "View the receipt chain:"
     Write-Host "  ans chain"
     Write-Host ""
-    Write-Host "Run 'ans start' now to verify the installation." -ForegroundColor Yellow
+    Write-Host "IMPORTANT: Open a NEW PowerShell window before running 'ans'." -ForegroundColor Yellow
+    Write-Host "  The PATH change takes effect in new sessions." -ForegroundColor Yellow
 }
 catch {
-    Write-Error "Installation failed: $_"; exit 1
+    Write-Host ""
+    Write-Host "ERROR: Installation failed" -ForegroundColor Red
+    Write-Host "  $_" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Troubleshooting:" -ForegroundColor Yellow
+    Write-Host "  1. Check your internet connection" -ForegroundColor Yellow
+    Write-Host "  2. Run: powershell -Command `"`$ProgressPreference='SilentlyContinue'; irm ... | iex`"" -ForegroundColor Yellow
+    Write-Host "  3. Or build from source: https://github.com/$Repo" -ForegroundColor Yellow
+    Write-Host ""
+    throw  # re-throw so the error is visible but PowerShell stays open
 }
 finally {
     Remove-Item -Path $TmpDir -Recurse -Force -ErrorAction SilentlyContinue
