@@ -6,61 +6,100 @@ set -eu
 
 REPO="Linky-Link-Linky/Agent-Nervous-System"
 BINARY="ans"
-
-# Allow version pin via ANS_VERSION env var
 VERSION="${ANS_VERSION:-latest}"
+
+# --- Colors ---
+GREEN='\033[32m'
+CYAN='\033[36m'
+YELLOW='\033[33m'
+RED='\033[31m'
+GRAY='\033[90m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+step()   { printf "  ${CYAN}%s.${RESET} ${BOLD}%s${RESET}\n" "$1" "$2"; }
+done_()  { printf "  ${GREEN}\xe2\x9c\x94${RESET} %s\n" "$1"; }
+warn()   { printf "  ${YELLOW}!${RESET} %s\n" "$1"; }
+cmd_()   { printf "  ${GREEN}\$${RESET} ${BOLD}%s${RESET}\n" "$1"; }
+banner() {
+  printf "\n"
+  printf "  ${CYAN}==========================================${RESET}\n"
+  printf "  ${CYAN}      Agent Nervous System${RESET}\n"
+  printf "  ${GRAY}      Secure AI Agent Auditing${RESET}\n"
+  printf "  ${CYAN}==========================================${RESET}\n"
+  printf "\n"
+}
+
+banner
+step 1 "Detecting your system..."
+
+# --- OS detection ---
+case "$(uname -s)" in
+  Linux)  OS="linux"  ;;
+  Darwin) OS="darwin" ;;
+  *)
+    printf "  ${RED}x${RESET} Unsupported OS: $(uname -s)\n" >&2
+    exit 1
+    ;;
+esac
+
+# --- Arch detection ---
+case "$(uname -m)" in
+  x86_64|amd64)  ARCH="amd64" ;;
+  aarch64|arm64) ARCH="arm64" ;;
+  *)
+    printf "  ${RED}x${RESET} Unsupported arch: $(uname -m)\n" >&2
+    exit 1
+    ;;
+esac
+
+printf "     Platform: ${BOLD}${OS}/${ARCH}${RESET}\n"
+
+ASSET="ans_${OS}_${ARCH}"
+[ "$OS" = "windows" ] && ASSET="${ASSET}.exe"
+
 if [ "$VERSION" = "latest" ]; then
   BASE="https://github.com/${REPO}/releases/latest/download"
 else
   BASE="https://github.com/${REPO}/releases/${VERSION}/download"
 fi
 
-case "$(uname -s)" in
-  Linux)  OS="linux"  ;;
-  Darwin) OS="darwin" ;;
-  MINGW*|MSYS*|CYGWIN*) OS="windows"; BINARY="ans.exe" ;;
-  *) echo "Unsupported OS: $(uname -s)" >&2; exit 1 ;;
-esac
-
-case "$(uname -m)" in
-  x86_64|amd64)  ARCH="amd64" ;;
-  aarch64|arm64) ARCH="arm64" ;;
-  *) echo "Unsupported arch: $(uname -m)" >&2; exit 1 ;;
-esac
-
-ASSET="ans_${OS}_${ARCH}"
-[ "$OS" = "windows" ] && ASSET="${ASSET}.exe"
-
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-echo "Downloading ANS for ${OS}/${ARCH}..."
-curl -fsSL "${BASE}/${ASSET}" -o "${TMP}/${BINARY}"
+done_ "System detected"
 
-# Optional checksum verification — skip if checksums.txt not published yet
+# --- Download ---
+step 2 "Downloading ANS for ${OS}/${ARCH}..."
+curl -fsSL "${BASE}/${ASSET}" -o "${TMP}/${BINARY}"
+done_ "Downloaded ${ASSET}"
+
+# --- Optional checksum ---
 if curl -fsSL "${BASE}/checksums.txt" -o "${TMP}/checksums.txt" 2>/dev/null; then
   EXPECTED="$(grep -F "$ASSET" "${TMP}/checksums.txt" | awk '{print $1}')"
   if [ -n "$EXPECTED" ]; then
-    chmod +x "${TMP}/${BINARY}"
     if command -v sha256sum >/dev/null 2>&1; then
       ACTUAL="$(sha256sum "${TMP}/${BINARY}" | awk '{print $1}')"
     elif command -v shasum >/dev/null 2>&1; then
       ACTUAL="$(shasum -a 256 "${TMP}/${BINARY}" | awk '{print $1}')"
     else
-      echo "Warning: no sha256sum or shasum — skipping verification" >&2
+      warn "No sha256sum found — skipping verification"
     fi
     if [ -n "${ACTUAL:-}" ] && [ "$ACTUAL" != "$EXPECTED" ]; then
-      echo "Checksum mismatch: expected $EXPECTED, got $ACTUAL" >&2; exit 1
+      printf "  ${RED}x${RESET} Checksum mismatch: expected $EXPECTED, got $ACTUAL\n" >&2
+      exit 1
     fi
-    echo "Checksum verified."
+    done_ "Checksum verified"
   fi
 else
-  echo "Checksum file not available — skipping verification."
+  warn "Checksum file not available — skipped"
 fi
 
 chmod +x "${TMP}/${BINARY}"
 
-# Install — try /usr/local/bin first, then sudo, then $HOME/.local/bin
+# --- Install ---
+step 3 "Installing binary..."
+
 for DEST_DIR in "/usr/local/bin" "$HOME/.local/bin" "$HOME/bin"; do
   mkdir -p "$DEST_DIR" 2>/dev/null || true
   if [ -w "$DEST_DIR" ] && cp "${TMP}/${BINARY}" "${DEST_DIR}/${BINARY}" 2>/dev/null; then
@@ -79,23 +118,23 @@ if [ -z "${DEST:-}" ]; then
   DEST="$HOME/.local/bin/${BINARY}"
 fi
 
-echo ""
-echo " ANS installed: $DEST" | sed "s|$HOME|~|g"
+done_ "Installed to $(echo "$DEST" | sed "s|$HOME|~|g")"
 
-# -- PATH setup -----------------------------------------------------------
+# --- PATH setup ---
+step 4 "Checking PATH..."
 INSTALL_DIR="$(dirname "$DEST")"
 
-ensure_path_entry() {
+ensure_path() {
   case ":$PATH:" in
-    *":$1:"*) return 0 ;;  # already in PATH
+    *":$1:"*) return 0 ;;
     *) return 1 ;;
   esac
 }
 
-if ensure_path_entry "$INSTALL_DIR"; then
-  : # already in PATH, nothing to do
+if ensure_path "$INSTALL_DIR"; then
+  done_ "Already in PATH"
 else
-  # Determine shell config file
+  # Determine shell config
   SHELL_NAME="${SHELL##*/}"
   case "$SHELL_NAME" in
     zsh)  RC_FILE="${ZDOTDIR:-$HOME}/.zshrc" ;;
@@ -107,25 +146,49 @@ else
   LINE="export PATH=\"\$PATH:$INSTALL_DIR\""
 
   if [ -f "$RC_FILE" ] && grep -qsF "$INSTALL_DIR" "$RC_FILE" 2>/dev/null; then
-    : # already in config file but not yet in this session's PATH
+    warn "Already in $RC_FILE but not in current session"
   elif [ -f "$RC_FILE" ] && [ -w "$RC_FILE" ]; then
     printf '\n%s\n' "$LINE" >> "$RC_FILE"
-    echo " Added to $RC_FILE"
+    done_ "Added to $RC_FILE"
   elif [ -w "$HOME" ]; then
     printf '\n%s\n' "$LINE" >> "$RC_FILE" 2>/dev/null || true
-    echo " Created $RC_FILE with PATH entry"
+    done_ "Created $RC_FILE with PATH entry"
+  else
+    warn "Could not write to $RC_FILE"
   fi
 
-  echo ""
-  echo " To use 'ans' now, run:"
-  echo "   export PATH=\"\$PATH:$INSTALL_DIR\""
-  echo ""
-  echo " Or open a new terminal window (it will pick up $RC_FILE)."
-  echo ""
+  printf "\n  ${YELLOW}To use 'ans' now, run:${RESET}\n"
+  cmd_ "export PATH=\"\$PATH:$INSTALL_DIR\""
+  printf "  ${GRAY}Or open a new terminal window.${RESET}\n"
 fi
 
-echo " Start the daemon:   ans start"
-echo " Register an agent:  ans register --name my-agent --version 1.0.0"
-echo " View the chain:     ans chain"
-echo ""
-"$DEST" version 2>/dev/null || echo " Run 'ans version' to verify."
+# --- Version check ---
+step 5 "Verifying installation..."
+if "$DEST" version 2>/dev/null; then
+  done_ "ANS is ready!"
+else
+  warn "Run 'ans version' to verify"
+fi
+
+# --- Success message ---
+printf "\n"
+printf "  ${GREEN}==========================================${RESET}\n"
+printf "  ${GREEN}      ANS is installed!${RESET}\n"
+printf "  ${GREEN}==========================================${RESET}\n"
+printf "\n"
+printf "  ${BOLD}Quick start:${RESET}\n"
+printf "\n"
+cmd_ "ans init"
+printf "  ${GRAY}  Creates your data directory (~/.ans/) and config${RESET}\n"
+printf "\n"
+cmd_ "ans start"
+printf "  ${GRAY}  Starts the ANS daemon${RESET}\n"
+printf "\n"
+cmd_ "ans register --name my-agent --version 1.0.0"
+printf "  ${GRAY}  Register your first AI agent${RESET}\n"
+printf "\n"
+cmd_ "ans chain"
+printf "  ${GRAY}  View the receipt chain${RESET}\n"
+printf "\n"
+printf "  ${CYAN}Need help? Run: ans doctor${RESET}\n"
+printf "\n"

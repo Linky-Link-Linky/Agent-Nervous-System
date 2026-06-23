@@ -1,9 +1,8 @@
 # ANS install script for Windows
-# Usage:
-#   irm https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.ps1 | iex
 # SPDX-License-Identifier: Apache-2.0
 
-# Enable TLS 1.2 for older PowerShell 5.1 (GitHub requires it)
+# Enable TLS 1.2 for older PowerShell 5.1
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
 $Repo = "Linky-Link-Linky/Agent-Nervous-System"
@@ -11,10 +10,43 @@ $Binary = "ans.exe"
 $InstallDir = Join-Path $env:USERPROFILE ".ans\bin"
 $Version = if ($env:ANS_VERSION) { $env:ANS_VERSION } else { "latest" }
 
+# --- Helper functions ---
+
+function Write-Banner {
+    Write-Host ""
+    Write-Host "  ==========================================" -ForegroundColor Cyan
+    Write-Host "       Agent Nervous System" -ForegroundColor Cyan
+    Write-Host "       Secure AI Agent Auditing" -ForegroundColor DarkGray
+    Write-Host "  ==========================================" -ForegroundColor Cyan
+    Write-Host ""
+}
+
+function Write-Step($num, $text) {
+    Write-Host "  $num. $text" -ForegroundColor Cyan
+}
+
+function Write-Done($text) {
+    Write-Host "  `u{2714} $text" -ForegroundColor Green
+}
+
+function Write-Warn($text) {
+    Write-Host "  ! $text" -ForegroundColor Yellow
+}
+
+function Write-Cmd($text) {
+    Write-Host "  `$ $text" -ForegroundColor White
+}
+
+function Write-Err($text) {
+    Write-Host "  x $text" -ForegroundColor Red
+}
+
+# --- Architecture detection ---
+
 switch ($env:PROCESSOR_ARCHITECTURE) {
     "AMD64" { $Arch = "amd64" }
     "ARM64" { $Arch = "arm64" }
-    default { throw "Unsupported architecture: $env:PROCESSOR_ARCHITECTURE" }
+    default { Write-Err "Unsupported architecture: $env:PROCESSOR_ARCHITECTURE"; throw "Unsupported architecture" }
 }
 
 $Asset = "ans_windows_${Arch}.exe"
@@ -23,97 +55,152 @@ if ($Version -eq "latest") { $Base = "https://github.com/${Repo}/releases/latest
 
 $TmpDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Path $TmpDir -Force | Out-Null
-$script:InstallFailed = $false
+$script:BuildFromSource = $false
+
+# --- Main ---
 
 try {
-    Write-Host "Downloading ANS for Windows/${Arch}..."
-    Invoke-WebRequest -Uri "${Base}/${Asset}" -OutFile (Join-Path $TmpDir $Binary)
+    Clear-Host
+    Write-Banner
 
-    # Optional checksum verification — skip if checksums.txt not published yet
-    $ChecksumFile = Join-Path $TmpDir "checksums.txt"
-    try {
-        Invoke-WebRequest -Uri "${Base}/checksums.txt" -OutFile $ChecksumFile -ErrorAction Stop
-        $ChecksumLine = Get-Content $ChecksumFile | Select-String -Pattern $Asset
-        if ($ChecksumLine) {
-            $Expected = ($ChecksumLine -split '\s+')[0].ToLower()
-            $Actual = (Get-FileHash (Join-Path $TmpDir $Binary) -Algorithm SHA256).Hash.ToLower()
-            if ($Expected -ne $Actual) {
-                throw "Checksum mismatch: expected $Expected, got $Actual"
-            }
-            Write-Host "Checksum verified.`n"
-        }
-    } catch {
-        Write-Host "Checksum file not available — skipping verification." -ForegroundColor Yellow
-    }
+    # Step 1: Detect platform
+    Write-Step 1 "Detecting your system..."
+    Write-Host "     Platform: Windows $($Arch)" -ForegroundColor DarkGray
+    Write-Host "     Destination: $InstallDir" -ForegroundColor DarkGray
+    Start-Sleep -Milliseconds 300
 
-    if (-not (Test-Path $InstallDir)) {
-        New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
-    }
-    Copy-Item (Join-Path $TmpDir $Binary) (Join-Path $InstallDir $Binary) -Force
-
-    # Remove Windows Zone Identifier (downloaded-from-internet marker)
-    Unblock-File -Path (Join-Path $InstallDir $Binary) -ErrorAction SilentlyContinue
-
-    # Detect Smart App Control (Windows 11), which blocks unsigned binaries by reputation.
-    # When enabled, build-from-source is the only workaround.
+    # Step 2: Check Smart App Control
+    Write-Step 2 "Checking Windows security settings..."
     $SacState = (Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy -Name VerifiedAndReputablePolicyState -ErrorAction SilentlyContinue).VerifiedAndReputablePolicyState
     if ($SacState -eq 1) {
-        Write-Host ""
-        Write-Host "Smart App Control is ON" -ForegroundColor Yellow
-        Write-Host "Windows 11 Smart App Control blocks unsigned binaries downloaded from the internet." -ForegroundColor Yellow
-        Write-Host "The downloaded binary will NOT run until you do one of the following:" -ForegroundColor Yellow
-        Write-Host ""
-        Write-Host "  Option A — Turn off Smart App Control (recommended):" -ForegroundColor Cyan
-        Write-Host "    Windows Security > App & browser control > Smart App Control > Off"
-        Write-Host ""
-        Write-Host "  Option B — Build from source (no restrictions):" -ForegroundColor Cyan
-        Write-Host "    cd $(Split-Path $InstallDir)"
-        Write-Host "    git clone https://github.com/$Repo.git"
-        Write-Host "    cd Agent-Nervous-System\ans"
-        Write-Host "    go build -o $(Join-Path $InstallDir $Binary) ./cmd/ans"
-        Write-Host ""
-        Write-Host "  Option C — Add a path exclusion (may not bypass SAC):" -ForegroundColor Cyan
-        Write-Host "    Add-MpPreference -ExclusionPath ""$InstallDir"""
-        Write-Host ""
-        $script:InstallFailed = $true
+        Write-Warn "Smart App Control is ON"
+        Write-Host "     Windows 11 blocks unsigned downloaded binaries by default." -ForegroundColor Yellow
+        Write-Host "     I'll build from source instead — this works everywhere." -ForegroundColor Yellow
+        $script:BuildFromSource = $true
+    } else {
+        Write-Done "Smart App Control is off — downloading binary"
+    }
+    Start-Sleep -Milliseconds 300
+
+    if (-not $script:BuildFromSource) {
+        # Step 3: Download binary
+        Write-Step 3 "Downloading ANS for Windows/${Arch}..."
+        Invoke-WebRequest -Uri "${Base}/${Asset}" -OutFile (Join-Path $TmpDir $Binary) -UseBasicParsing
+        Write-Done "Downloaded $Asset"
+
+        # Step 4: Optional checksum
+        $ChecksumFile = Join-Path $TmpDir "checksums.txt"
+        try {
+            Invoke-WebRequest -Uri "${Base}/checksums.txt" -OutFile $ChecksumFile -ErrorAction Stop -UseBasicParsing
+            $ChecksumLine = Get-Content $ChecksumFile | Select-String -Pattern $Asset
+            if ($ChecksumLine) {
+                $Expected = ($ChecksumLine -split '\s+')[0].ToLower()
+                $Actual = (Get-FileHash (Join-Path $TmpDir $Binary) -Algorithm SHA256).Hash.ToLower()
+                if ($Expected -ne $Actual) {
+                    throw "Checksum mismatch: expected $Expected, got $Actual"
+                }
+                Write-Done "Checksum verified"
+            }
+        } catch {
+            Write-Warn "Checksum file not available — skipped"
+        }
+
+        # Step 5: Install binary
+        if (-not (Test-Path $InstallDir)) {
+            New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+        }
+        Copy-Item (Join-Path $TmpDir $Binary) (Join-Path $InstallDir $Binary) -Force
+        Unblock-File -Path (Join-Path $InstallDir $Binary) -ErrorAction SilentlyContinue
+        Write-Done "Binary installed to $InstallDir"
+    } else {
+        # Build from source (bypasses Smart App Control)
+        Write-Step 3 "Building ANS from source..."
+
+        # Check if Go is installed
+        $goVer = go version 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warn "Go is not installed. Installing Go first..."
+            $goInstaller = Join-Path $TmpDir "go-installer.msi"
+            try {
+                Invoke-WebRequest -Uri "https://go.dev/dl/go1.25.0.windows-amd64.msi" -OutFile $goInstaller -UseBasicParsing
+                Write-Host "     Running Go installer (may show a window)..." -ForegroundColor Yellow
+                Start-Process msiexec -ArgumentList "/i `"$goInstaller`" /quiet /norestart" -Wait
+                Write-Done "Go installed"
+                $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
+            } catch {
+                throw "Failed to install Go. Please install it manually from https://go.dev/dl/"
+            }
+        } else {
+            Write-Done "Go is available: $goVer"
+        }
+
+        # Clone and build
+        $srcDir = Join-Path $env:USERPROFILE ".ans\src"
+        if (Test-Path $srcDir) {
+            Remove-Item -Path $srcDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        Write-Step 4 "Cloning repository..."
+        git clone "https://github.com/$Repo.git" $srcDir 2>&1 | Out-Null
+        Write-Done "Repository cloned"
+
+        Write-Step 5 "Building binary..."
+        Push-Location $srcDir
+        go build -ldflags="-s -w" -trimpath -o (Join-Path $InstallDir $Binary) ./cmd/ans 2>&1
+        Pop-Location
+        if ($LASTEXITCODE -ne 0) {
+            throw "Build failed"
+        }
+        Write-Done "Binary built and installed"
     }
 
-    # Only touch User PATH if InstallDir is not already in the effective PATH
+    # Step 6: Add to PATH
+    Write-Step (if ($script:BuildFromSource) { 6 } else { 5 }) "Adding to system PATH..."
     if ($env:Path -split ';' -notcontains $InstallDir) {
         $CurrentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
         if (-not $CurrentUserPath.EndsWith(';')) { $CurrentUserPath += ';' }
         [Environment]::SetEnvironmentVariable("Path", "${CurrentUserPath}${InstallDir}", "User")
         $env:Path += ";$InstallDir"
     }
+    Write-Done "PATH updated for future terminals"
 
-    if (-not $script:InstallFailed) {
-        Write-Host ""
-        Write-Host "ANS installed to $InstallDir" -ForegroundColor Green
-        Write-Host ""
-        Write-Host "Start the daemon:" -ForegroundColor Cyan
-        Write-Host "  ans start"
-        Write-Host ""
-        Write-Host "Register an agent:"
-        Write-Host "  ans register --name my-agent --version 1.0.0"
-        Write-Host ""
-        Write-Host "View the receipt chain:"
-        Write-Host "  ans chain"
-        Write-Host ""
-        Write-Host "IMPORTANT: Open a NEW PowerShell window before running 'ans'." -ForegroundColor Yellow
-        Write-Host "  The PATH change takes effect in new sessions." -ForegroundColor Yellow
-    }
+    # --- Success message ---
+    Write-Host ""
+    Write-Host "  ==========================================" -ForegroundColor Green
+    Write-Host "       ANS is installed!" -ForegroundColor Green
+    Write-Host "  ==========================================" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  To get started, open a NEW PowerShell window and run:" -ForegroundColor White
+    Write-Host ""
+    Write-Cmd "ans init"
+    Write-Host "      Creates your data directory (~/.ans/) and config" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Cmd "ans start"
+    Write-Host "      Starts the ANS daemon" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Cmd "ans register --name my-agent --version 1.0.0"
+    Write-Host "      Register your first AI agent" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Cmd "ans chain"
+    Write-Host "      View the receipt chain" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  Need help? Run: ans doctor" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  Or open a new PowerShell and type: ans init" -ForegroundColor Yellow
+    Write-Host ""
 }
 catch {
     Write-Host ""
-    Write-Host "ERROR: Installation failed" -ForegroundColor Red
-    Write-Host "  $_" -ForegroundColor Red
+    Write-Err "Installation failed: $_"
     Write-Host ""
-    Write-Host "Troubleshooting:" -ForegroundColor Yellow
-    Write-Host "  1. Check your internet connection" -ForegroundColor Yellow
-    Write-Host "  2. Run: powershell -Command `"`$ProgressPreference='SilentlyContinue'; irm ... | iex`"" -ForegroundColor Yellow
-    Write-Host "  3. Or build from source: https://github.com/$Repo" -ForegroundColor Yellow
+    Write-Host "  Don't worry! Try one of these:" -ForegroundColor Yellow
+    Write-Host "  1. Build from source (works everywhere):" -ForegroundColor Cyan
+    Write-Host "     git clone https://github.com/$Repo.git" -ForegroundColor DarkGray
+    Write-Host "     cd Agent-Nervous-System/ans" -ForegroundColor DarkGray
+    Write-Host "     go build -o ans.exe ./cmd/ans" -ForegroundColor DarkGray
     Write-Host ""
-    throw  # re-throw so the error is visible but PowerShell stays open
+    Write-Host "  2. Get help: https://github.com/$Repo/issues" -ForegroundColor Cyan
+    Write-Host ""
+    throw
 }
 finally {
     Remove-Item -Path $TmpDir -Recurse -Force -ErrorAction SilentlyContinue
