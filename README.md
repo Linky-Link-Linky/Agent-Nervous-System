@@ -60,7 +60,7 @@ Agents call tools, read databases, write files, execute code, delegate to sub-ag
 | **Merkle Pruning** | Compact old receipts into Merkle anchors. Infinite scale without losing cryptographic integrity. |
 | **Export** | JSONL, CSV, TXT, PDF, Parquet. Compliance-ready reports. |
 | **Real-Time Streaming** | NDJSON stdout or CloudEvents 1.0 webhooks. Wire into any pipeline. |
-| **12+ SDK Integrations** | Python, TypeScript, Anthropic, OpenAI, Gemini, LangChain, CrewAI, PydanticAI, MCP, and more. |
+| **13 SDK Integrations** | Python, TypeScript, Anthropic, OpenAI, OpenAI Compatible, Gemini, Ollama, LangChain, LangGraph, CrewAI, PydanticAI, MCP, Claude Agent SDK |
 | **Policy-as-Code** | JSON-declarative, 10 operators, all/any/none compounds. PII detection. NociceptionError (0x1F). |
 | **Compensation** | Register reverse commands. Undo actions with dry-run. No shell injection. |
 | **Ephemeral Identity** | Zero-trust broker. 60s TTL, single-use, auto-revoke. Vault, AWS, GCP, Azure, OAuth2. |
@@ -391,7 +391,7 @@ ans start --webhook https://hooks.example.com/ans
 
 ---
 
-### 8. SDK Integrations (Every Framework)
+### 8. SDK Integrations (13 Frameworks)
 
 | Framework | Integration | Loc | SDK |
 |-----------|------------|:---:|:---:|
@@ -399,6 +399,7 @@ ans start --webhook https://hooks.example.com/ans
 | **Anthropic Messages API** | `ANSAnthropicClient(base, agent_id=...)` | 1 | Python, TypeScript |
 | **Claude Agent SDK** | `ClaudeAgentOptions(hooks=ans_hooks(...))` | 1 | Python |
 | **OpenAI Agents SDK** | `ans_tool_plugin()` | 1 | Python, TypeScript |
+| **OpenAI Compatible** | `ANSOpenAICompatClient(base, ...)` — works with any provider exposing an OpenAI-compatible `/chat/completions` endpoint: llama.cpp, vLLM, Together, Groq, DeepSeek, Mistral, Fireworks, Perplexity, xAI | 1 | Python |
 | **Google Gemini** | `ANSGenAIClient(base, agent_id=...)` | 1 | Python, TypeScript |
 | **Ollama** | `ANSOllamaClient(base, agent_id=...)` | 1 | Python, TypeScript |
 | **LangChain** | `chain.invoke(..., callbacks=[ANSCallbackHandler(...)])` | 1 | Python, TypeScript |
@@ -1136,7 +1137,7 @@ Other
 | **Offline-first** | ✓ Fully offline | ✓ | ✗ (SaaS) |
 | **Zero dependencies** | ✓ One Go binary | ✓ | ✗ |
 | **Open source** | ✓ Apache 2.0 | Usually | ✗ |
-| **Framework integrations** | 12+ | None | Vendor-specific |
+| **Framework integrations** | 13 | None | Vendor-specific |
 | **MCP support** | ✓ Middleware | ✗ | ✗ |
 | **MCP Security Proxy** | ✓ Full safety pipeline | ✗ | ✗ |
 | **Policy-as-Code** | ✓ Declarative JSON + NociceptionError | ✗ | Vendor-only |
