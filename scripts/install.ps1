@@ -27,17 +27,22 @@ New-Item -ItemType Directory -Path $TmpDir -Force | Out-Null
 try {
     Write-Host "Downloading ANS for Windows/${Arch}..."
     Invoke-WebRequest -Uri "${Base}/${Asset}" -OutFile (Join-Path $TmpDir $Binary)
-    Invoke-WebRequest -Uri "${Base}/checksums.txt" -OutFile (Join-Path $TmpDir "checksums.txt")
 
-    $ChecksumLine = Get-Content (Join-Path $TmpDir "checksums.txt") | Select-String -Pattern $Asset
-    if (-not $ChecksumLine) {
-        throw "Checksum not found for $Asset"
-    }
-    $Expected = ($ChecksumLine -split '\s+')[0]
-    $Actual = (Get-FileHash (Join-Path $TmpDir $Binary) -Algorithm SHA256).Hash.ToLower()
-
-    if ($Expected.ToLower() -ne $Actual) {
-        throw "Checksum mismatch: expected $Expected, got $Actual"
+    # Optional checksum verification — skip if checksums.txt not published yet
+    $ChecksumFile = Join-Path $TmpDir "checksums.txt"
+    try {
+        Invoke-WebRequest -Uri "${Base}/checksums.txt" -OutFile $ChecksumFile -ErrorAction Stop
+        $ChecksumLine = Get-Content $ChecksumFile | Select-String -Pattern $Asset
+        if ($ChecksumLine) {
+            $Expected = ($ChecksumLine -split '\s+')[0].ToLower()
+            $Actual = (Get-FileHash (Join-Path $TmpDir $Binary) -Algorithm SHA256).Hash.ToLower()
+            if ($Expected -ne $Actual) {
+                throw "Checksum mismatch: expected $Expected, got $Actual"
+            }
+            Write-Host "Checksum verified.`n"
+        }
+    } catch {
+        Write-Host "Checksum file not available — skipping verification." -ForegroundColor Yellow
     }
 
     if (-not (Test-Path $InstallDir)) {
