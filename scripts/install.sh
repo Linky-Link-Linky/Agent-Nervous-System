@@ -10,23 +10,24 @@ VERSION="${ANS_VERSION:-latest}"
 
 # --- Colors ---
 GREEN='\033[32m'
-CYAN='\033[36m'
 YELLOW='\033[33m'
 RED='\033[31m'
 GRAY='\033[90m'
 BOLD='\033[1m'
 RESET='\033[0m'
+PURPLE='\033[38;5;141m'
+DEEP_PURPLE='\033[38;5;99m'
 
-step()   { printf "  ${CYAN}%s.${RESET} ${BOLD}%s${RESET}\n" "$1" "$2"; }
+step()   { printf "  ${PURPLE}%s.${RESET} ${BOLD}%s${RESET}\n" "$1" "$2"; }
 done_()  { printf "  ${GREEN}\xe2\x9c\x94${RESET} %s\n" "$1"; }
 warn()   { printf "  ${YELLOW}!${RESET} %s\n" "$1"; }
-cmd_()   { printf "  ${GREEN}\$${RESET} ${BOLD}%s${RESET}\n" "$1"; }
+cmd_()   { printf "    ${DEEP_PURPLE}\$${RESET} ${BOLD}%s${RESET}\n" "$1"; }
 banner() {
   printf "\n"
-  printf "  ${CYAN}==========================================${RESET}\n"
-  printf "  ${CYAN}      Agent Nervous System${RESET}\n"
+  printf "  ${PURPLE}==========================================${RESET}\n"
+  printf "  ${PURPLE}      Agent Nervous System${RESET}\n"
   printf "  ${GRAY}      Secure AI Agent Auditing${RESET}\n"
-  printf "  ${CYAN}==========================================${RESET}\n"
+  printf "  ${PURPLE}==========================================${RESET}\n"
   printf "\n"
 }
 
@@ -172,9 +173,9 @@ fi
 
 # --- Success message ---
 printf "\n"
-printf "  ${GREEN}==========================================${RESET}\n"
-printf "  ${GREEN}      ANS is installed!${RESET}\n"
-printf "  ${GREEN}==========================================${RESET}\n"
+printf "  ${PURPLE}==========================================${RESET}\n"
+printf "  ${PURPLE}      ANS is installed!${RESET}\n"
+printf "  ${PURPLE}==========================================${RESET}\n"
 printf "\n"
 printf "  ${BOLD}Quick start:${RESET}\n"
 printf "\n"
@@ -190,5 +191,5 @@ printf "\n"
 cmd_ "ans chain"
 printf "  ${GRAY}  View the receipt chain${RESET}\n"
 printf "\n"
-printf "  ${CYAN}Need help? Run: ans doctor${RESET}\n"
+printf "  ${PURPLE}Need help? Run: ans doctor${RESET}\n"
 printf "\n"
