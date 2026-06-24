@@ -32,66 +32,59 @@ import (
 
 var version = "dev"
 
-var usageText = `ans — Agent Nervous System v` + version + `
-
-USAGE
-  ans <command> [flags]
-
-COMMANDS
-  init               Create default config and data directory (--service to install system service)
-  start              Start the ANS daemon in the background
-  stop               Stop the running ANS daemon
-  status             Show daemon status, chain stats, and uptime
-  doctor             Show diagnostics (socket, PID, chain health)
-  verify [id]        Verify a receipt by ID (use --chain for full chain)
-  chain              Print the receipt chain (pretty tree)
-  agents             List registered agents
-  register           Register a new agent (--name <name> --version <ver>)
-  export             Export the chain (--format jsonl|csv|txt|pdf|parquet)
-  prune              Prune old receipts and create Merkle anchor (--up-to <index>)
-  rotate             Rotate an agent's keypair (ans rotate <agent-id>)
-  snapshot take      Take a snapshot of agent workspace (--agent <id>)
-  snapshot diff      Show file-level diff vs prior snapshot (--agent <id>)
-  snapshot list      List agent snapshots (--agent <id>)  (alias: snapshots)
-  time-travel <id>   Restore state to a chain index or receipt hash
-  compensate <id>    Execute registered compensating actions for a chain index
-  policy add <file>  Register a policy from JSON file
-  policy list        List all policies
-  policy remove <id> Remove a policy
-  policy eval        Evaluate an action against policies (--action-type ...)
-  token request      Provision ephemeral token (--resource <arn> --action <action>)
-  token list         List active tokens
-  token revoke <id>  Revoke a token
-  mcp start          Start MCP security proxy (--listen :8080 --target http://...)
-  mcp stop           Stop MCP proxy
-  mcp status         Show proxy status and stats
-  mcp log            Show recent MCP audit log
-  version            Print version
-  update             Update ANS to the latest version
-  uninstall          Remove ANS binary, data, and config
-
-FLAGS (start)
-  --ndjson           Emit NDJSON receipt stream to stdout (capture with > file)
-  --webhook  string  Webhook URL — POST CloudEvents-formatted payload for
-                     each new receipt (e.g. --webhook https://hooks.example.com/ans)
-
-FLAGS (chain)
-  --n      int    Receipts to show (default 20)
-  --agent  string Filter by agent ID
-
-FLAGS (export)
-  --format string  jsonl | csv | txt | pdf | parquet  (default jsonl)
-  --output string  Output file (default stdout)
-
-FLAGS (verify)
-  --chain          Verify entire chain integrity
-
-Set NO_COLOR=1 to disable ANSI color output.
-`
+func printUsage() {
+	w := os.Stderr
+	pretty.Banner(w)
+	fmt.Fprintln(w)
+	pretty.Header(w, "Usage")
+	pretty.Code(w, "ans <command> [flags]")
+	fmt.Fprintln(w)
+	pretty.Header(w, "Commands")
+	pretty.Item(w, "init", "Create config and data directory (--service to install system service)")
+	pretty.Item(w, "start", "Start the ANS daemon in the background")
+	pretty.Item(w, "stop", "Stop the running ANS daemon")
+	pretty.Item(w, "status", "Show daemon status, chain stats, and uptime")
+	pretty.Item(w, "doctor", "Show diagnostics (socket, PID, chain health)")
+	pretty.Item(w, "verify", "Verify a receipt by ID (--chain for full chain)")
+	pretty.Item(w, "chain", "Print the receipt chain (pretty tree)")
+	pretty.Item(w, "agents", "List registered agents")
+	pretty.Item(w, "register", "Register a new agent (--name --version)")
+	pretty.Item(w, "export", "Export the chain (--format jsonl|csv|txt|pdf|parquet)")
+	pretty.Item(w, "prune", "Prune receipts and create Merkle anchor (--up-to)")
+	pretty.Item(w, "rotate", "Rotate an agent's keypair")
+	pretty.Item(w, "snapshot", "Take/list/diff snapshots (--agent)")
+	pretty.Item(w, "time-travel", "Restore state to a chain index or receipt hash")
+	pretty.Item(w, "compensate", "Execute compensating actions for a chain index")
+	pretty.Item(w, "policy", "Add/list/remove/eval policies")
+	pretty.Item(w, "token", "Request/list/revoke ephemeral tokens")
+	pretty.Item(w, "mcp", "Start/stop/status/log MCP security proxy")
+	pretty.Item(w, "version", "Print version")
+	pretty.Item(w, "update", "Update ANS to the latest version")
+	pretty.Item(w, "uninstall", "Remove ANS binary, data, and config")
+	fmt.Fprintln(w)
+	pretty.Header(w, "Flags (start)")
+	pretty.Item(w, "--ndjson", "Emit NDJSON receipt stream to stdout")
+	pretty.Item(w, "--webhook", "Webhook URL for CloudEvents POST on each receipt")
+	fmt.Fprintln(w)
+	pretty.Header(w, "Flags (chain)")
+	pretty.Item(w, "--n", "Receipts to show (default 20)")
+	pretty.Item(w, "--agent", "Filter by agent ID")
+	fmt.Fprintln(w)
+	pretty.Header(w, "Flags (export)")
+	pretty.Item(w, "--format", "jsonl | csv | txt | pdf | parquet (default jsonl)")
+	pretty.Item(w, "--output", "Output file (default stdout)")
+	fmt.Fprintln(w)
+	pretty.Header(w, "Flags (verify)")
+	pretty.Item(w, "--chain", "Verify entire chain integrity")
+	fmt.Fprintln(w)
+	pretty.Header(w, "Notes")
+	pretty.Item(w, "NO_COLOR", "Set to 1 to disable ANSI color output")
+	fmt.Fprintln(w)
+}
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Print(usageText)
+		printUsage()
 		os.Exit(0)
 	}
 
@@ -210,7 +203,7 @@ func main() {
 		pretty.Item(os.Stderr, "Platform", runtime.GOOS+"/"+runtime.GOARCH)
 		fmt.Fprintln(os.Stderr)
 	case "help", "--help", "-h":
-		fmt.Print(usageText)
+		printUsage()
 	default:
 		fmt.Fprintf(os.Stderr, "ans: unknown command %q\nRun 'ans help' for usage.\n", os.Args[1])
 		os.Exit(1)
@@ -473,21 +466,21 @@ func cmdAgents() {
 	if err != nil {
 		fatalf("listing agents: %v", err)
 	}
+	w := os.Stderr
 	if len(ids) == 0 {
-		fmt.Println("No agents registered yet.")
+		pretty.Warn(w, "No agents registered yet")
 		return
 	}
-	fmt.Printf("\n%-20s %-20s %-10s\n", "AGENT ID", "NAME", "VERSION")
-	fmt.Println(strings.Repeat("─", 55))
+	pretty.Header(w, "Registered Agents")
 	for _, id := range ids {
 		ag, err := ks.Load(id)
 		if err != nil {
-			fmt.Printf("%-20s (error: %v)\n", id, err)
+			pretty.Item(w, id, pretty.Red+"error: "+err.Error()+pretty.Reset)
 			continue
 		}
-		fmt.Printf("%-20s %-20s %-10s\n", ag.ID, ag.Name, ag.Version)
+		pretty.Item(w, ag.ID, ag.Name+"  "+pretty.Dim+ag.Version+pretty.Reset)
 	}
-	fmt.Print("\n")
+	fmt.Fprintln(w)
 }
 
 // cmdRegister registers a new agent with the daemon.
@@ -519,13 +512,15 @@ func cmdRegister(args []string) {
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("register failed: %v", err)
 	}
-	fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" Agent registered\n")
-	fmt.Printf("  Agent ID: %s\n", resp.AgentID)
-	fmt.Printf("  Name:     %s\n", *name)
-	fmt.Printf("  Version:  %s\n", *version)
+	w := os.Stderr
+	pretty.Done(w, "Agent registered")
+	pretty.Item(w, "Agent ID", resp.AgentID)
+	pretty.Item(w, "Name", *name)
+	pretty.Item(w, "Version", *version)
 	if *owner != "" {
-		fmt.Printf("  Owner:    %s\n", *owner)
+		pretty.Item(w, "Owner", *owner)
 	}
+	fmt.Fprintln(w)
 }
 
 func cmdExport(args []string) {
@@ -583,7 +578,7 @@ func cmdExport(args []string) {
 		fatalf("export failed: %v", exportErr)
 	}
 	if *output != "" {
-		fmt.Fprintf(os.Stderr, "ans: exported to %s\n", *output)
+		pretty.Done(os.Stderr, "Exported to "+*output)
 	}
 }
 
@@ -607,9 +602,11 @@ func cmdPrune(args []string) {
 	if err != nil {
 		fatalf("pruning chain: %v", err)
 	}
-	fmt.Printf("Pruned %d receipts (index %d–%d)\n", anchor.Count, anchor.FromIndex, anchor.ToIndex)
-	fmt.Printf("Merkle root: %s\n", anchor.MerkleRoot)
-	fmt.Printf("Anchor ID:   %d\n", anchor.ID)
+	w := os.Stderr
+	pretty.Done(w, fmt.Sprintf("Pruned %d receipts (index %d-%d)", anchor.Count, anchor.FromIndex, anchor.ToIndex))
+	pretty.Item(w, "Merkle root", anchor.MerkleRoot)
+	pretty.Item(w, "Anchor ID", fmt.Sprintf("%d", anchor.ID))
+	fmt.Fprintln(w)
 }
 
 // cmdRotate generates a new keypair for an agent and prints the new agent ID.
@@ -627,13 +624,13 @@ func cmdRotate(args []string) {
 	if err != nil {
 		fatalf("rotating key: %v", err)
 	}
-	fmt.Printf("Key rotated successfully\n")
-	fmt.Printf("Old agent ID: %s\n", agentID)
-	fmt.Printf("New agent ID: %s\n", newAgent.ID)
-	fmt.Printf("New public key: %x\n", newAgent.PublicKey)
-	fmt.Printf("Rotation record: old_sig=%s... new_sig=%s...\n",
-		safeSig(rec.OldSignature), safeSig(rec.NewSignature))
-	fmt.Println("Update your SDK configuration to use the new agent ID.")
+	w := os.Stderr
+	pretty.Done(w, "Key rotated successfully")
+	pretty.Item(w, "Old agent ID", agentID)
+	pretty.Item(w, "New agent ID", newAgent.ID)
+	pretty.Item(w, "New public key", fmt.Sprintf("%x", newAgent.PublicKey))
+	pretty.Item(w, "Rotation record", fmt.Sprintf("old_sig=%s... new_sig=%s...", safeSig(rec.OldSignature), safeSig(rec.NewSignature)))
+	pretty.Warn(w, "Update your SDK configuration to use the new agent ID")
 }
 
 // cmdSnapshotTake takes a snapshot of an agent's workspace.
@@ -664,8 +661,13 @@ func cmdSnapshotTake(args []string) {
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("snapshot failed: %v", err)
 	}
-	fmt.Printf("\x1b[32m\u2713\x1b[0m Snapshot taken: id=%s  index=%d  size=%d  hash=%s\n",
-		resp.SnapshotID[:16], resp.ChainIndex, resp.SizeBytes, resp.Hash[:16])
+	w := os.Stderr
+	pretty.Done(w, "Snapshot taken")
+	pretty.Item(w, "ID", resp.SnapshotID[:16])
+	pretty.Item(w, "Index", fmt.Sprintf("%d", resp.ChainIndex))
+	pretty.Item(w, "Size", fmt.Sprintf("%d bytes", resp.SizeBytes))
+	pretty.Item(w, "Hash", fmt.Sprintf("%x…", resp.Hash[:16]))
+	fmt.Fprintln(w)
 }
 
 // cmdTimeTravel restores agent state to a given chain index or receipt hash.
@@ -696,7 +698,7 @@ func cmdTimeTravel(args []string) {
 			fatalf("receipt %q not found", targetStr)
 		}
 		targetIdx = verifyResp.ChainIndex
-		fmt.Printf("Resolved receipt %s to chain index %d\n", targetStr[:16], targetIdx)
+		pretty.Item(os.Stderr, "Resolved receipt", fmt.Sprintf("%s -> chain index %d", targetStr[:16], targetIdx))
 	} else {
 		var err error
 		targetIdx, err = strconv.ParseUint(targetStr, 10, 64)
@@ -715,9 +717,9 @@ func cmdTimeTravel(args []string) {
 		fatalf("restore failed: %v", err)
 	}
 	if resp.Success {
-		fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" State restored to chain index %d\n", targetIdx)
+		pretty.Ok(os.Stderr, fmt.Sprintf("State restored to chain index %d", targetIdx))
 	} else {
-		fmt.Fprintf(os.Stderr, pretty.Red+"\u2717"+pretty.Reset+" Restore failed: %s\n", resp.Message)
+		pretty.Err(os.Stderr, "Restore failed: "+resp.Message)
 		os.Exit(1)
 	}
 }
@@ -755,31 +757,32 @@ func cmdSnapshotDiff(args []string) {
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("snapshot diff: %v", err)
 	}
+	w := os.Stderr
 	if resp.Message != "" {
-		fmt.Println(resp.Message)
+		fmt.Fprintln(w, resp.Message)
 		return
 	}
-	fmt.Printf("File-level diff:\n")
+	pretty.Subheader(w, "File-level diff")
 	if len(resp.Added) > 0 {
-		fmt.Printf("  Added:    %d files\n", len(resp.Added))
+		fmt.Fprintf(w, "  %sAdded:%s %d files\n", pretty.Green, pretty.Reset, len(resp.Added))
 		for _, f := range resp.Added {
-			fmt.Printf("    + %s\n", f)
+			fmt.Fprintf(w, "    %s+%s %s\n", pretty.Green, pretty.Reset, f)
 		}
 	}
 	if len(resp.Modified) > 0 {
-		fmt.Printf("  Modified: %d files\n", len(resp.Modified))
+		fmt.Fprintf(w, "  %sModified:%s %d files\n", pretty.Yellow, pretty.Reset, len(resp.Modified))
 		for _, f := range resp.Modified {
-			fmt.Printf("    ~ %s\n", f)
+			fmt.Fprintf(w, "    %s~%s %s\n", pretty.Yellow, pretty.Reset, f)
 		}
 	}
 	if len(resp.Deleted) > 0 {
-		fmt.Printf("  Deleted:  %d files\n", len(resp.Deleted))
+		fmt.Fprintf(w, "  %sDeleted:%s %d files\n", pretty.Red, pretty.Reset, len(resp.Deleted))
 		for _, f := range resp.Deleted {
-			fmt.Printf("    - %s\n", f)
+			fmt.Fprintf(w, "    %s-%s %s\n", pretty.Red, pretty.Reset, f)
 		}
 	}
 	if len(resp.Added)+len(resp.Modified)+len(resp.Deleted) == 0 {
-		fmt.Println("  No changes (snapshots are identical)")
+		pretty.Item(w, "Result", "No changes (snapshots are identical)")
 	}
 }
 
@@ -815,12 +818,12 @@ func cmdSnapshots(args []string) {
 		fatalf("reading snapshot list: %v", err)
 	}
 	snaps, _ := resp["snapshots"].([]interface{})
+	w := os.Stderr
 	if len(snaps) == 0 {
-		fmt.Println("No snapshots found for agent", *agentFilter)
+		pretty.Warn(w, "No snapshots found for agent "+*agentFilter)
 		return
 	}
-	fmt.Printf("\n%-20s %-8s %-10s %-10s %-16s\n", "SNAPSHOT ID", "TYPE", "INDEX", "SIZE", "TIMESTAMP")
-	fmt.Println(strings.Repeat("\u2500", 70))
+	pretty.Header(w, fmt.Sprintf("Snapshots for %s", *agentFilter))
 	for _, s := range snaps {
 		snap, ok := s.(map[string]interface{})
 		if !ok {
@@ -840,9 +843,10 @@ func cmdSnapshots(args []string) {
 		if len(idShort) > 16 {
 			idShort = idShort[:16]
 		}
-		fmt.Printf("%-20s %-8s %-10d %-10s %-16s\n", idShort, st, int64(ci), sizeStr, tsTime.Format("15:04:05"))
+		pretty.Item(w, idShort, fmt.Sprintf("%s  index=%.0f  %s  %s", st, ci, sizeStr, tsTime.Format("15:04:05")))
 	}
-	fmt.Print("\nTo restore: ans time-travel <index>\n\n")
+	pretty.Code(w, "ans time-travel <index> to restore")
+	fmt.Fprintln(w)
 }
 
 // cmdCompensate executes registered compensating actions for a chain index.
@@ -871,13 +875,14 @@ func cmdCompensate(args []string) {
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("compensation failed: %v", err)
 	}
+	w := os.Stderr
 	for _, d := range resp.Details {
-		fmt.Println("  ", d)
+		pretty.Item(w, "  ", d)
 	}
 	if resp.Success {
-		fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" Compensation complete: %d run, %d failed\n", resp.ActionsRun, resp.ActionsFailed)
+		pretty.Ok(w, fmt.Sprintf("Compensation complete: %d run, %d failed", resp.ActionsRun, resp.ActionsFailed))
 	} else {
-		fmt.Printf(pretty.Red+"\u2717"+pretty.Reset+" Compensation had %d failures: %s\n", resp.ActionsFailed, resp.Message)
+		pretty.Err(w, fmt.Sprintf("Compensation had %d failures: %s", resp.ActionsFailed, resp.Message))
 	}
 }
 
@@ -934,7 +939,7 @@ func cmdPolicyAdd(args []string) {
 	if !resp.Success {
 		fatalf("policy rejected: %s", resp.Message)
 	}
-	fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" Policy %q registered\n", pol.ID)
+	pretty.Done(os.Stderr, fmt.Sprintf("Policy %q registered", pol.ID))
 }
 
 // cmdPolicyList lists all registered policies.
@@ -950,27 +955,20 @@ func cmdPolicyList(args []string) {
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("policy list failed: %v", err)
 	}
+	w := os.Stderr
 	if len(resp.Policies) == 0 {
-		fmt.Println("No policies registered")
+		pretty.Warn(w, "No policies registered")
 		return
 	}
-	fmt.Printf("\n%-24s %-20s %-8s %-6s %-6s\n", "ID", "NAME", "ENABLED", "PRIORITY", "SEVERITY")
-	fmt.Println(strings.Repeat("\u2500", 70))
+	pretty.Header(w, "Policies")
 	for _, p := range resp.Policies {
 		en := pretty.Red + "no" + pretty.Reset
 		if p.Enabled {
 			en = pretty.Green + "yes" + pretty.Reset
 		}
-		shortID := p.ID
-		if len(shortID) > 22 {
-			shortID = shortID[:22] + "…"
-		}
-		shortName := p.Name
-		if len(shortName) > 18 {
-			shortName = shortName[:18] + "…"
-		}
-		fmt.Printf("%-24s %-20s %-8s %-6d %-6s\n", shortID, shortName, en, p.Priority, p.Severity)
+		pretty.Item(w, p.ID, fmt.Sprintf("%s  priority=%d  severity=%s  enabled=%s", p.Name, p.Priority, p.Severity, en))
 	}
+	fmt.Fprintln(w)
 }
 
 // cmdPolicyRemove deletes a policy by ID.
@@ -987,7 +985,7 @@ func cmdPolicyRemove(args []string) {
 		fatalf("policy delete failed: %v", err)
 	}
 	if resp.Success {
-		fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" Policy %q removed\n", args[0])
+		pretty.Done(os.Stderr, fmt.Sprintf("Policy %q removed", args[0]))
 	} else {
 		fatalf("removing policy: %s", resp.Message)
 	}
@@ -1013,29 +1011,29 @@ func cmdPolicyEval(args []string) {
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("policy eval failed: %v", err)
 	}
+	w := os.Stderr
 	if resp.Denied {
-		fmt.Printf(pretty.Red+"\u2717"+pretty.Reset+" DENIED")
+		pretty.Err(w, "DENIED")
 		if resp.Nociception != nil {
-			fmt.Printf(" — %s", resp.Nociception.Message)
+			pretty.Item(w, "Reason", resp.Nociception.Message)
 		}
-		fmt.Println()
 	} else if resp.Allowed {
-		fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" ALLOWED\n")
+		pretty.Ok(w, "ALLOWED")
 	}
 	if len(resp.PolicyResults) > 0 {
-		fmt.Println()
+		fmt.Fprintln(w)
 		for _, pr := range resp.PolicyResults {
-			icon := pretty.Green + "\u2713" + pretty.Reset
+			icon := pretty.Green + pretty.Bold + "\u2713" + pretty.Reset
 			if pr.Matched && pr.Effect == "deny" {
-				icon = pretty.Red + "\u2717" + pretty.Reset
+				icon = pretty.Red + pretty.Bold + "\u2717" + pretty.Reset
 			}
 			matched := "no"
 			if pr.Matched {
 				matched = "yes"
 			}
-			fmt.Printf("  %s %s (%s, matched: %s)\n", icon, pr.PolicyName, pr.Effect, matched)
+			fmt.Fprintf(w, "  %s %s (%s, matched: %s)\n", icon, pr.PolicyName, pr.Effect, matched)
 			if pr.ErrorMessage != "" {
-				fmt.Printf("    %s\n", pr.ErrorMessage)
+				pretty.Item(w, "  Error", pr.ErrorMessage)
 			}
 		}
 	}
@@ -1065,14 +1063,16 @@ func cmdTokenRequest(args []string) {
 	if !resp.Success {
 		fatalf("token provisioning failed: %s", resp.Message)
 	}
-	fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" Token provisioned\n")
-	fmt.Printf("  Token ID:  %s\n", resp.TokenID)
-	fmt.Printf("  Type:      %s\n", resp.TokenType)
-	fmt.Printf("  Access Key: %s\n", maskSecret(resp.AccessKey))
-	fmt.Printf("  Secret Key: %s\n", maskSecret(resp.SecretKey))
-	fmt.Printf("  Bearer:    %s\n", maskSecret(resp.BearerToken))
-	fmt.Printf("  Resource:  %s\n", resp.Resource)
-	fmt.Printf("  Expires:   %d ns\n", resp.ExpiresNS)
+	w := os.Stderr
+	pretty.Done(w, "Token provisioned")
+	pretty.Item(w, "Token ID", resp.TokenID)
+	pretty.Item(w, "Type", resp.TokenType)
+	pretty.Item(w, "Access Key", maskSecret(resp.AccessKey))
+	pretty.Item(w, "Secret Key", maskSecret(resp.SecretKey))
+	pretty.Item(w, "Bearer", maskSecret(resp.BearerToken))
+	pretty.Item(w, "Resource", resp.Resource)
+	pretty.Item(w, "Expires", fmt.Sprintf("%d ns", resp.ExpiresNS))
+	fmt.Fprintln(w)
 }
 
 // cmdTokenList lists active tokens.
@@ -1084,23 +1084,20 @@ func cmdTokenList(args []string) {
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("token list failed: %v", err)
 	}
+	w := os.Stderr
 	if len(resp.Tokens) == 0 {
-		fmt.Println("No active tokens")
+		pretty.Warn(w, "No active tokens")
 		return
 	}
-	fmt.Printf("\n%-24s %-10s %-12s %-22s %-8s\n", "TOKEN ID", "PROVIDER", "TYPE", "RESOURCE", "STATE")
-	fmt.Println(strings.Repeat("\u2500", 80))
+	pretty.Header(w, "Active Tokens")
 	for _, t := range resp.Tokens {
-		shortID := t.TokenID
-		if len(shortID) > 22 {
-			shortID = shortID[:22]
+		stateClr := pretty.Green
+		if t.State == "revoked" || t.State == "expired" {
+			stateClr = pretty.Red
 		}
-		shortRes := t.Resource
-		if len(shortRes) > 20 {
-			shortRes = shortRes[:20] + "…"
-		}
-		fmt.Printf("%-24s %-10s %-12s %-22s %-8s\n", shortID, t.Provider, t.TokenType, shortRes, t.State)
+		pretty.Item(w, t.TokenID, fmt.Sprintf("%s  type=%s  resource=%s  state=%s%s%s", t.Provider, t.TokenType, t.Resource, stateClr, t.State, pretty.Reset))
 	}
+	fmt.Fprintln(w)
 }
 
 // cmdTokenRevoke revokes a token by ID.
@@ -1117,7 +1114,7 @@ func cmdTokenRevoke(args []string) {
 		fatalf("token revoke failed: %v", err)
 	}
 	if resp.Success {
-		fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" Token %q revoked\n", args[0])
+		pretty.Done(os.Stderr, fmt.Sprintf("Token %q revoked", args[0]))
 	} else {
 		fatalf("revoking token: %s", resp.Message)
 	}
@@ -1155,7 +1152,7 @@ func cmdMCPStart(args []string) {
 		fatalf("mcp start failed: %v", err)
 	}
 	if resp.Success {
-		fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" MCP proxy started on %s -> %s\n", *listen, *target)
+		pretty.Ok(os.Stderr, fmt.Sprintf("MCP proxy started on %s -> %s", *listen, *target))
 	} else {
 		fatalf("mcp start: %s", resp.Message)
 	}
@@ -1171,9 +1168,9 @@ func cmdMCPStop() {
 		fatalf("mcp stop failed: %v", err)
 	}
 	if resp.Success {
-		fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" MCP proxy stopped\n")
+		pretty.Done(os.Stderr, "MCP proxy stopped")
 	} else {
-		fmt.Printf(pretty.Yellow+"!"+pretty.Reset+" %s\n", resp.Message)
+		pretty.Warn(os.Stderr, resp.Message)
 	}
 }
 
@@ -1186,17 +1183,20 @@ func cmdMCPStatus() {
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("mcp status failed: %v", err)
 	}
+	w := os.Stderr
 	if !resp.Running {
-		fmt.Println("MCP proxy: " + pretty.Red + "not running" + pretty.Reset)
+		pretty.Err(w, "MCP proxy not running")
 		return
 	}
-	fmt.Printf("MCP proxy: " + pretty.Green + "running" + pretty.Reset + "\n")
-	fmt.Printf("  Uptime:      %ds\n", resp.UptimeSecs)
-	fmt.Printf("  Messages:    %d\n", resp.TotalMsgs)
-	fmt.Printf("  Total Toks:  %d\n", resp.TotalToks)
-	fmt.Printf("  Burn Rate:   %.1f toks/s\n", resp.BurnRate)
-	fmt.Printf("  Injections:  %d\n", resp.InjCount)
-	fmt.Printf("  Pruned:      %d msgs (%.0f KB)\n", resp.PrunedCount, float64(resp.PrunedBytes)/1024)
+	pretty.Header(w, "MCP Proxy Status")
+	pretty.Item(w, "Status", pretty.Green+pretty.Bold+"running"+pretty.Reset)
+	pretty.Item(w, "Uptime", fmt.Sprintf("%ds", resp.UptimeSecs))
+	pretty.Item(w, "Messages", fmt.Sprintf("%d", resp.TotalMsgs))
+	pretty.Item(w, "Total Toks", fmt.Sprintf("%d", resp.TotalToks))
+	pretty.Item(w, "Burn Rate", fmt.Sprintf("%.1f toks/s", resp.BurnRate))
+	pretty.Item(w, "Injections", fmt.Sprintf("%d", resp.InjCount))
+	pretty.Item(w, "Pruned", fmt.Sprintf("%d msgs (%.0f KB)", resp.PrunedCount, float64(resp.PrunedBytes)/1024))
+	fmt.Fprintln(w)
 }
 
 // cmdMCPLog shows recent MCP audit log entries.
@@ -1213,30 +1213,28 @@ func cmdMCPLog(args []string) {
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("mcp log failed: %v", err)
 	}
+	w := os.Stderr
 	if len(resp.Entries) == 0 {
-		fmt.Println("No MCP log entries")
+		pretty.Warn(w, "No MCP log entries")
 		return
 	}
-	fmt.Printf("\n%-6s %-5s %-28s %-7s %-6s %s\n", "ID", "DIR", "METHOD", "TOKS", "INJ", "CONTENT")
-	fmt.Println(strings.Repeat("\u2500", 90))
+	pretty.Header(w, "MCP Audit Log")
 	for _, e := range resp.Entries {
-		inj := ""
-		if e.Injection {
-			inj = pretty.Red + "INJ" + pretty.Reset
-		}
 		method := e.Method
 		if method == "" {
 			method = "(response)"
 		}
-		if len(method) > 26 {
-			method = method[:26]
-		}
 		content := e.Content
-		if len(content) > 35 {
-			content = content[:35] + "…"
+		if len(content) > 40 {
+			content = content[:40] + "…"
 		}
-		fmt.Printf("%-6d %-5s %-28s %-7d %-6s %s\n", e.ID, e.Direction, method, e.ToksEst, inj, content)
+		inj := ""
+		if e.Injection {
+			inj = " " + pretty.Red + "INJ" + pretty.Reset
+		}
+		pretty.Item(w, fmt.Sprintf("#%d", e.ID), fmt.Sprintf("%s  %s  %d toks  %s%s", e.Direction, method, e.ToksEst, content, inj))
 	}
+	fmt.Fprintln(w)
 }
 
 // --- init ---

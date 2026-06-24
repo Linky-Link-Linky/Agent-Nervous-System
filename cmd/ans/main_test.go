@@ -137,8 +137,10 @@ func TestHelpCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("help command failed: %v", err)
 	}
-	if !strings.Contains(string(out), "ANS") {
-		t.Errorf("output missing header: %q", string(out))
+	ansiRE := regexp.MustCompile(`\033\[[0-9;]*[a-zA-Z]|\033][^\a]*(\a|\033\\)`)
+	clean := ansiRE.ReplaceAllString(string(out), "")
+	if !strings.Contains(clean, "Agent Nervous System") {
+		t.Errorf("output = %q", string(out))
 	}
 }
 
@@ -149,8 +151,10 @@ func TestNoArgsShowsUsage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no-args command failed: %v", err)
 	}
-	if !strings.Contains(string(out), "USAGE") {
-		t.Errorf("output = %q, want to contain USAGE", string(out))
+	ansiRE := regexp.MustCompile(`\033\[[0-9;]*[a-zA-Z]|\033][^\a]*(\a|\033\\)`)
+	clean := ansiRE.ReplaceAllString(string(out), "")
+	if !strings.Contains(clean, "Usage") {
+		t.Errorf("output = %q", string(out))
 	}
 }
 
@@ -187,8 +191,10 @@ func TestHelpFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("--help command failed: %v", err)
 	}
-	if !strings.Contains(string(out), "USAGE") {
-		t.Errorf("output missing USAGE: %q", string(out))
+	ansiRE := regexp.MustCompile(`\033\[[0-9;]*[a-zA-Z]|\033][^\a]*(\a|\033\\)`)
+	clean := ansiRE.ReplaceAllString(string(out), "")
+	if !strings.Contains(clean, "Usage") {
+		t.Errorf("output = %q", string(out))
 	}
 }
 
