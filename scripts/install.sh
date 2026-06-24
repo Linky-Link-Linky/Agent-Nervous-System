@@ -8,26 +8,27 @@ REPO="Linky-Link-Linky/Agent-Nervous-System"
 BINARY="ans"
 VERSION="${ANS_VERSION:-latest}"
 
-# --- Colors ---
-GREEN='\033[32m'
-YELLOW='\033[33m'
-RED='\033[31m'
-GRAY='\033[90m'
+# --- Daytona-inspired emerald theme ---
+EMERALD='\033[38;2;46;204;113m'
+YELLOW='\033[38;2;241;196;15m'
+RED='\033[38;2;231;76;60m'
+GRAY='\033[38;5;243m'
+MUTED='\033[38;5;236m'
 BOLD='\033[1m'
 RESET='\033[0m'
-PURPLE='\033[38;5;141m'
-DEEP_PURPLE='\033[38;5;99m'
 
-step()   { printf "  ${PURPLE}%s.${RESET} ${BOLD}%s${RESET}\n" "$1" "$2"; }
-done_()  { printf "  ${GREEN}\xe2\x9c\x94${RESET} %s\n" "$1"; }
-warn()   { printf "  ${YELLOW}!${RESET} %s\n" "$1"; }
-cmd_()   { printf "    ${DEEP_PURPLE}\$${RESET} ${BOLD}%s${RESET}\n" "$1"; }
+step()   { printf "  ${EMERALD}%s.${RESET} ${BOLD}%s${RESET}\n" "$1" "$2"; }
+done_()  { printf "  ${EMERALD}\xe2\x97\x8f${RESET} %s\n" "$1"; }
+warn()   { printf "  ${YELLOW}${BOLD}!${RESET} %s\n" "$1"; }
+cmd_()   { printf "    ${GRAY}\$${RESET} %s\n" "$1"; }
+info()   { printf "     ${GRAY}%s${RESET}\n" "$1"; }
+err_()   { printf "  ${RED}\xe2\x9c\x97${RESET} %s\n" "$1" >&2; }
 banner() {
   printf "\n"
-  printf "  ${PURPLE}==========================================${RESET}\n"
-  printf "  ${PURPLE}      Agent Nervous System${RESET}\n"
-  printf "  ${GRAY}      Secure AI Agent Auditing${RESET}\n"
-  printf "  ${PURPLE}==========================================${RESET}\n"
+  printf "  ${MUTED}────────────────────────────────────────${RESET}\n"
+  printf "  ${EMERALD}  \xe2\x9c\xa6${RESET}  ${BOLD}Agent Nervous System${RESET}\n"
+  printf "  ${GRAY}  Secure AI Agent Auditing${RESET}\n"
+  printf "  ${MUTED}────────────────────────────────────────${RESET}\n"
   printf "\n"
 }
 
@@ -39,7 +40,7 @@ case "$(uname -s)" in
   Linux)  OS="linux"  ;;
   Darwin) OS="darwin" ;;
   *)
-    printf "  ${RED}x${RESET} Unsupported OS: $(uname -s)\n" >&2
+    err_ "Unsupported OS: $(uname -s)"
     exit 1
     ;;
 esac
@@ -49,12 +50,12 @@ case "$(uname -m)" in
   x86_64|amd64)  ARCH="amd64" ;;
   aarch64|arm64) ARCH="arm64" ;;
   *)
-    printf "  ${RED}x${RESET} Unsupported arch: $(uname -m)\n" >&2
+    err_ "Unsupported arch: $(uname -m)"
     exit 1
     ;;
 esac
 
-printf "     Platform: ${BOLD}${OS}/${ARCH}${RESET}\n"
+info "${OS}/${ARCH}"
 
 ASSET="ans_${OS}_${ARCH}"
 [ "$OS" = "windows" ] && ASSET="${ASSET}.exe"
@@ -72,7 +73,10 @@ done_ "System detected"
 
 # --- Download ---
 step 2 "Downloading ANS for ${OS}/${ARCH}..."
-curl -fsSL "${BASE}/${ASSET}" -o "${TMP}/${BINARY}"
+if ! curl -fsSL "${BASE}/${ASSET}" -o "${TMP}/${BINARY}"; then
+  err_ "Download failed — check your internet connection"
+  exit 1
+fi
 done_ "Downloaded ${ASSET}"
 
 # --- Optional checksum ---
@@ -87,7 +91,7 @@ if curl -fsSL "${BASE}/checksums.txt" -o "${TMP}/checksums.txt" 2>/dev/null; the
       warn "No sha256sum found — skipping verification"
     fi
     if [ -n "${ACTUAL:-}" ] && [ "$ACTUAL" != "$EXPECTED" ]; then
-      printf "  ${RED}x${RESET} Checksum mismatch: expected $EXPECTED, got $ACTUAL\n" >&2
+      err_ "Checksum mismatch!"
       exit 1
     fi
     done_ "Checksum verified"
@@ -101,6 +105,7 @@ chmod +x "${TMP}/${BINARY}"
 # --- Install ---
 step 3 "Installing binary..."
 
+DEST=""
 for DEST_DIR in "/usr/local/bin" "$HOME/.local/bin" "$HOME/bin"; do
   mkdir -p "$DEST_DIR" 2>/dev/null || true
   if [ -w "$DEST_DIR" ] && cp "${TMP}/${BINARY}" "${DEST_DIR}/${BINARY}" 2>/dev/null; then
@@ -113,7 +118,7 @@ for DEST_DIR in "/usr/local/bin" "$HOME/.local/bin" "$HOME/bin"; do
   fi
 done
 
-if [ -z "${DEST:-}" ]; then
+if [ -z "$DEST" ]; then
   mkdir -p "$HOME/.local/bin"
   cp "${TMP}/${BINARY}" "$HOME/.local/bin/${BINARY}"
   DEST="$HOME/.local/bin/${BINARY}"
@@ -135,7 +140,8 @@ ensure_path() {
 if ensure_path "$INSTALL_DIR"; then
   done_ "Already in PATH"
 else
-  # Determine shell config
+  : "${HOME:=/root}"
+  : "${SHELL:=sh}"
   SHELL_NAME="${SHELL##*/}"
   case "$SHELL_NAME" in
     zsh)  RC_FILE="${ZDOTDIR:-$HOME}/.zshrc" ;;
@@ -173,9 +179,9 @@ fi
 
 # --- Success message ---
 printf "\n"
-printf "  ${PURPLE}==========================================${RESET}\n"
-printf "  ${PURPLE}      ANS is installed!${RESET}\n"
-printf "  ${PURPLE}==========================================${RESET}\n"
+printf "  ${MUTED}────────────────────────────────────────${RESET}\n"
+printf "  ${EMERALD}  \xe2\x9c\xa6${RESET}  ${BOLD}ANS is installed!${RESET}\n"
+printf "  ${MUTED}────────────────────────────────────────${RESET}\n"
 printf "\n"
 printf "  ${BOLD}Quick start:${RESET}\n"
 printf "\n"
@@ -191,5 +197,5 @@ printf "\n"
 cmd_ "ans chain"
 printf "  ${GRAY}  View the receipt chain${RESET}\n"
 printf "\n"
-printf "  ${PURPLE}Need help? Run: ans doctor${RESET}\n"
+printf "  ${EMERALD}Need help? Run: ans doctor${RESET}\n"
 printf "\n"
