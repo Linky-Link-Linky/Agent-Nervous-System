@@ -11,6 +11,7 @@ require (
 	github.com/parquet-go/parquet-go v0.30.1
 	golang.org/x/crypto v0.53.0
 	golang.org/x/oauth2 v0.36.0
+	golang.org/x/sys v0.46.0
 	modernc.org/sqlite v1.52.0
 )
 
@@ -53,7 +54,6 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/twpayne/go-geom v1.6.1 // indirect
 	golang.org/x/net v0.56.0 // indirect
-	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
