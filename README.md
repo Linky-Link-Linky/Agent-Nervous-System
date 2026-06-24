@@ -283,16 +283,17 @@ ans chain
 ```
 
 ```
-╭─ a1b2c3d4  2026-06-18 14:30:22.000  file.write        ans_3vQb7uL6x9
-│  writing config file
-│  policy allow
-╰─ ✓  success  1200ms
-   sig a1b2c3d4e5f6a7b8...
+  ╭─ a1b2c3d4  2026-06-18 14:30:22.000  file.write        ans_3vQb7uL6x9
+  │  writing config file
+  │  policy: allow
+  ╰─ ✓ success  1200ms
+     sig: a1b2c3d4e5f6a7b8…
 
-╭─ b2c3d4e5  2026-06-18 14:31:05.000  db.query          ans_3vQb7uL6x9
-│  SELECT * FROM users
-╰─ ✓  success  300ms
-   sig b2c3d4e5f6a7b8c9...
+  ╭─ b2c3d4e5  2026-06-18 14:31:05.000  db.query          ans_3vQb7uL6x9
+  │  SELECT * FROM users
+  │  policy: allow
+  ╰─ ✓ success  300ms
+     sig: b2c3d4e5f6a7b8c9…
 ```
 
 ### 7. Verify Integrity
@@ -362,26 +363,26 @@ Every tool call produces **two linked, Ed25519-signed receipts** — one *before
 ```bash
 $ ans chain
 
-ANS — Agent Nervous System
-──────────────────────────────────────────────────
+    ANS — Receipt Chain
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-┌─ a1b2c3d4  2026-06-18 14:30:22.000  file.write        ans_3vQb7uL6x9
-│  writing config file
-│  policy allow
-└─ ✓  success  1200ms
-   sig a1b2c3d4e5f6a7b8...
+  ╭─ a1b2c3d4  2026-06-18 14:30:22.000  file.write        ans_3vQb7uL6x9
+  │  writing config file
+  │  policy: allow
+  ╰─ ✓ success  1200ms
+     sig: a1b2c3d4e5f6a7b8…
 
-┌─ b2c3d4e5  2026-06-18 14:31:05.000  agent.delegate    ans_9yWc2kM4x1
-│  delegating to sub-agent
-│  policy allow
-└─ ✗  failure  8700ms
-   sig b2c3d4e5f6a7b8c9...
+  ╭─ b2c3d4e5  2026-06-18 14:31:05.000  agent.delegate    ans_9yWc2kM4x1
+  │  delegating to sub-agent
+  │  policy: allow
+  ╰─ ✗ failure  8700ms
+     sig: b2c3d4e5f6a7b8c9…
 
-┌─ c3d4e5f6  2026-06-18 14:32:15.000  http.post         ans_3vQb7uL6x9
-│  posting results to webhook
-│  policy allow
-└─ ◐  partial  400ms
-   sig c3d4e5f6a7b8c9d0...
+  ╭─ c3d4e5f6  2026-06-18 14:32:15.000  http.post         ans_3vQb7uL6x9
+  │  posting results to webhook
+  │  policy: allow
+  ╰─ ◐ partial  400ms
+     sig: c3d4e5f6a7b8c9d0…
 
 $ ans verify --chain
 ✓ Chain integrity verified — 6 receipts checked (all hashes, all signatures)
