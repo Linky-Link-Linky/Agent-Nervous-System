@@ -1595,35 +1595,66 @@ func cmdUpdate() {
 		return
 	}
 
-	// On Windows, rename fails if the binary is running.
-	// Download alongside the binary and print instructions.
-	pretty.Warn(w, "Could not replace running binary")
+	// Rename failed — likely the binary is running (Windows) or we lack permissions.
+	// Try placing a .new file alongside the binary.
+	pretty.Warn(w, "Could not replace running binary directly")
 	updated := self + ".new"
-	if cpErr := os.WriteFile(updated, nil, 0644); cpErr == nil {
-		os.Remove(updated)
-		// Try copying to same directory with .new suffix
-		src, _ := os.Open(tmpName)
-		dst, _ := os.Create(updated)
-		if src != nil && dst != nil {
-			io.Copy(dst, src)
-			dst.Close()
-			src.Close()
-			pretty.Done(w, "Downloaded to "+filepath.Base(updated))
-			fmt.Fprintln(w)
-			pretty.Step(w, 4, "Complete the update:")
-			if runtime.GOOS == "windows" {
-				pretty.Code(w, fmt.Sprintf(`powershell -Command "Start-Sleep 1; Move-Item '%s' '%s' -Force"`, updated, self))
-			} else {
-				pretty.Code(w, fmt.Sprintf(`cp "%s" "%s" && rm "%s"`, updated, self, updated))
+	copyOK := false
+	if src, err := os.Open(tmpName); err == nil {
+		defer src.Close()
+		if dst, err := os.Create(updated); err == nil {
+			defer dst.Close()
+			if _, err := io.Copy(dst, src); err == nil {
+				copyOK = true
 			}
-			return
 		}
 	}
-	// Last resort: temp file
-	pretty.Done(w, "Downloaded to "+tmpName)
+
+	if copyOK {
+		pretty.Done(w, "Staged to "+filepath.Base(updated))
+		fmt.Fprintln(w)
+		pretty.Step(w, 4, "Complete the update in a new terminal:")
+		if runtime.GOOS == "windows" {
+			pretty.Code(w, fmt.Sprintf(`powershell -Command "Move-Item '%s' '%s' -Force"`, updated, self))
+		} else {
+			pretty.Code(w, fmt.Sprintf(`cp "%s" "%s" && rm "%s"`, updated, self, updated))
+		}
+		return
+	}
+
+	// Could not write alongside the binary (e.g. protected directory).
+	// Fall back to a writable temp location.
+	tmpUpdated := filepath.Join(os.TempDir(), filepath.Base(self)+".new")
+	copyOK = false
+	if src, err := os.Open(tmpName); err == nil {
+		defer src.Close()
+		if dst, err := os.Create(tmpUpdated); err == nil {
+			defer dst.Close()
+			if _, err := io.Copy(dst, src); err == nil {
+				copyOK = true
+			}
+		}
+	}
+
+	if copyOK {
+		pretty.Done(w, "Staged to "+tmpUpdated)
+		fmt.Fprintln(w)
+		pretty.Step(w, 4, "Complete the update manually:")
+		if runtime.GOOS == "windows" {
+			pretty.Code(w, fmt.Sprintf(`copy "%s" "%s"`, tmpUpdated, self))
+		} else {
+			pretty.Code(w, fmt.Sprintf(`cp "%s" "%s"`, tmpUpdated, self))
+		}
+		pretty.Item(w, "Tip", "Close all ANS processes first, then run the command above")
+		return
+	}
+
+	// Absolute last resort: temp file
+	pretty.Err(w, "Could not write update file — permission denied")
 	fmt.Fprintln(w)
-	pretty.Step(w, 4, "Manually replace the binary:")
+	pretty.Step(w, 4, "Install manually from temp:")
 	pretty.Code(w, fmt.Sprintf(`copy "%s" "%s"`, tmpName, self))
+	pretty.Item(w, "Hint", "Run from an elevated (Admin) terminal if permissions are restricted")
 }
 
 // --- helpers ---
