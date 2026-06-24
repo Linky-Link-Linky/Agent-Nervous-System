@@ -1003,7 +1003,7 @@ ans.wrapAllTools();
 ## CLI Reference
 
 ```
-Setup & Diagnostics
+Setup & Maintenance
   ans init                    Create ~/.ans/ and default config
     --webhook <url>           Default webhook URL for ans start
     --ndjson                  Enable NDJSON output by default
@@ -1014,6 +1014,8 @@ Setup & Diagnostics
     --webhook <url>           POST CloudEvents to URL per new receipt (overrides config)
   ans stop                    Stop the daemon
   ans status                  Uptime, chain length, agent count, DB size
+  ans update                  Update ANS to the latest version
+  ans uninstall               Remove ANS binary, data, and config
 
 Chain & Receipts
   ans chain                   Print the receipt tree (newest-first)
