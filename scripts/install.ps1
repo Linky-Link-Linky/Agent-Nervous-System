@@ -169,12 +169,36 @@ try {
     $StepNum = if ($script:BuildFromSource) { 6 } else { 5 }
     Write-Step $StepNum "Adding to system PATH..."
     if ($env:Path -split ';' -notcontains $InstallDir) {
-        $CurrentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
-        if (-not $CurrentUserPath.EndsWith(';')) { $CurrentUserPath += ';' }
-        [Environment]::SetEnvironmentVariable("Path", "${CurrentUserPath}${InstallDir}", "User")
         $env:Path += ";$InstallDir"
+        # Persist for future terminals. irm ... | iex can block .NET API calls,
+        # so we verify the write and fall back to setx if needed.
+        $persisted = $false
+        try {
+            $CurrentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+            $NewPath = $CurrentUserPath.TrimEnd(';') + ";" + $InstallDir
+            [Environment]::SetEnvironmentVariable("Path", $NewPath, "User")
+            $persisted = [Environment]::GetEnvironmentVariable("Path", "User") -like "*$InstallDir*"
+        } catch {
+            $persisted = $false
+        }
+        if (-not $persisted) {
+            try {
+                $setxOut = & setx PATH "$NewPath" 2>&1
+                $persisted = ($LASTEXITCODE -eq 0)
+            } catch {
+                $persisted = $false
+            }
+        }
+        if ($persisted) {
+            Write-Done "PATH updated for future terminals"
+        } else {
+            Write-Warn "Could not persist PATH to registry"
+            Write-Host "       Run this in an Admin PowerShell:" -ForegroundColor $Yellow
+            Write-Host ('       setx PATH "{0}"' -f $NewPath) -ForegroundColor $Gray
+        }
+    } else {
+        Write-Done "PATH already set"
     }
-    Write-Done "PATH updated for future terminals"
 
     # --- Success message ---
     Write-Host ""
