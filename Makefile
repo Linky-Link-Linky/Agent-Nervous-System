@@ -1,20 +1,22 @@
 BINARY   := ans
 CMD      := ./cmd/ans
 BIN      := bin
+VERSION  := $(shell git describe --tags --dirty 2>/dev/null || echo dev)
+LDFLAGS  := -s -w -X main.version=$(VERSION)
 
 .PHONY: build build-all test test-race test-cover bench vet clean install checksums
 
 build:
 	@mkdir -p $(BIN)
-	go build -ldflags="-s -w" -trimpath -o $(BIN)/$(BINARY) $(CMD)
+	go build -ldflags="$(LDFLAGS)" -trimpath -o $(BIN)/$(BINARY) $(CMD)
 
 build-all:
 	@mkdir -p $(BIN)
-	GOOS=linux   GOARCH=amd64  CGO_ENABLED=0 go build -ldflags="-s -w" -trimpath -o $(BIN)/$(BINARY)_linux_amd64   $(CMD)
-	GOOS=linux   GOARCH=arm64  CGO_ENABLED=0 go build -ldflags="-s -w" -trimpath -o $(BIN)/$(BINARY)_linux_arm64   $(CMD)
-	GOOS=darwin  GOARCH=amd64  CGO_ENABLED=0 go build -ldflags="-s -w" -trimpath -o $(BIN)/$(BINARY)_darwin_amd64  $(CMD)
-	GOOS=darwin  GOARCH=arm64  CGO_ENABLED=0 go build -ldflags="-s -w" -trimpath -o $(BIN)/$(BINARY)_darwin_arm64  $(CMD)
-	GOOS=windows GOARCH=amd64  CGO_ENABLED=0 go build -ldflags="-s -w" -trimpath -o $(BIN)/$(BINARY)_windows_amd64.exe $(CMD)
+	GOOS=linux   GOARCH=amd64  CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -trimpath -o $(BIN)/$(BINARY)_linux_amd64   $(CMD)
+	GOOS=linux   GOARCH=arm64  CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -trimpath -o $(BIN)/$(BINARY)_linux_arm64   $(CMD)
+	GOOS=darwin  GOARCH=amd64  CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -trimpath -o $(BIN)/$(BINARY)_darwin_amd64  $(CMD)
+	GOOS=darwin  GOARCH=arm64  CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -trimpath -o $(BIN)/$(BINARY)_darwin_arm64  $(CMD)
+	GOOS=windows GOARCH=amd64  CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -trimpath -o $(BIN)/$(BINARY)_windows_amd64.exe $(CMD)
 
 test:
 	go test ./...

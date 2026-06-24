@@ -30,9 +30,9 @@ import (
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/snapshot"
 )
 
-const version = "0.1.0"
+var version = "dev"
 
-const usageText = `ans — Agent Nervous System v` + version + `
+var usageText = `ans — Agent Nervous System v` + version + `
 
 USAGE
   ans <command> [flags]
