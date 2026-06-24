@@ -162,6 +162,160 @@ Run it, then `ans chain` again — a new receipt appears.
 
 ---
 
+## From Zero to Your First Traced Agent
+
+A complete walkthrough — install ANS, integrate it into your agent code, and view the cryptographic audit trail.
+
+### 1. Install ANS
+
+```bash
+# Linux / macOS
+curl -fsSL https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.sh | sh
+
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.ps1 | iex
+
+# Or build from source (Go 1.22+)
+git clone https://github.com/Linky-Link-Linky/Agent-Nervous-System.git
+cd Agent-Nervous-System
+make build && sudo make install
+```
+
+### 2. Start the Daemon
+
+```bash
+ans init            # create ~/.ans/ config and data directory
+ans start           # launch daemon in background
+```
+
+That's it. The daemon listens on a local Unix socket (or named pipe on Windows). No cloud, no accounts, no API keys.
+
+### 3. Register an Agent Identity
+
+Every traced action needs an agent identity — an Ed25519 keypair stored encrypted on disk:
+
+```bash
+ans register --name my-bot --version 1.0.0
+```
+
+Output:
+```
+● Agent registered
+  Agent ID:  ans_3vQb7uL6x9
+  Name:      my-bot
+  Version:   1.0.0
+```
+
+Save the `Agent ID` — you'll use it when instrumenting your code.
+
+### 4. Install the SDK
+
+```bash
+# Python
+pip install sdks/python/       # from the cloned repo
+
+# TypeScript
+cd sdks/typescript && npm install
+```
+
+### 5. Instrument Your Agent
+
+Choose the integration pattern that fits your codebase.
+
+#### Pattern A: Decorator (simplest)
+
+Wrap any function — ANS records a pre/post receipt pair automatically:
+
+```python
+from ans import ANSClient
+
+client = ANSClient()
+
+@client.trace("file.write", agent_id="ans_3vQb7uL6x9")
+def save_config(data: dict) -> None:
+    with open("/tmp/config.json", "w") as f:
+        json.dump(data, f)
+
+save_config({"key": "value"})  # automatically traced
+```
+
+#### Pattern B: Context Manager (inline control)
+
+Trace a specific block without decorating:
+
+```python
+with client.trace("db.query", agent_id="ans_3vQb7uL6x9"):
+    rows = db.execute("SELECT * FROM users")
+```
+
+#### Pattern C: LangChain / LangGraph
+
+```python
+from langchain_community.callbacks import ANSClient
+from langchain.agents import AgentExecutor
+
+client = ANSClient(agent_id="ans_3vQb7uL6x9")
+
+agent = AgentExecutor(
+    ...,
+    callbacks=[client.as_langchain_callback()]
+)
+```
+
+#### Pattern D: OpenAI / Anthropic
+
+```python
+from ans.integrations import ANSAnthropicClient
+
+client = ANSAnthropicClient(
+    base=anthropic.Anthropic(),
+    agent_id="ans_3vQb7uL6x9",
+)
+response = client.messages.create(...)
+```
+
+### 6. View the Chain
+
+Every traced action produced a signed, hash-linked receipt:
+
+```bash
+ans chain
+```
+
+```
+╭─ a1b2c3d4  2026-06-18 14:30:22.000  file.write        ans_3vQb7uL6x9
+│  writing config file
+│  policy allow
+╰─ ✓  success  1200ms
+   sig a1b2c3d4e5f6a7b8...
+
+╭─ b2c3d4e5  2026-06-18 14:31:05.000  db.query          ans_3vQb7uL6x9
+│  SELECT * FROM users
+╰─ ✓  success  300ms
+   sig b2c3d4e5f6a7b8c9...
+```
+
+### 7. Verify Integrity
+
+Prove no one tampered with the chain:
+
+```bash
+ans verify --chain
+✓ Chain integrity verified — 6 receipts checked (all hashes, all signatures)
+```
+
+### What's Next
+
+| Integration | File |
+|-------------|------|
+| Python SDK + examples | `sdks/python/` |
+| TypeScript SDK | `sdks/typescript/` |
+| Policy examples | `examples/policies/` |
+| Compensating action examples | `examples/compensations/` |
+| Full integration demos | `examples/integrations/` |
+
+---
+
 ## Features
 
 ### 1. The Receipt Chain
