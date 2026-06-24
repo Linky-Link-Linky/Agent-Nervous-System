@@ -68,6 +68,7 @@ COMMANDS
   mcp log            Show recent MCP audit log
   version            Print version
   update             Update ANS to the latest version
+  uninstall          Remove ANS binary, data, and config
 
 FLAGS (start)
   --ndjson           Emit NDJSON receipt stream to stdout (capture with > file)
@@ -201,6 +202,8 @@ func main() {
 		cmdDoctor()
 	case "update":
 		cmdUpdate()
+	case "uninstall":
+		cmdUninstall()
 	case "version", "--version", "-v":
 		pretty.Banner(os.Stderr)
 		pretty.Item(os.Stderr, "Version", version)
@@ -1655,6 +1658,91 @@ func cmdUpdate() {
 	pretty.Step(w, 4, "Install manually from temp:")
 	pretty.Code(w, fmt.Sprintf(`copy "%s" "%s"`, tmpName, self))
 	pretty.Item(w, "Hint", "Run from an elevated (Admin) terminal if permissions are restricted")
+}
+
+func cmdUninstall() {
+	w := os.Stderr
+	pretty.Banner(w)
+	pretty.Header(w, "Uninstalling ANS")
+	fmt.Fprintln(w)
+
+	// 1. Stop the daemon if running.
+	pretty.Step(w, 1, "Stopping daemon")
+	if pidData, err := os.ReadFile(pidFilePath()); err == nil {
+		if pid, err := strconv.Atoi(strings.TrimSpace(string(pidData))); err == nil {
+			if proc, err := os.FindProcess(pid); err == nil {
+				if runtime.GOOS == "windows" {
+					proc.Kill()
+				} else {
+					proc.Signal(syscall.SIGTERM)
+				}
+				os.Remove(pidFilePath())
+			}
+		}
+	}
+	pretty.Done(w, "Daemon stopped")
+
+	// 2. Remove data directory.
+	pretty.Step(w, 2, "Removing data directory")
+	dataDir, dataErr := config.Dir()
+	removed := false
+	if dataErr == nil {
+		if err := os.RemoveAll(dataDir); err == nil {
+			pretty.Done(w, "Deleted " + dataDir)
+			removed = true
+		} else {
+			pretty.Warn(w, "Could not delete " + dataDir + ": " + err.Error())
+		}
+	}
+	if !removed {
+		// Fallback: remove known paths individually.
+		home, _ := os.UserHomeDir()
+		known := []string{
+			filepath.Join(home, ".ans"),
+		}
+		for _, p := range known {
+			if err := os.RemoveAll(p); err == nil {
+				pretty.Done(w, "Deleted " + p)
+				break
+			}
+		}
+	}
+
+	// 3. Clean PATH on Windows.
+	if runtime.GOOS == "windows" {
+		pretty.Step(w, 3, "Cleaning PATH")
+		binDir := filepath.Join(dataDir, "bin")
+		userPath := os.Getenv("Path")
+		parts := strings.Split(userPath, ";")
+		filtered := make([]string, 0, len(parts))
+		for _, p := range parts {
+			if strings.EqualFold(p, binDir) || strings.EqualFold(p, binDir+`\`) {
+				continue
+			}
+			filtered = append(filtered, p)
+		}
+		newPath := strings.Join(filtered, ";")
+		if newPath != userPath {
+			if err := os.Setenv("Path", newPath); err == nil {
+				pretty.Done(w, "Removed " + binDir + " from PATH")
+			}
+			// Also persist for future terminals.
+			_ = exec.Command("powershell", "-NoProfile",
+				"-Command",
+				fmt.Sprintf(`[Environment]::SetEnvironmentVariable("Path", "%s", "User")`,
+					strings.ReplaceAll(newPath, `"`, `""`)),
+			).Run()
+		} else {
+			pretty.Done(w, "PATH already clean")
+		}
+	}
+
+	fmt.Fprintln(w)
+	pretty.Ok(w, "ANS has been uninstalled")
+	pretty.Item(w, "Note", "Close and reopen your terminal to refresh PATH")
+	fmt.Fprintln(w)
+	pretty.Step(w, 4, "Reinstall anytime with")
+	pretty.Code(w, `irm https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.ps1 | iex`)
 }
 
 // --- helpers ---
