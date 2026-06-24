@@ -22,10 +22,10 @@ $White = "White"
 
 function Write-Banner {
     Write-Host ""
-    Write-Host ("  " + [char]0x2500 * 40) -ForegroundColor $Muted
+    Write-Host ("  " + ([string][char]0x2500) * 40) -ForegroundColor $Muted
     Write-Host ("  " + [char]0x2726 + "  Agent Nervous System") -ForegroundColor $Emerald
     Write-Host "   Secure AI Agent Auditing" -ForegroundColor $Gray
-    Write-Host ("  " + [char]0x2500 * 40) -ForegroundColor $Muted
+    Write-Host ("  " + ([string][char]0x2500) * 40) -ForegroundColor $Muted
     Write-Host ""
 }
 
@@ -178,9 +178,9 @@ try {
 
     # --- Success message ---
     Write-Host ""
-    Write-Host ("  " + [char]0x2500 * 40) -ForegroundColor $Muted
+    Write-Host ("  " + ([string][char]0x2500) * 40) -ForegroundColor $Muted
     Write-Host ("  " + [char]0x2726 + "  ANS is installed!") -ForegroundColor $Emerald
-    Write-Host ("  " + [char]0x2500 * 40) -ForegroundColor $Muted
+    Write-Host ("  " + ([string][char]0x2500) * 40) -ForegroundColor $Muted
     Write-Host ""
     Write-Host "  Quick start:" -ForegroundColor $White
     Write-Host ""
