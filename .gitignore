@@ -9,6 +9,8 @@
 .gocache/
 coverage.out
 coverage.html
+release/
+*.new
 
 # Node
 node_modules/

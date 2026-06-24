@@ -29,6 +29,8 @@ const (
 	Bold  = "\033[1m"
 	Dim   = "\033[2m"
 
+Bg = "\033[48;2;0;0;0m"
+
 	// Brand — single emerald voltage (#2ecc71)
 	Emerald = "\033[38;2;46;204;113m"
 
@@ -83,7 +85,7 @@ func boxLine(content string) string {
 	if pad < 0 {
 		pad = 0
 	}
-	return boxBorder + content + strings.Repeat(" ", pad) + " │"
+	return boxBorder + bgWrap(content) + strings.Repeat(" ", pad) + " │" + Reset
 }
 
 func emptyLine() string {
@@ -127,10 +129,12 @@ func Fprintln(w io.Writer, style string, args ...interface{}) {
 // Banner prints the ANS branding header in a rounded box.
 func Banner(w io.Writer) {
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "  "+muted+boxTop+Reset)
+	fmt.Fprint(w, "  ")
+	fmt.Fprintln(w, bgWrap(muted+boxTop))
 	fmt.Fprintln(w, boxLine("  "+Emerald+"✦"+Reset+"  "+bold+"Agent Nervous System"+Reset))
 	fmt.Fprintln(w, boxLine("  "+dim+"Secure AI Agent Auditing"+Reset))
-	fmt.Fprintln(w, "  "+muted+boxBot+Reset)
+	fmt.Fprint(w, "  ")
+	fmt.Fprintln(w, bgWrap(muted+boxBot))
 }
 
 // Header prints a section title as a box divider with emerald accent.
@@ -142,7 +146,7 @@ func Header(w io.Writer, text string) {
 	}
 	fmt.Fprintln(w, "")
 	fmt.Fprintf(w, "  %s╭─%s%s%s%s╮%s\n",
-		muted, reset, inner, muted, strings.Repeat("─", dashCount), reset)
+		muted, reset, bgWrap(inner), muted, strings.Repeat("─", dashCount), reset)
 	fmt.Fprintln(w, emptyLine())
 }
 
@@ -178,36 +182,54 @@ func Link(w io.Writer, label, url string) {
 
 // Ok prints a success banner inside an emerald box.
 func Ok(w io.Writer, text string) {
+	top := "  " + Emerald + "╭" + strings.Repeat("─", boxW-2) + "╮" + Reset
+	bot := "  " + Emerald + "╰" + strings.Repeat("─", boxW-2) + "╯" + Reset
+	inner := boxPad(bgWrap("  "+Emerald+"✓"+Reset+"  "+bold+text+Reset), boxW-2)
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "  "+Emerald+"╭"+strings.Repeat("─", boxW-2)+"╮"+Reset)
-	fmt.Fprintln(w, "  "+Emerald+"│"+Reset+boxPad("  "+Emerald+"✓"+Reset+"  "+bold+text+Reset, boxW-2)+Emerald+"│"+Reset)
-	fmt.Fprintln(w, "  "+Emerald+"╰"+strings.Repeat("─", boxW-2)+"╯"+Reset)
+	fmt.Fprintln(w, bgWrap(top))
+	fmt.Fprintln(w, bgWrap("  "+Emerald+"│"+Reset)+inner+bgWrap(Emerald+"│"+Reset))
+	fmt.Fprintln(w, bgWrap(bot))
 }
 
 // Warn prints a warning banner inside an amber box.
 func Warn(w io.Writer, text string) {
+	top := "  " + Yellow + "╭" + strings.Repeat("─", boxW-2) + "╮" + Reset
+	bot := "  " + Yellow + "╰" + strings.Repeat("─", boxW-2) + "╯" + Reset
+	inner := boxPad(bgWrap("  "+Yellow+"!"+Reset+"  "+bold+text+Reset), boxW-2)
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "  "+Yellow+"╭"+strings.Repeat("─", boxW-2)+"╮"+Reset)
-	fmt.Fprintln(w, "  "+Yellow+"│"+Reset+boxPad("  "+Yellow+"!"+Reset+"  "+bold+text+Reset, boxW-2)+Yellow+"│"+Reset)
-	fmt.Fprintln(w, "  "+Yellow+"╰"+strings.Repeat("─", boxW-2)+"╯"+Reset)
+	fmt.Fprintln(w, bgWrap(top))
+	fmt.Fprintln(w, bgWrap("  "+Yellow+"│"+Reset)+inner+bgWrap(Yellow+"│"+Reset))
+	fmt.Fprintln(w, bgWrap(bot))
 }
 
 // Err prints an error banner inside a coral box.
 func Err(w io.Writer, text string) {
+	top := "  " + Red + "╭" + strings.Repeat("─", boxW-2) + "╮" + Reset
+	bot := "  " + Red + "╰" + strings.Repeat("─", boxW-2) + "╯" + Reset
+	inner := boxPad(bgWrap("  "+Red+"✗"+Reset+"  "+bold+text+Reset), boxW-2)
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "  "+Red+"╭"+strings.Repeat("─", boxW-2)+"╮"+Reset)
-	fmt.Fprintln(w, "  "+Red+"│"+Reset+boxPad("  "+Red+"✗"+Reset+"  "+bold+text+Reset, boxW-2)+Red+"│"+Reset)
-	fmt.Fprintln(w, "  "+Red+"╰"+strings.Repeat("─", boxW-2)+"╯"+Reset)
+	fmt.Fprintln(w, bgWrap(top))
+	fmt.Fprintln(w, bgWrap("  "+Red+"│"+Reset)+inner+bgWrap(Red+"│"+Reset))
+	fmt.Fprintln(w, bgWrap(bot))
 }
 
-// boxPad returns s padded with trailing spaces to reach width w (ANSI-aware).
+// bgWrap inserts Bg after every Reset so the dark background survives
+// style transitions within a single line. Pass a no-Reset string as-is.
+func bgWrap(s string) string {
+	return Bg + strings.ReplaceAll(s, Reset, Reset+Bg)
+}
+
+// boxPad returns s padded with Bg-trailing spaces to reach width w (ANSI-aware).
 func boxPad(s string, w int) string {
 	plain := stripANSI(s)
 	pad := w - len(plain)
 	if pad < 0 {
 		pad = 0
 	}
-	return s + strings.Repeat(" ", pad)
+	if pad > 0 {
+		return s + Bg + strings.Repeat(" ", pad) + Reset
+	}
+	return s
 }
 
 // safeID returns the first 8 chars of id, or the full id if shorter, with ANSI stripped.

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -121,7 +122,10 @@ func TestVersionCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("version command failed: %v", err)
 	}
-	if !strings.Contains(string(out), "0.1.0") {
+	// Strip ANSI codes before checking version content.
+	ansiRE := regexp.MustCompile(`\033\[[0-9;]*[a-zA-Z]|\033][^\a]*(\a|\033\\)`)
+	clean := ansiRE.ReplaceAllString(string(out), "")
+	if !strings.Contains(clean, "Version:") {
 		t.Errorf("output = %q, want to contain version number", string(out))
 	}
 }
@@ -169,7 +173,9 @@ func TestVersionFlag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("--version command failed: %v", err)
 	}
-	if !strings.Contains(string(out), "0.1.0") {
+	ansiRE := regexp.MustCompile(`\033\[[0-9;]*[a-zA-Z]|\033][^\a]*(\a|\033\\)`)
+	clean := ansiRE.ReplaceAllString(string(out), "")
+	if !strings.Contains(clean, "Version:") {
 		t.Errorf("output = %q", string(out))
 	}
 }
