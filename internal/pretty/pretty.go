@@ -9,29 +9,11 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"runtime"
 	"strings"
 	"time"
 
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/receipt"
-	"golang.org/x/sys/windows"
 )
-
-// Enable ANSI color processing on Windows consoles at init time.
-func init() {
-	if runtime.GOOS != "windows" {
-		return
-	}
-	for _, f := range []*os.File{os.Stderr, os.Stdout} {
-		handle := windows.Handle(f.Fd())
-		var mode uint32
-		if err := windows.GetConsoleMode(handle, &mode); err != nil {
-			continue // not a console
-		}
-		mode |= windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING
-		windows.SetConsoleMode(handle, mode)
-	}
-}
 
 // ansiRE matches ANSI escape sequences.
 var ansiRE = regexp.MustCompile(`\033\[[0-9;]*[a-zA-Z]|\033][^\a]*(\a|\033\\)`)
