@@ -5,10 +5,14 @@ package main
 
 import (
 	"crypto/ed25519"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,6 +67,7 @@ COMMANDS
   mcp status         Show proxy status and stats
   mcp log            Show recent MCP audit log
   version            Print version
+  update             Update ANS to the latest version
 
 FLAGS (start)
   --ndjson           Emit NDJSON receipt stream to stdout (capture with > file)
@@ -194,6 +199,8 @@ func main() {
 		cmdSnapshots(os.Args[2:])
 	case "doctor":
 		cmdDoctor()
+	case "update":
+		cmdUpdate()
 	case "version", "--version", "-v":
 		pretty.Banner(os.Stderr)
 		pretty.Item(os.Stderr, "Version", version)
@@ -1499,6 +1506,124 @@ func cmdDoctor() {
 	if daemonOK {
 		pretty.Ok(w, "Everything looks good!")
 	}
+}
+
+// --- update ---
+
+func cmdUpdate() {
+	w := os.Stderr
+	pretty.Banner(w)
+	pretty.Header(w, "Updating ANS")
+	fmt.Fprintln(w)
+
+	repo := "Linky-Link-Linky/Agent-Nervous-System"
+	arch := runtime.GOARCH
+	if arch == "x86_64" {
+		arch = "amd64"
+	}
+	asset := fmt.Sprintf("ans_%s_%s", runtime.GOOS, arch)
+	if runtime.GOOS == "windows" {
+		asset += ".exe"
+	}
+
+	self, err := os.Executable()
+	if err != nil {
+		pretty.Err(w, "Cannot find current binary: "+err.Error())
+		return
+	}
+
+	base := "https://github.com/" + repo + "/releases/latest/download"
+	url := base + "/" + asset
+	chkURL := base + "/checksums.txt"
+
+	pretty.Step(w, 1, "Downloading "+asset)
+	resp, err := http.Get(url)
+	if err != nil {
+		pretty.Err(w, "Download failed: "+err.Error())
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		pretty.Err(w, fmt.Sprintf("Download failed: HTTP %d", resp.StatusCode))
+		return
+	}
+	tmp, err := os.CreateTemp("", "ans-*"+filepath.Ext(asset))
+	if err != nil {
+		pretty.Err(w, "Creating temp file: "+err.Error())
+		return
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+
+	hasher := sha256.New()
+	multi := io.MultiWriter(tmp, hasher)
+	if _, err := io.Copy(multi, resp.Body); err != nil {
+		tmp.Close()
+		pretty.Err(w, "Download incomplete: "+err.Error())
+		return
+	}
+	tmp.Close()
+	actualHash := hex.EncodeToString(hasher.Sum(nil))
+	pretty.Done(w, "Downloaded")
+
+	pretty.Step(w, 2, "Verifying checksum")
+	chkResp, chkErr := http.Get(chkURL)
+	if chkErr == nil && chkResp.StatusCode == 200 {
+		defer chkResp.Body.Close()
+		chkBody, _ := io.ReadAll(chkResp.Body)
+		for _, line := range strings.Split(string(chkBody), "\n") {
+			parts := strings.Fields(line)
+			if len(parts) >= 2 && (parts[1] == asset || strings.HasSuffix(parts[1], "/"+asset)) {
+				if parts[0] != actualHash {
+					pretty.Err(w, "Checksum mismatch")
+					return
+				}
+				break
+			}
+		}
+		pretty.Done(w, "Checksum verified")
+	} else {
+		pretty.Warn(w, "Checksum file not available — skipped")
+	}
+
+	pretty.Step(w, 3, "Installing update")
+	if err := os.Rename(tmpName, self); err == nil {
+		pretty.Done(w, "Updated to the latest version")
+		fmt.Fprintln(w)
+		pretty.Step(w, 4, "Verify installation:")
+		pretty.Code(w, "ans version")
+		return
+	}
+
+	// On Windows, rename fails if the binary is running.
+	// Download alongside the binary and print instructions.
+	pretty.Warn(w, "Could not replace running binary")
+	updated := self + ".new"
+	if cpErr := os.WriteFile(updated, nil, 0644); cpErr == nil {
+		os.Remove(updated)
+		// Try copying to same directory with .new suffix
+		src, _ := os.Open(tmpName)
+		dst, _ := os.Create(updated)
+		if src != nil && dst != nil {
+			io.Copy(dst, src)
+			dst.Close()
+			src.Close()
+			pretty.Done(w, "Downloaded to "+filepath.Base(updated))
+			fmt.Fprintln(w)
+			pretty.Step(w, 4, "Complete the update:")
+			if runtime.GOOS == "windows" {
+				pretty.Code(w, fmt.Sprintf(`powershell -Command "Start-Sleep 1; Move-Item '%s' '%s' -Force"`, updated, self))
+			} else {
+				pretty.Code(w, fmt.Sprintf(`cp "%s" "%s" && rm "%s"`, updated, self, updated))
+			}
+			return
+		}
+	}
+	// Last resort: temp file
+	pretty.Done(w, "Downloaded to "+tmpName)
+	fmt.Fprintln(w)
+	pretty.Step(w, 4, "Manually replace the binary:")
+	pretty.Code(w, fmt.Sprintf(`copy "%s" "%s"`, tmpName, self))
 }
 
 // --- helpers ---
