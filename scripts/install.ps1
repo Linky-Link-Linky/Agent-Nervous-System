@@ -10,35 +10,43 @@ $Binary = "ans.exe"
 $InstallDir = Join-Path $env:USERPROFILE ".ans\bin"
 $Version = if ($env:ANS_VERSION) { $env:ANS_VERSION } else { "latest" }
 
-# --- Helper functions ---
+# --- Emerson theme colors (PowerShell ConsoleColor) ---
+$Emerald = "Green"
+$Yellow = "Yellow"
+$Red = "Red"
+$Gray = "DarkGray"
+$Muted = "Gray"
+$White = "White"
+
+# --- Helpers ---
 
 function Write-Banner {
     Write-Host ""
-    Write-Host "  ==========================================" -ForegroundColor Magenta
-    Write-Host "       Agent Nervous System" -ForegroundColor Magenta
-    Write-Host "       Secure AI Agent Auditing" -ForegroundColor DarkGray
-    Write-Host "  ==========================================" -ForegroundColor Magenta
+    Write-Host ("  " + [char]0x2500 * 40) -ForegroundColor $Muted
+    Write-Host ("  " + [char]0x2726 + "  Agent Nervous System") -ForegroundColor $Emerald
+    Write-Host "   Secure AI Agent Auditing" -ForegroundColor $Gray
+    Write-Host ("  " + [char]0x2500 * 40) -ForegroundColor $Muted
     Write-Host ""
 }
 
 function Write-Step($num, $text) {
-    Write-Host "  $num. $text" -ForegroundColor Magenta
+    Write-Host "  $num. $text" -ForegroundColor $Emerald
 }
 
 function Write-Done($text) {
-    Write-Host "  $([char]0x2714) $text" -ForegroundColor Green
+    Write-Host ("  " + [char]0x25CF + " $text") -ForegroundColor $Emerald
 }
 
 function Write-Warn($text) {
-    Write-Host "  $([char]0x26A0) $text" -ForegroundColor Yellow
+    Write-Host ("  " + [char]0x26A0 + " $text") -ForegroundColor $Yellow
 }
 
 function Write-Cmd($text) {
-    Write-Host "    $ $text" -ForegroundColor Magenta
+    Write-Host "    `$ $text" -ForegroundColor $Gray
 }
 
 function Write-Err($text) {
-    Write-Host "  $([char]0x2716) $text" -ForegroundColor Red
+    Write-Host ("  " + [char]0x2716 + " $text") -ForegroundColor $Red
 }
 
 # --- Architecture detection ---
@@ -65,28 +73,31 @@ try {
 
     # Step 1: Detect platform
     Write-Step 1 "Detecting your system..."
-    Write-Host "     Platform: Windows $($Arch)" -ForegroundColor DarkGray
-    Write-Host "     Destination: $InstallDir" -ForegroundColor DarkGray
-    Start-Sleep -Milliseconds 300
+    Write-Host "     Platform: Windows $Arch" -ForegroundColor $Gray
+    Write-Host "     Destination: $InstallDir" -ForegroundColor $Gray
 
     # Step 2: Check Smart App Control
     Write-Step 2 "Checking Windows security settings..."
-    $SacState = (Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy -Name VerifiedAndReputablePolicyState -ErrorAction SilentlyContinue).VerifiedAndReputablePolicyState
+    $SacPath = "HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy"
+    $SacState = (Get-ItemProperty $SacPath -Name VerifiedAndReputablePolicyState -ErrorAction SilentlyContinue).VerifiedAndReputablePolicyState
     if ($SacState -eq 1) {
         Write-Warn "Smart App Control is ON"
-        Write-Host "     Windows 11 blocks unsigned downloaded binaries by default." -ForegroundColor Yellow
-        Write-Host "     I'll build from source instead ? this works everywhere." -ForegroundColor Yellow
+        Write-Host "     Windows 11 blocks unsigned downloaded binaries by default." -ForegroundColor $Yellow
+        Write-Host "     I'll build from source instead — this works everywhere." -ForegroundColor $Yellow
         $script:BuildFromSource = $true
     } else {
-        Write-Done "Smart App Control is off ? downloading binary"
+        Write-Done "Smart App Control is off — downloading binary"
     }
-    Start-Sleep -Milliseconds 300
 
     if (-not $script:BuildFromSource) {
         # Step 3: Download binary
         Write-Step 3 "Downloading ANS for Windows/${Arch}..."
-        Invoke-WebRequest -Uri "${Base}/${Asset}" -OutFile (Join-Path $TmpDir $Binary) -UseBasicParsing
-        Write-Done "Downloaded $Asset"
+        try {
+            Invoke-WebRequest -Uri "${Base}/${Asset}" -OutFile (Join-Path $TmpDir $Binary) -UseBasicParsing
+            Write-Done "Downloaded $Asset"
+        } catch {
+            throw "Download failed: $_"
+        }
 
         # Step 4: Optional checksum
         $ChecksumFile = Join-Path $TmpDir "checksums.txt"
@@ -102,10 +113,11 @@ try {
                 Write-Done "Checksum verified"
             }
         } catch {
-            Write-Warn "Checksum file not available ? skipped"
+            if ($_.Exception.Message -match 'Checksum mismatch') { throw }
+            Write-Warn "Checksum file not available — skipped"
         }
 
-        # Step 5: Install binary
+        # Step 5: Install
         if (-not (Test-Path $InstallDir)) {
             New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
         }
@@ -122,8 +134,9 @@ try {
             Write-Warn "Go is not installed. Installing Go first..."
             $goInstaller = Join-Path $TmpDir "go-installer.msi"
             try {
-                Invoke-WebRequest -Uri "https://go.dev/dl/go1.25.0.windows-amd64.msi" -OutFile $goInstaller -UseBasicParsing
-                Write-Host "     Running Go installer (may show a window)..." -ForegroundColor Yellow
+                $goURL = "https://go.dev/dl/go1.25.0.windows-amd64.msi"
+                Invoke-WebRequest -Uri $goURL -OutFile $goInstaller -UseBasicParsing
+                Write-Host "     Running Go installer..." -ForegroundColor $Yellow
                 Start-Process msiexec -ArgumentList "/i `"$goInstaller`" /quiet /norestart" -Wait
                 Write-Done "Go installed"
                 $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
@@ -141,21 +154,20 @@ try {
         }
         Write-Step 4 "Cloning repository..."
         git clone "https://github.com/$Repo.git" $srcDir 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Git clone failed" }
         Write-Done "Repository cloned"
 
         Write-Step 5 "Building binary..."
         Push-Location $srcDir
         go build -ldflags="-s -w" -trimpath -o (Join-Path $InstallDir $Binary) ./cmd/ans 2>&1
         Pop-Location
-        if ($LASTEXITCODE -ne 0) {
-            throw "Build failed"
-        }
+        if ($LASTEXITCODE -ne 0) { throw "Build failed" }
         Write-Done "Binary built and installed"
     }
 
     # Step 6: Add to PATH
     $StepNum = if ($script:BuildFromSource) { 6 } else { 5 }
-Write-Step $StepNum "Adding to system PATH..."
+    Write-Step $StepNum "Adding to system PATH..."
     if ($env:Path -split ';' -notcontains $InstallDir) {
         $CurrentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
         if (-not $CurrentUserPath.EndsWith(';')) { $CurrentUserPath += ';' }
@@ -166,40 +178,38 @@ Write-Step $StepNum "Adding to system PATH..."
 
     # --- Success message ---
     Write-Host ""
-    Write-Host "  ==========================================" -ForegroundColor Magenta
-    Write-Host "       ANS is installed!" -ForegroundColor Magenta
-    Write-Host "  ==========================================" -ForegroundColor Magenta
+    Write-Host ("  " + [char]0x2500 * 40) -ForegroundColor $Muted
+    Write-Host ("  " + [char]0x2726 + "  ANS is installed!") -ForegroundColor $Emerald
+    Write-Host ("  " + [char]0x2500 * 40) -ForegroundColor $Muted
     Write-Host ""
-    Write-Host "  To get started, open a NEW PowerShell window and run:" -ForegroundColor White
+    Write-Host "  Quick start:" -ForegroundColor $White
     Write-Host ""
     Write-Cmd "ans init"
-    Write-Host "      Creates your data directory (~/.ans/) and config" -ForegroundColor DarkGray
+    Write-Host "      Creates your data directory (~/.ans/) and config" -ForegroundColor $Gray
     Write-Host ""
     Write-Cmd "ans start"
-    Write-Host "      Starts the ANS daemon" -ForegroundColor DarkGray
+    Write-Host "      Starts the ANS daemon" -ForegroundColor $Gray
     Write-Host ""
     Write-Cmd "ans register --name my-agent --version 1.0.0"
-    Write-Host "      Register your first AI agent" -ForegroundColor DarkGray
+    Write-Host "      Register your first AI agent" -ForegroundColor $Gray
     Write-Host ""
     Write-Cmd "ans chain"
-    Write-Host "      View the receipt chain" -ForegroundColor DarkGray
+    Write-Host "      View the receipt chain" -ForegroundColor $Gray
     Write-Host ""
-    Write-Host "  Need help? Run: ans doctor" -ForegroundColor Magenta
-    Write-Host ""
-    Write-Host "  Or open a new PowerShell and type: ans init" -ForegroundColor Yellow
+    Write-Host "  Need help? Run: ans doctor" -ForegroundColor $Emerald
     Write-Host ""
 }
 catch {
     Write-Host ""
     Write-Err "Installation failed: $_"
     Write-Host ""
-    Write-Host "  Don't worry! Try one of these:" -ForegroundColor Yellow
-    Write-Host "  1. Build from source (works everywhere):" -ForegroundColor Magenta
-    Write-Host "     git clone https://github.com/$Repo.git" -ForegroundColor DarkGray
-    Write-Host "     cd Agent-Nervous-System/ans" -ForegroundColor DarkGray
-    Write-Host "     go build -o ans.exe ./cmd/ans" -ForegroundColor DarkGray
+    Write-Host "  Don't worry! Try one of these:" -ForegroundColor $Yellow
+    Write-Host "  1. Build from source:" -ForegroundColor $Emerald
+    Write-Host "     git clone https://github.com/$Repo.git" -ForegroundColor $Gray
+    Write-Host "     cd Agent-Nervous-System/ans" -ForegroundColor $Gray
+    Write-Host "     go build -o ans.exe ./cmd/ans" -ForegroundColor $Gray
     Write-Host ""
-    Write-Host "  2. Get help: https://github.com/$Repo/issues" -ForegroundColor Magenta
+    Write-Host "  2. Get help: https://github.com/$Repo/issues" -ForegroundColor $Emerald
     Write-Host ""
     throw
 }

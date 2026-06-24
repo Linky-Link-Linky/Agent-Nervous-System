@@ -397,11 +397,11 @@ func cmdVerify(args []string) {
 		}
 		result := c.VerifyChain(pubkeys)
 		if result.Valid {
-			fmt.Printf("\n\033[32m\033[1m✓ Chain integrity verified\033[0m — %d receipts checked\n\n",
+			fmt.Printf("\n"+pretty.Green+pretty.Bold+"✓ Chain integrity verified"+pretty.Reset+" — %d receipts checked\n\n",
 				result.TotalChecked)
 		} else {
 			fmt.Fprintf(os.Stderr,
-				"\n\033[31m\033[1m✗ Chain integrity FAILED\033[0m at index %d: %s\n\n",
+				"\n"+pretty.Red+pretty.Bold+"✗ Chain integrity FAILED"+pretty.Reset+" at index %d: %s\n\n",
 				result.FirstBrokenAt, result.Error)
 			os.Exit(1)
 		}
@@ -516,7 +516,7 @@ func cmdRegister(args []string) {
 	if _, err := daemon.ReadJSON(conn, &resp); err != nil {
 		fatalf("register failed: %v", err)
 	}
-	fmt.Printf("\033[32m\u2713\033[0m Agent registered\n")
+	fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" Agent registered\n")
 	fmt.Printf("  Agent ID: %s\n", resp.AgentID)
 	fmt.Printf("  Name:     %s\n", *name)
 	fmt.Printf("  Version:  %s\n", *version)
@@ -712,9 +712,9 @@ func cmdTimeTravel(args []string) {
 		fatalf("restore failed: %v", err)
 	}
 	if resp.Success {
-		fmt.Printf("\033[32m\u2713\033[0m State restored to chain index %d\n", targetIdx)
+		fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" State restored to chain index %d\n", targetIdx)
 	} else {
-		fmt.Fprintf(os.Stderr, "\033[31m\u2717\033[0m Restore failed: %s\n", resp.Message)
+		fmt.Fprintf(os.Stderr, pretty.Red+"\u2717"+pretty.Reset+" Restore failed: %s\n", resp.Message)
 		os.Exit(1)
 	}
 }
@@ -872,9 +872,9 @@ func cmdCompensate(args []string) {
 		fmt.Println("  ", d)
 	}
 	if resp.Success {
-		fmt.Printf("\033[32m\u2713\033[0m Compensation complete: %d run, %d failed\n", resp.ActionsRun, resp.ActionsFailed)
+		fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" Compensation complete: %d run, %d failed\n", resp.ActionsRun, resp.ActionsFailed)
 	} else {
-		fmt.Printf("\033[31m\u2717\033[0m Compensation had %d failures: %s\n", resp.ActionsFailed, resp.Message)
+		fmt.Printf(pretty.Red+"\u2717"+pretty.Reset+" Compensation had %d failures: %s\n", resp.ActionsFailed, resp.Message)
 	}
 }
 
@@ -931,7 +931,7 @@ func cmdPolicyAdd(args []string) {
 	if !resp.Success {
 		fatalf("policy rejected: %s", resp.Message)
 	}
-	fmt.Printf("\033[32m\u2713\033[0m Policy %q registered\n", pol.ID)
+	fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" Policy %q registered\n", pol.ID)
 }
 
 // cmdPolicyList lists all registered policies.
@@ -954,9 +954,9 @@ func cmdPolicyList(args []string) {
 	fmt.Printf("\n%-24s %-20s %-8s %-6s %-6s\n", "ID", "NAME", "ENABLED", "PRIORITY", "SEVERITY")
 	fmt.Println(strings.Repeat("\u2500", 70))
 	for _, p := range resp.Policies {
-		en := "\033[31mno\033[0m"
+		en := pretty.Red + "no" + pretty.Reset
 		if p.Enabled {
-			en = "\033[32myes\033[0m"
+			en = pretty.Green + "yes" + pretty.Reset
 		}
 		shortID := p.ID
 		if len(shortID) > 22 {
@@ -984,7 +984,7 @@ func cmdPolicyRemove(args []string) {
 		fatalf("policy delete failed: %v", err)
 	}
 	if resp.Success {
-		fmt.Printf("\033[32m\u2713\033[0m Policy %q removed\n", args[0])
+		fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" Policy %q removed\n", args[0])
 	} else {
 		fatalf("removing policy: %s", resp.Message)
 	}
@@ -1011,20 +1011,20 @@ func cmdPolicyEval(args []string) {
 		fatalf("policy eval failed: %v", err)
 	}
 	if resp.Denied {
-		fmt.Printf("\033[31m\u2717\033[0m DENIED")
+		fmt.Printf(pretty.Red+"\u2717"+pretty.Reset+" DENIED")
 		if resp.Nociception != nil {
 			fmt.Printf(" — %s", resp.Nociception.Message)
 		}
 		fmt.Println()
 	} else if resp.Allowed {
-		fmt.Printf("\033[32m\u2713\033[0m ALLOWED\n")
+		fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" ALLOWED\n")
 	}
 	if len(resp.PolicyResults) > 0 {
 		fmt.Println()
 		for _, pr := range resp.PolicyResults {
-			icon := "\033[32m\u2713\033[0m"
+			icon := pretty.Green + "\u2713" + pretty.Reset
 			if pr.Matched && pr.Effect == "deny" {
-				icon = "\033[31m\u2717\033[0m"
+				icon = pretty.Red + "\u2717" + pretty.Reset
 			}
 			matched := "no"
 			if pr.Matched {
@@ -1062,7 +1062,7 @@ func cmdTokenRequest(args []string) {
 	if !resp.Success {
 		fatalf("token provisioning failed: %s", resp.Message)
 	}
-	fmt.Printf("\033[32m\u2713\033[0m Token provisioned\n")
+	fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" Token provisioned\n")
 	fmt.Printf("  Token ID:  %s\n", resp.TokenID)
 	fmt.Printf("  Type:      %s\n", resp.TokenType)
 	fmt.Printf("  Access Key: %s\n", maskSecret(resp.AccessKey))
@@ -1114,7 +1114,7 @@ func cmdTokenRevoke(args []string) {
 		fatalf("token revoke failed: %v", err)
 	}
 	if resp.Success {
-		fmt.Printf("\033[32m\u2713\033[0m Token %q revoked\n", args[0])
+		fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" Token %q revoked\n", args[0])
 	} else {
 		fatalf("revoking token: %s", resp.Message)
 	}
@@ -1152,7 +1152,7 @@ func cmdMCPStart(args []string) {
 		fatalf("mcp start failed: %v", err)
 	}
 	if resp.Success {
-		fmt.Printf("\033[32m\u2713\033[0m MCP proxy started on %s -> %s\n", *listen, *target)
+		fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" MCP proxy started on %s -> %s\n", *listen, *target)
 	} else {
 		fatalf("mcp start: %s", resp.Message)
 	}
@@ -1168,9 +1168,9 @@ func cmdMCPStop() {
 		fatalf("mcp stop failed: %v", err)
 	}
 	if resp.Success {
-		fmt.Printf("\033[32m\u2713\033[0m MCP proxy stopped\n")
+		fmt.Printf(pretty.Green+"\u2713"+pretty.Reset+" MCP proxy stopped\n")
 	} else {
-		fmt.Printf("\033[33m!\033[0m %s\n", resp.Message)
+		fmt.Printf(pretty.Yellow+"!"+pretty.Reset+" %s\n", resp.Message)
 	}
 }
 
@@ -1184,10 +1184,10 @@ func cmdMCPStatus() {
 		fatalf("mcp status failed: %v", err)
 	}
 	if !resp.Running {
-		fmt.Println("MCP proxy: \033[31mnot running\033[0m")
+		fmt.Println("MCP proxy: " + pretty.Red + "not running" + pretty.Reset)
 		return
 	}
-	fmt.Printf("MCP proxy: \033[32mrunning\033[0m\n")
+	fmt.Printf("MCP proxy: " + pretty.Green + "running" + pretty.Reset + "\n")
 	fmt.Printf("  Uptime:      %ds\n", resp.UptimeSecs)
 	fmt.Printf("  Messages:    %d\n", resp.TotalMsgs)
 	fmt.Printf("  Total Toks:  %d\n", resp.TotalToks)
@@ -1219,7 +1219,7 @@ func cmdMCPLog(args []string) {
 	for _, e := range resp.Entries {
 		inj := ""
 		if e.Injection {
-			inj = "\033[31mINJ\033[0m"
+			inj = pretty.Red + "INJ" + pretty.Reset
 		}
 		method := e.Method
 		if method == "" {
@@ -1595,35 +1595,66 @@ func cmdUpdate() {
 		return
 	}
 
-	// On Windows, rename fails if the binary is running.
-	// Download alongside the binary and print instructions.
-	pretty.Warn(w, "Could not replace running binary")
+	// Rename failed — likely the binary is running (Windows) or we lack permissions.
+	// Try placing a .new file alongside the binary.
+	pretty.Warn(w, "Could not replace running binary directly")
 	updated := self + ".new"
-	if cpErr := os.WriteFile(updated, nil, 0644); cpErr == nil {
-		os.Remove(updated)
-		// Try copying to same directory with .new suffix
-		src, _ := os.Open(tmpName)
-		dst, _ := os.Create(updated)
-		if src != nil && dst != nil {
-			io.Copy(dst, src)
-			dst.Close()
-			src.Close()
-			pretty.Done(w, "Downloaded to "+filepath.Base(updated))
-			fmt.Fprintln(w)
-			pretty.Step(w, 4, "Complete the update:")
-			if runtime.GOOS == "windows" {
-				pretty.Code(w, fmt.Sprintf(`powershell -Command "Start-Sleep 1; Move-Item '%s' '%s' -Force"`, updated, self))
-			} else {
-				pretty.Code(w, fmt.Sprintf(`cp "%s" "%s" && rm "%s"`, updated, self, updated))
+	copyOK := false
+	if src, err := os.Open(tmpName); err == nil {
+		defer src.Close()
+		if dst, err := os.Create(updated); err == nil {
+			defer dst.Close()
+			if _, err := io.Copy(dst, src); err == nil {
+				copyOK = true
 			}
-			return
 		}
 	}
-	// Last resort: temp file
-	pretty.Done(w, "Downloaded to "+tmpName)
+
+	if copyOK {
+		pretty.Done(w, "Staged to "+filepath.Base(updated))
+		fmt.Fprintln(w)
+		pretty.Step(w, 4, "Complete the update in a new terminal:")
+		if runtime.GOOS == "windows" {
+			pretty.Code(w, fmt.Sprintf(`powershell -Command "Move-Item '%s' '%s' -Force"`, updated, self))
+		} else {
+			pretty.Code(w, fmt.Sprintf(`cp "%s" "%s" && rm "%s"`, updated, self, updated))
+		}
+		return
+	}
+
+	// Could not write alongside the binary (e.g. protected directory).
+	// Fall back to a writable temp location.
+	tmpUpdated := filepath.Join(os.TempDir(), filepath.Base(self)+".new")
+	copyOK = false
+	if src, err := os.Open(tmpName); err == nil {
+		defer src.Close()
+		if dst, err := os.Create(tmpUpdated); err == nil {
+			defer dst.Close()
+			if _, err := io.Copy(dst, src); err == nil {
+				copyOK = true
+			}
+		}
+	}
+
+	if copyOK {
+		pretty.Done(w, "Staged to "+tmpUpdated)
+		fmt.Fprintln(w)
+		pretty.Step(w, 4, "Complete the update manually:")
+		if runtime.GOOS == "windows" {
+			pretty.Code(w, fmt.Sprintf(`copy "%s" "%s"`, tmpUpdated, self))
+		} else {
+			pretty.Code(w, fmt.Sprintf(`cp "%s" "%s"`, tmpUpdated, self))
+		}
+		pretty.Item(w, "Tip", "Close all ANS processes first, then run the command above")
+		return
+	}
+
+	// Absolute last resort: temp file
+	pretty.Err(w, "Could not write update file — permission denied")
 	fmt.Fprintln(w)
-	pretty.Step(w, 4, "Manually replace the binary:")
+	pretty.Step(w, 4, "Install manually from temp:")
 	pretty.Code(w, fmt.Sprintf(`copy "%s" "%s"`, tmpName, self))
+	pretty.Item(w, "Hint", "Run from an elevated (Admin) terminal if permissions are restricted")
 }
 
 // --- helpers ---
