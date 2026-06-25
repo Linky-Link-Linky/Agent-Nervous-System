@@ -33,6 +33,7 @@ type App struct {
 	auditLog  *auditLogPanel
 	policy    *policyPanel
 	statusBar *statusBarPanel
+	cmdBar    *commandBar
 
 	stopCh chan struct{}
 }
@@ -52,6 +53,7 @@ func NewApp() *App {
 	a.auditLog = newAuditLogPanel(prov)
 	a.policy = newPolicyPanel(prov)
 	a.statusBar = newStatusBarPanel(prov)
+	a.cmdBar = newCommandBar(a.tview, prov)
 
 	return a
 }
@@ -59,15 +61,28 @@ func NewApp() *App {
 func (a *App) Run() error {
 	a.tview.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 		if ev.Key() == tcell.KeyCtrlC || ev.Key() == tcell.KeyEscape {
+			if a.cmdBar.inputMode {
+				a.cmdBar.deactivate()
+				return nil
+			}
 			a.tview.Stop()
 			return nil
 		}
 		if ev.Rune() == 'q' || ev.Rune() == 'Q' {
+			if a.cmdBar.inputMode {
+				return ev
+			}
 			a.tview.Stop()
 			return nil
 		}
 		if ev.Rune() == 's' || ev.Rune() == 'S' {
-			a.triggerSnapshot()
+			if !a.cmdBar.inputMode {
+				a.triggerSnapshot()
+			}
+			return nil
+		}
+		if ev.Rune() == ':' && !a.cmdBar.inputMode {
+			a.cmdBar.activate()
 			return nil
 		}
 		return ev
@@ -152,6 +167,7 @@ func (a *App) buildMainUI() tview.Primitive {
 		AddItem(header, 3, 0, false).
 		AddItem(midFlex, 0, 3, false).
 		AddItem(bottomFlex, 0, 3, false).
+		AddItem(a.cmdBar.flex, 6, 0, false).
 		AddItem(a.statusBar, 1, 0, false)
 
 	mainFlex.SetBorder(false)
