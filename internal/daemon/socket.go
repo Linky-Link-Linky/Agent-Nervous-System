@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // SocketPath returns the Unix socket path.
@@ -38,10 +39,10 @@ func Listen() (net.Listener, error) {
 	return l, nil
 }
 
-// Dial connects to the ANS daemon Unix socket.
+// Dial connects to the ANS daemon Unix socket with a 5-second timeout.
 func Dial() (net.Conn, error) {
 	path := SocketPath()
-	conn, err := net.Dial("unix", path)
+	conn, err := net.DialTimeout("unix", path, 5*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("cannot connect to ANS daemon at %s: %w\nRun: ans start", path, err)
 	}

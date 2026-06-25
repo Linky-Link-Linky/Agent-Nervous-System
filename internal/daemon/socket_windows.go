@@ -8,6 +8,7 @@ package daemon
 import (
 	"fmt"
 	"net"
+	"time"
 
 	winio "github.com/Microsoft/go-winio"
 )
@@ -29,9 +30,10 @@ func Listen() (net.Listener, error) {
 	return l, nil
 }
 
-// Dial connects to the ANS daemon named pipe.
+// Dial connects to the ANS daemon named pipe with a 5-second timeout.
 func Dial() (net.Conn, error) {
-	conn, err := winio.DialPipe(windowsPipeName, nil)
+	timeout := 5 * time.Second
+	conn, err := winio.DialPipe(windowsPipeName, &timeout)
 	if err != nil {
 		return nil, fmt.Errorf("cannot connect to ANS daemon at %s: %w\nRun: ans start", windowsPipeName, err)
 	}
