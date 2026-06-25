@@ -60,45 +60,39 @@ func NewApp() *App {
 
 func (a *App) Run() error {
 	a.tview.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
-		if ev.Key() == tcell.KeyCtrlC || ev.Key() == tcell.KeyEscape {
-			if a.cmdBar.inputMode {
-				a.cmdBar.deactivate()
+		if ev.Key() == tcell.KeyCtrlC {
+			a.tview.Stop()
+			return nil
+		}
+		// Hotkeys only fire when the input field is empty
+		if a.cmdBar.input.GetText() == "" {
+			switch ev.Rune() {
+			case 'q', 'Q':
+				a.tview.Stop()
+				return nil
+			case 's', 'S':
+				a.cmdBar.execute("snapshot take")
+				return nil
+			case '1':
+				a.cmdBar.execute("status")
+				return nil
+			case '2':
+				a.cmdBar.execute("chain --n 5")
+				return nil
+			case '3':
+				a.cmdBar.execute("agents")
+				return nil
+			case '4':
+				a.cmdBar.execute("verify --chain")
+				return nil
+			case 'h', 'H':
+				a.cmdBar.showLocalHelp()
+				return nil
+			case 'c', 'C':
+				a.cmdBar.outputs = nil
+				a.cmdBar.output.SetText("")
 				return nil
 			}
-			a.tview.Stop()
-			return nil
-		}
-		if a.cmdBar.inputMode {
-			return ev
-		}
-		switch ev.Rune() {
-		case 'q', 'Q':
-			a.tview.Stop()
-			return nil
-		case 's', 'S':
-			a.cmdBar.execute("snapshot take")
-			return nil
-		case '1':
-			a.cmdBar.execute("status")
-			return nil
-		case '2':
-			a.cmdBar.execute("chain --n 5")
-			return nil
-		case '3':
-			a.cmdBar.execute("agents")
-			return nil
-		case '4':
-			a.cmdBar.execute("verify --chain")
-			return nil
-		case 'h', 'H':
-			a.cmdBar.showLocalHelp()
-			return nil
-		case 'c', 'C':
-			a.cmdBar.showOutput("")
-			return nil
-		case ':', '/':
-			a.cmdBar.activate()
-			return nil
 		}
 		return ev
 	})
@@ -128,6 +122,7 @@ func (a *App) splashCountdown() {
 	case <-t.C:
 		a.tview.QueueUpdateDraw(func() {
 			a.pages.SwitchToPage("main")
+			a.tview.SetFocus(a.cmdBar.input)
 		})
 	case <-a.stopCh:
 	}

@@ -20,32 +20,32 @@ func stripANSI(s string) string {
 }
 
 type commandBar struct {
-	flex      *tview.Flex
-	input     *tview.InputField
-	output    *tview.TextView
-	app       *tview.Application
-	provider  providers.DashboardProvider
-	inputMode bool
-	history   []string
-	histPos   int
-	outputs   []string
+	flex     *tview.Flex
+	input    *tview.InputField
+	output   *tview.TextView
+	app      *tview.Application
+	provider providers.DashboardProvider
+	history  []string
+	histPos  int
+	outputs  []string
 }
 
 func newCommandBar(app *tview.Application, provider providers.DashboardProvider) *commandBar {
 	input := tview.NewInputField().
 		SetLabel("[#2ecc71]>[-] ").
 		SetFieldWidth(0).
-		SetPlaceholder("register, chain, status, help, etc.  (Esc to cancel)").
-		SetPlaceholderTextColor(tcell.NewRGBColor(0x4C, 0x1D, 0x95))
+		SetPlaceholder("Type a command (Enter to run, Esc to clear, Up/Down for history)")
 	input.SetBackgroundColor(bgColor)
+	input.SetPlaceholderTextColor(tcell.NewRGBColor(0x94, 0xA3, 0xB8))
+	input.SetFieldTextColor(foreground)
+	input.SetLabelColor(primaryColor)
 
-	hint := "[#94a3b8]Press [:#2ecc71]:[-] or [:#2ecc71]/[-] for commands  |  [#94a3b8]Hotkeys: [:#2ecc71]1[-]status [:#2ecc71]2[-]chain [:#2ecc71]3[-]agents [:#2ecc71]4[-]verify [:#2ecc71]s[-]snap [:#2ecc71]h[-]help  [:#2ecc71]q[-]quit[-]"
 	output := tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(false).
 		SetScrollable(true)
 	output.SetBackgroundColor(bgColor)
-	output.SetText(hint + "\n")
+	output.SetText("")
 
 	cb := &commandBar{
 		flex:     tview.NewFlex().SetDirection(tview.FlexRow),
@@ -53,7 +53,6 @@ func newCommandBar(app *tview.Application, provider providers.DashboardProvider)
 		output:   output,
 		app:      app,
 		provider: provider,
-		outputs:  []string{hint},
 	}
 
 	input.SetDoneFunc(func(key tcell.Key) {
@@ -64,12 +63,11 @@ func newCommandBar(app *tview.Application, provider providers.DashboardProvider)
 				cb.execute(raw)
 			}
 			input.SetText("")
-			cb.inputMode = false
-			cb.app.SetFocus(nil)
+			app.SetFocus(input)
 		}
 		if key == tcell.KeyEscape {
-			cb.inputMode = false
-			cb.app.SetFocus(nil)
+			input.SetText("")
+			app.SetFocus(input)
 		}
 	})
 
@@ -85,19 +83,13 @@ func newCommandBar(app *tview.Application, provider providers.DashboardProvider)
 		return ev
 	})
 
+	hintText := "[#94a3b8]Type a command and press Enter  |  Hotkeys (empty input): [#2ecc71]1[-]status [#2ecc71]2[-]chain [#2ecc71]3[-]agents [#2ecc71]4[-]verify [#2ecc71]s[-]snap [#2ecc71]h[-]help [#2ecc71]q[-]quit[-]"
+	cb.outputs = []string{hintText}
+
 	cb.flex.AddItem(input, 1, 0, false)
 	cb.flex.AddItem(output, 0, 1, false)
 
 	return cb
-}
-
-func (c *commandBar) activate() {
-	c.inputMode = true
-	c.app.SetFocus(c.input)
-}
-
-func (c *commandBar) deactivate() {
-	c.inputMode = false
 }
 
 func (c *commandBar) addHistory(cmd string) {
@@ -136,14 +128,12 @@ func (c *commandBar) execute(raw string) {
 		return
 	}
 
-	// Strip leading "ans" if user types "ans chain"
 	if parts[0] == "ans" && len(parts) > 1 {
 		parts = parts[1:]
 	}
 
 	cmdName := parts[0]
 
-	// Built-in commands: fast path, no goroutine needed
 	if cmdName == "help" || cmdName == "--help" || cmdName == "-h" {
 		if len(parts) > 1 {
 			rest := strings.Join(parts[1:], " ")
@@ -159,12 +149,10 @@ func (c *commandBar) execute(raw string) {
 		return
 	}
 
-	// Run command in background goroutine so the UI stays responsive
 	c.runCmdAsync(raw, parts, 30*time.Second)
 }
 
 func (c *commandBar) runCmdAsync(raw string, parts []string, timeout time.Duration) {
-	// Show pending indicator immediately
 	pending := fmt.Sprintf("[#2ecc71]>[-] [#94a3b8]%s[-]\n[#f59e0b]  running...[-]", escBrackets(raw))
 	c.showOutput(pending)
 
@@ -212,12 +200,11 @@ func (c *commandBar) runCmdAsync(raw string, parts []string, timeout time.Durati
 }
 
 func (c *commandBar) showLocalHelp() {
-	help := `[#2ecc71]Hotkeys (press while not typing)[-]
+	help := `[#2ecc71]Hotkeys (with empty input)[-]
   [#e2e8f0]1[-] [#94a3b8]status[-]     [#e2e8f0]2[-] [#94a3b8]chain --n 5[-]  [#e2e8f0]3[-] [#94a3b8]agents[-]     [#e2e8f0]4[-] [#94a3b8]verify --chain[-]
   [#e2e8f0]s[-] [#94a3b8]snapshot[-]    [#e2e8f0]h[-] [#94a3b8]this help[-]    [#e2e8f0]c[-] [#94a3b8]clear[-]      [#e2e8f0]q[-] [#94a3b8]quit[-]
-  [#e2e8f0]:[/][-][#94a3b8] command bar[-]
 
-[#2ecc71]CLI commands (type after pressing : or /)[-]
+[#2ecc71]CLI commands (type in the bar and press Enter)[-]
 
 [#94a3b8]Setup[-]
   [#e2e8f0]init, start, stop, status, doctor, update, uninstall[-]
