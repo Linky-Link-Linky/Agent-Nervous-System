@@ -68,20 +68,35 @@ func (a *App) Run() error {
 			a.tview.Stop()
 			return nil
 		}
-		if ev.Rune() == 'q' || ev.Rune() == 'Q' {
-			if a.cmdBar.inputMode {
-				return ev
-			}
+		if a.cmdBar.inputMode {
+			return ev
+		}
+		switch ev.Rune() {
+		case 'q', 'Q':
 			a.tview.Stop()
 			return nil
-		}
-		if ev.Rune() == 's' || ev.Rune() == 'S' {
-			if !a.cmdBar.inputMode {
-				a.triggerSnapshot()
-			}
+		case 's', 'S':
+			a.cmdBar.execute("snapshot take")
 			return nil
-		}
-		if !a.cmdBar.inputMode && (ev.Rune() == ':' || ev.Rune() == '/') {
+		case '1':
+			a.cmdBar.execute("status")
+			return nil
+		case '2':
+			a.cmdBar.execute("chain --n 5")
+			return nil
+		case '3':
+			a.cmdBar.execute("agents")
+			return nil
+		case '4':
+			a.cmdBar.execute("verify --chain")
+			return nil
+		case 'h', 'H':
+			a.cmdBar.showLocalHelp()
+			return nil
+		case 'c', 'C':
+			a.cmdBar.showOutput("")
+			return nil
+		case ':', '/':
 			a.cmdBar.activate()
 			return nil
 		}

@@ -41,7 +41,7 @@ func newCommandBar(app *tview.Application, provider providers.DashboardProvider)
 		SetRegions(false).
 		SetScrollable(true)
 	output.SetBackgroundColor(bgColor)
-	output.SetText("[#94a3b8]Press [:#2ecc71]:[-] or [:#2ecc71]/[-] to enter a command, [#94a3b8]Esc to return[-]\n")
+	output.SetText("[#94a3b8]Press [:#2ecc71]:[-] or [:#2ecc71]/[-] for commands  |  [#94a3b8]Hotkeys: [:#2ecc71]1[-]status [:#2ecc71]2[-]chain [:#2ecc71]3[-]agents [:#2ecc71]4[-]verify [:#2ecc71]s[-]snap [:#2ecc71]h[-]help  [:#2ecc71]q[-]quit[-]\n")
 
 	cb := &commandBar{
 		flex:     tview.NewFlex().SetDirection(tview.FlexRow),
@@ -229,9 +229,14 @@ func (c *commandBar) execute(raw string) {
 }
 
 func (c *commandBar) showLocalHelp() {
-	help := `[#2ecc71]Available commands[-]
+	help := `[#2ecc71]Hotkeys (press while not typing)[-]
+  [#e2e8f0]1[-] [#94a3b8]status[-]     [#e2e8f0]2[-] [#94a3b8]chain --n 5[-]  [#e2e8f0]3[-] [#94a3b8]agents[-]     [#e2e8f0]4[-] [#94a3b8]verify --chain[-]
+  [#e2e8f0]s[-] [#94a3b8]snapshot[-]    [#e2e8f0]h[-] [#94a3b8]this help[-]    [#e2e8f0]c[-] [#94a3b8]clear[-]      [#e2e8f0]q[-] [#94a3b8]quit[-]
+  [#e2e8f0]:[/][-][#94a3b8] command bar[-]
 
-[#94a3b8]Setup & Maintenance[-]
+[#2ecc71]CLI commands (type after pressing : or /)[-]
+
+[#94a3b8]Setup[-]
   [#e2e8f0]init, start, stop, status, doctor, update, uninstall[-]
 
 [#94a3b8]Chain & Receipts[-]
