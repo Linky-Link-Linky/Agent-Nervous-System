@@ -169,12 +169,12 @@ else
   printf "  ${GRAY}Or open a new terminal window.${RESET}\n"
 fi
 
-# --- Version check ---
-step 5 "Verifying installation..."
-if "$DEST" version 2>/dev/null; then
-  done_ "ANS is ready!"
+# --- Auto-start daemon ---
+step 6 "Starting the ANS daemon..."
+if "$DEST" init 2>/dev/null && "$DEST" start 2>/dev/null; then
+  done_ "Daemon started"
 else
-  warn "Run 'ans version' to verify"
+  warn "Could not auto-start daemon — run 'ans start' manually"
 fi
 
 # --- Success message ---
@@ -185,17 +185,17 @@ printf "  ${MUTED}────────────────────�
 printf "\n"
 printf "  ${BOLD}Quick start:${RESET}\n"
 printf "\n"
-cmd_ "ans init"
-printf "  ${GRAY}  Creates your data directory (~/.ans/) and config${RESET}\n"
-printf "\n"
-cmd_ "ans start"
-printf "  ${GRAY}  Starts the ANS daemon${RESET}\n"
+cmd_ "ans"
+printf "  ${GRAY}  Opens the live dashboard (full-screen TUI)${RESET}\n"
 printf "\n"
 cmd_ "ans register --name my-agent --version 1.0.0"
 printf "  ${GRAY}  Register your first AI agent${RESET}\n"
 printf "\n"
 cmd_ "ans chain"
 printf "  ${GRAY}  View the receipt chain${RESET}\n"
+printf "\n"
+cmd_ "ans init --service"
+printf "  ${GRAY}  Auto-start ANS at system boot${RESET}\n"
 printf "\n"
 printf "  ${EMERALD}Need help? Run: ans doctor${RESET}\n"
 printf "\n"
