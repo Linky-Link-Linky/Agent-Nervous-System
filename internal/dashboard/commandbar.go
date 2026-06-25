@@ -26,6 +26,7 @@ type commandBar struct {
 	inputMode bool
 	history   []string
 	histPos   int
+	outputs   []string
 }
 
 func newCommandBar(app *tview.Application, provider providers.DashboardProvider) *commandBar {
@@ -36,12 +37,13 @@ func newCommandBar(app *tview.Application, provider providers.DashboardProvider)
 		SetPlaceholderTextColor(tcell.NewRGBColor(0x4C, 0x1D, 0x95))
 	input.SetBackgroundColor(bgColor)
 
+	hint := "[#94a3b8]Press [:#2ecc71]:[-] or [:#2ecc71]/[-] for commands  |  [#94a3b8]Hotkeys: [:#2ecc71]1[-]status [:#2ecc71]2[-]chain [:#2ecc71]3[-]agents [:#2ecc71]4[-]verify [:#2ecc71]s[-]snap [:#2ecc71]h[-]help  [:#2ecc71]q[-]quit[-]"
 	output := tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(false).
 		SetScrollable(true)
 	output.SetBackgroundColor(bgColor)
-	output.SetText("[#94a3b8]Press [:#2ecc71]:[-] or [:#2ecc71]/[-] for commands  |  [#94a3b8]Hotkeys: [:#2ecc71]1[-]status [:#2ecc71]2[-]chain [:#2ecc71]3[-]agents [:#2ecc71]4[-]verify [:#2ecc71]s[-]snap [:#2ecc71]h[-]help  [:#2ecc71]q[-]quit[-]\n")
+	output.SetText(hint + "\n")
 
 	cb := &commandBar{
 		flex:     tview.NewFlex().SetDirection(tview.FlexRow),
@@ -49,6 +51,7 @@ func newCommandBar(app *tview.Application, provider providers.DashboardProvider)
 		output:   output,
 		app:      app,
 		provider: provider,
+		outputs:  []string{hint},
 	}
 
 	input.SetDoneFunc(func(key tcell.Key) {
@@ -153,6 +156,7 @@ func (c *commandBar) execute(raw string) {
 		return
 	}
 	if cmdName == "clear" || cmdName == "cls" {
+		c.outputs = nil
 		c.output.SetText("")
 		return
 	}
@@ -164,7 +168,7 @@ func (c *commandBar) execute(raw string) {
 func (c *commandBar) runCmdAsync(raw, cmdLine string, timeout time.Duration) {
 	self, err := os.Executable()
 	if err != nil {
-		c.showOutput(fmt.Sprintf("[#f472b6]error:[-] [#94a3b8]cannot find binary: %v[-]", err))
+		c.showOutput(fmt.Sprintf("[#ff6b6b]error:[-] [#94a3b8]cannot find binary: %v[-]", err))
 		return
 	}
 
@@ -250,5 +254,9 @@ func (c *commandBar) showLocalHelp() {
 }
 
 func (c *commandBar) showOutput(text string) {
-	c.output.SetText(text)
+	c.outputs = append(c.outputs, text)
+	if len(c.outputs) > 10 {
+		c.outputs = c.outputs[len(c.outputs)-10:]
+	}
+	c.output.SetText(strings.Join(c.outputs, "\n[#334155]────────────────────────────────────────────────────[-]\n"))
 }

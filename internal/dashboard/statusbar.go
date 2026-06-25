@@ -17,7 +17,7 @@ func newStatusBarPanel(prov providers.DashboardProvider) *statusBarPanel {
 	tv := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
-	tv.SetBackgroundColor(tcell.NewRGBColor(0x3B, 0x07, 0x64))
+	tv.SetBackgroundColor(tcell.NewRGBColor(0x1E, 0x29, 0x30))
 
 	p := &statusBarPanel{TextView: tv, prov: prov}
 	p.refresh()
@@ -27,16 +27,16 @@ func newStatusBarPanel(prov providers.DashboardProvider) *statusBarPanel {
 func (p *statusBarPanel) refresh() {
 	s := p.prov.Stats()
 
-	mcpClr := "#86efac"
+	mcpClr := "#2ecc71"
 	if s.MCPStatus == "DEGRADED" {
-		mcpClr = "#f472b6"
+		mcpClr = "#ff6b6b"
 	}
 	brokerClr := "#94a3b8"
 	switch s.BrokerStatus {
 	case "ACTIVE":
-		brokerClr = "#86efac"
+		brokerClr = "#2ecc71"
 	case "EXPIRED":
-		brokerClr = "#f472b6"
+		brokerClr = "#ff6b6b"
 	}
 
 	text := fmt.Sprintf(

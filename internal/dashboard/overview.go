@@ -66,14 +66,9 @@ func bar(pct float64, width int) string {
 		color = "#ff6b6b"
 	}
 
-	blocks := ""
-	for i := 0; i < filled; i++ {
-		blocks += "█"
-	}
-	for i := 0; i < remain; i++ {
-		blocks += "░"
-	}
-	return fmt.Sprintf("[%s]%s[-]", color, blocks)
+	return fmt.Sprintf("[%s]%s%s[-]", color,
+		strings.Repeat("█", filled),
+		strings.Repeat("░", remain))
 }
 
 func (p *overviewPanel) render() {

@@ -19,7 +19,7 @@ func newPolicyPanel(prov providers.DashboardProvider) *policyPanel {
 		SetRegions(false)
 	tv.SetBorder(true).
 		SetBorderColor(borderColor).
-		SetTitle("[#a855f7]POLICY ENGINE[-]").
+		SetTitle("[#2ecc71]POLICY ENGINE[-]").
 		SetTitleColor(primaryColor).
 		SetBackgroundColor(bgColor)
 	tv.SetTitleAlign(tview.AlignLeft)
@@ -35,7 +35,7 @@ func (p *policyPanel) refresh() {
 
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("[#94a3b8]Active Rules[-]: [#e2e8f0]%d[-]\n", s.ActiveRules))
-	b.WriteString(fmt.Sprintf("[#94a3b8]Violations (24h)[-]: [#f472b6]%d[-]\n", s.Violations24h))
+	b.WriteString(fmt.Sprintf("[#94a3b8]Violations (24h)[-]: [#ff6b6b]%d[-]\n", s.Violations24h))
 	b.WriteString(fmt.Sprintf("[#94a3b8]Last Enforcement[-]: [#e2e8f0]%s[-]\n\n", s.LastEnforcement.Format("15:04:05")))
 
 	for i, r := range rules {
@@ -43,9 +43,9 @@ func (p *policyPanel) refresh() {
 			break
 		}
 		if r.Verdict == "DENY" {
-			b.WriteString(fmt.Sprintf("[#f472b6][ DENY  ][-]  [#94a3b8]%s[-]\n", r.Rule))
+			b.WriteString(fmt.Sprintf("[#ff6b6b][ DENY  ][-]  [#94a3b8]%s[-]\n", r.Rule))
 		} else {
-			b.WriteString(fmt.Sprintf("[#86efac][ ALLOW ][-]  [#94a3b8]%s[-]\n", r.Rule))
+			b.WriteString(fmt.Sprintf("[#2ecc71][ ALLOW ][-]  [#94a3b8]%s[-]\n", r.Rule))
 		}
 	}
 

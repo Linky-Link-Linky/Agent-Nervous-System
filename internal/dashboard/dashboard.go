@@ -11,15 +11,15 @@ import (
 
 var (
 	bgColor       = tcell.NewRGBColor(0x0A, 0x0A, 0x0F)
-	primaryColor  = tcell.NewRGBColor(0xA8, 0x55, 0xF7)
-	secondaryColor = tcell.NewRGBColor(0x7C, 0x3A, 0xED)
-	dimColor      = tcell.NewRGBColor(0x4C, 0x1D, 0x95)
-	mutedColor    = tcell.NewRGBColor(0xC0, 0x84, 0xFC)
+	primaryColor  = tcell.NewRGBColor(0x2E, 0xCC, 0x71)
+	secondaryColor = tcell.NewRGBColor(0x27, 0xAE, 0x60)
+	dimColor      = tcell.NewRGBColor(0x1A, 0x6B, 0x3A)
+	mutedColor    = tcell.NewRGBColor(0x56, 0xD9, 0x8A)
 	foreground    = tcell.NewRGBColor(0xE2, 0xE8, 0xF0)
 	dimText       = tcell.NewRGBColor(0x94, 0xA3, 0xB8)
-	borderColor   = tcell.NewRGBColor(0x3B, 0x07, 0x64)
-	alertColor    = tcell.NewRGBColor(0xF4, 0x72, 0xB6)
-	successColor  = tcell.NewRGBColor(0x86, 0xEF, 0xAC)
+	borderColor   = tcell.NewRGBColor(0x1E, 0x29, 0x30)
+	alertColor    = tcell.NewRGBColor(0xFF, 0x6B, 0x6B)
+	successColor  = tcell.NewRGBColor(0x2E, 0xCC, 0x71)
 )
 
 
@@ -134,7 +134,7 @@ func (a *App) splashCountdown() {
 }
 
 func (a *App) buildSplash() tview.Primitive {
-	logo := `[#a855f7]  █████╗ ███╗   ██╗███████╗
+	logo := `[#2ecc71]  █████╗ ███╗   ██╗███████╗
   ██╔══██╗████╗  ██║██╔════╝
   ███████║██╔██╗ ██║███████╗
   ██╔══██║██║╚██╗██║╚════██║
@@ -143,7 +143,7 @@ func (a *App) buildSplash() tview.Primitive {
 
 [#94a3b8]Agent Nervous System v0.8.0[-]
 
-[#a855f7]Initializing components...[#94a3b8]
+[#2ecc71]Initializing components...[#94a3b8]
   audit-trail      [  OK  ]
   snapshot-engine  [  OK  ]
   mcp-proxy        [  OK  ]
@@ -192,10 +192,10 @@ func (a *App) buildMainUI() tview.Primitive {
 func (a *App) buildHeader() tview.Primitive {
 	dots := ""
 	for i := 0; i < 16; i++ {
-		dots += "[#a855f7]■[-]  "
+		dots += "[#2ecc71]■[-]  "
 	}
 
-	text := fmt.Sprintf("[#94a3b8]v0.8.0[-]  %s[#a855f7]AGENT NERVOUS SYSTEM[-]", dots)
+	text := fmt.Sprintf("[#94a3b8]v0.8.0[-]  %s[#2ecc71]AGENT NERVOUS SYSTEM[-]", dots)
 
 	tv := tview.NewTextView().
 		SetDynamicColors(true).

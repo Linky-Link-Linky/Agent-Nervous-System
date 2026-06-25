@@ -12,11 +12,11 @@ import (
 
 var (
 	compColors = map[providers.Component]string{
-		providers.AuditTrail:     "#a855f7",
-		providers.SnapshotEngine: "#7c3aed",
-		providers.MCPProxy:       "#c084fc",
-		providers.PolicyEngine:   "#6d28d9",
-		providers.IdentityBroker: "#4c1d95",
+		providers.AuditTrail:     "#2ecc71",
+		providers.SnapshotEngine: "#3498db",
+		providers.MCPProxy:       "#f59e0b",
+		providers.PolicyEngine:   "#ff6b6b",
+		providers.IdentityBroker: "#9b59b6",
 	}
 	compOrder = []providers.Component{
 		providers.IdentityBroker,
@@ -43,7 +43,7 @@ func newChartPanel(prov providers.DashboardProvider) *chartPanel {
 		SetRegions(false)
 	tv.SetBorder(true).
 		SetBorderColor(borderColor).
-		SetTitle("[#a855f7]BREAKDOWN[-]").
+		SetTitle("[#2ecc71]BREAKDOWN[-]").
 		SetTitleColor(primaryColor).
 		SetBackgroundColor(bgColor)
 	tv.SetTitleAlign(tview.AlignLeft)
@@ -134,7 +134,7 @@ func (p *chartPanel) buildChart(data []providers.ChartDataPoint, ratio float64) 
 				total += pt.Values[c]
 			}
 			if total < 0.5 {
-				b.WriteString("[#3b0764]░[-]")
+				b.WriteString("[#1a1a2e]░[-]")
 				continue
 			}
 			accum := 0.0
@@ -163,7 +163,7 @@ func (p *chartPanel) buildChart(data []providers.ChartDataPoint, ratio float64) 
 				}
 			}
 			if !drawn {
-				b.WriteString("[#3b0764]░[-]")
+				b.WriteString("[#1a1a2e]░[-]")
 			}
 		}
 		if row > 0 {
