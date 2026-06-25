@@ -412,7 +412,7 @@ func cmdDoctor(w io.Writer, args []string) error {
 		pretty.Item(w, "  Note", "Created on first start")
 	}
 
-	pretty.Item(w, "Version", version+" ("+runtime.GOOS+"/"+runtime.GOARCH+")")
+	pretty.Item(w, "Version", Version+" ("+runtime.GOOS+"/"+runtime.GOARCH+")")
 
 	fmt.Fprintln(w)
 	if !cfgOK || !dirOK {

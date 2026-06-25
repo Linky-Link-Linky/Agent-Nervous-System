@@ -10,7 +10,7 @@ import (
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/pretty"
 )
 
-var version = "0.8.0"
+var Version = "0.8.0" // settable via: go build -ldflags="-X github.com/Linky-Link-Linky/Agent-Nervous-System/internal/commands.Version=v0.9.0"
 
 // DispatchTo executes a command with args (format: os.Args[1:]) and writes
 // output to w. Returns an error if the command fails.
@@ -133,7 +133,7 @@ func Dispatch(args []string) error {
 
 func printVersion(w io.Writer) {
 	pretty.Banner(w)
-	pretty.Item(w, "Version", version)
+	pretty.Item(w, "Version", Version)
 	pretty.Item(w, "Platform", runtime.GOOS+"/"+runtime.GOARCH)
 	fmt.Fprintln(w)
 }

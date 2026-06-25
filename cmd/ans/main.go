@@ -17,8 +17,6 @@ import (
 	"golang.org/x/term"
 )
 
-var version = "0.8.0"
-
 func main() {
 	if len(os.Args) < 2 {
 		if !isTerminal() || os.Getenv("ANS_TEST") != "" {
