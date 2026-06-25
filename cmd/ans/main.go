@@ -25,9 +25,11 @@ import (
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/chain"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/config"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/daemon"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/dashboard"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/identity"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/pretty"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/snapshot"
+	"golang.org/x/term"
 )
 
 var version = "dev"
@@ -61,6 +63,7 @@ func printUsage() {
 	pretty.Item(w, "version", "Print version")
 	pretty.Item(w, "update", "Update ANS to the latest version")
 	pretty.Item(w, "uninstall", "Remove ANS binary, data, and config")
+	pretty.Item(w, "dashboard", "Launch the full-screen terminal dashboard")
 	fmt.Fprintln(w)
 	pretty.Header(w, "Flags (start)")
 	pretty.Item(w, "--ndjson", "Emit NDJSON receipt stream to stdout")
@@ -84,8 +87,12 @@ func printUsage() {
 
 func main() {
 	if len(os.Args) < 2 {
-		printUsage()
-		os.Exit(0)
+		if !isTerminal() || os.Getenv("ANS_TEST") != "" {
+			printUsage()
+			os.Exit(0)
+		}
+		cmdDashboard()
+		return
 	}
 
 	// Internal re-exec subcommand — not shown in help.
@@ -197,6 +204,8 @@ func main() {
 		cmdUpdate()
 	case "uninstall":
 		cmdUninstall()
+	case "dashboard", "dash":
+		cmdDashboard()
 	case "version", "--version", "-v":
 		pretty.Banner(os.Stderr)
 		pretty.Item(os.Stderr, "Version", version)
@@ -1743,6 +1752,32 @@ func cmdUninstall() {
 	pretty.Code(w, `irm https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.ps1 | iex`)
 }
 
+func cmdDashboard() {
+	if conn, err := daemon.Dial(); err != nil {
+		if self, exeErr := os.Executable(); exeErr == nil {
+			cmd := exec.Command(self, "_daemon")
+			cmd.Stdout = nil
+			cmd.Stderr = nil
+			_ = cmd.Start()
+			for i := 0; i < 30; i++ {
+				time.Sleep(100 * time.Millisecond)
+				if conn, dialErr := daemon.Dial(); dialErr == nil {
+					conn.Close()
+					break
+				}
+			}
+		}
+	} else {
+		conn.Close()
+	}
+
+	app := dashboard.NewApp()
+	if err := app.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "ans: dashboard error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
 // --- helpers ---
 
 // mustDial connects to the daemon or exits. Returns a valid net.Conn.
@@ -1786,6 +1821,10 @@ func safeSig(sig string) string {
 		return "[short]"
 	}
 	return sig[:16]
+}
+
+func isTerminal() bool {
+	return term.IsTerminal(int(os.Stdout.Fd()))
 }
 
 func writePID() {

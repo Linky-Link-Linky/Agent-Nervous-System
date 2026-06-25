@@ -200,6 +200,19 @@ try {
         Write-Done "PATH already set"
     }
 
+    # --- Auto-start daemon ---
+    $AutoStep = if ($script:BuildFromSource) { 7 } else { 6 }
+    Write-Step $AutoStep "Starting the ANS daemon..."
+    $ansExe = Join-Path $InstallDir $Binary
+    try {
+        & $ansExe init 2>&1 | Out-Null
+        & $ansExe start 2>&1 | Out-Null
+        Write-Done "Daemon started"
+    } catch {
+        Write-Warn "Could not auto-start daemon: $_"
+        Write-Host "       Run 'ans start' manually after install." -ForegroundColor $Yellow
+    }
+
     # --- Success message ---
     Write-Host ""
     Write-Host ("  " + ([string][char]0x2500) * 40) -ForegroundColor $Muted
@@ -208,17 +221,17 @@ try {
     Write-Host ""
     Write-Host "  Quick start:" -ForegroundColor $White
     Write-Host ""
-    Write-Cmd "ans init"
-    Write-Host "      Creates your data directory (~/.ans/) and config" -ForegroundColor $Gray
-    Write-Host ""
-    Write-Cmd "ans start"
-    Write-Host "      Starts the ANS daemon" -ForegroundColor $Gray
+    Write-Cmd "ans"
+    Write-Host "      Opens the live dashboard (full-screen TUI)" -ForegroundColor $Gray
     Write-Host ""
     Write-Cmd "ans register --name my-agent --version 1.0.0"
     Write-Host "      Register your first AI agent" -ForegroundColor $Gray
     Write-Host ""
     Write-Cmd "ans chain"
     Write-Host "      View the receipt chain" -ForegroundColor $Gray
+    Write-Host ""
+    Write-Cmd "ans init --service"
+    Write-Host "      Auto-start ANS at system boot" -ForegroundColor $Gray
     Write-Host ""
     Write-Host "  Need help? Run: ans doctor" -ForegroundColor $Emerald
     Write-Host ""

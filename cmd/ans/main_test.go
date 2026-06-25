@@ -147,6 +147,7 @@ func TestHelpCommand(t *testing.T) {
 func TestNoArgsShowsUsage(t *testing.T) {
 	bin := buildBinary(t)
 	cmd := exec.Command(bin)
+	cmd.Env = append(os.Environ(), "ANS_TEST=1")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("no-args command failed: %v", err)
