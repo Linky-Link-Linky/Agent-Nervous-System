@@ -111,7 +111,7 @@ func (a *App) buildSplash() tview.Primitive {
   ██║  ██║██║ ╚████║███████║
   ╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝[-]
 
-[#94a3b8]Agent Nervous System v0.7.0[-]
+[#94a3b8]Agent Nervous System v0.8.0[-]
 
 [#a855f7]Initializing components...[#94a3b8]
   audit-trail      [  OK  ]
@@ -164,7 +164,7 @@ func (a *App) buildHeader() tview.Primitive {
 		dots += "[#a855f7]■[-]  "
 	}
 
-	text := fmt.Sprintf("[#94a3b8]v0.7.0[-]  %s[#a855f7]AGENT NERVOUS SYSTEM[-]", dots)
+	text := fmt.Sprintf("[#94a3b8]v0.8.0[-]  %s[#a855f7]AGENT NERVOUS SYSTEM[-]", dots)
 
 	tv := tview.NewTextView().
 		SetDynamicColors(true).

@@ -159,7 +159,7 @@ try {
 
         Write-Step 5 "Building binary..."
         Push-Location $srcDir
-        go build -ldflags="-s -w -X main.version=v0.7.0" -trimpath -o (Join-Path $InstallDir $Binary) ./cmd/ans 2>&1
+        go build -ldflags="-s -w -X main.version=v0.8.0" -trimpath -o (Join-Path $InstallDir $Binary) ./cmd/ans 2>&1
         Pop-Location
         if ($LASTEXITCODE -ne 0) { throw "Build failed" }
         Write-Done "Binary built and installed"
