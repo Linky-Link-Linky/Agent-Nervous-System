@@ -33,7 +33,7 @@ import (
 	"golang.org/x/term"
 )
 
-var version = "dev"
+var version = "0.8.0"
 
 func printUsage() {
 	w := os.Stderr
