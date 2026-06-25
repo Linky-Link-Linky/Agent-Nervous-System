@@ -142,90 +142,80 @@ func (c *commandBar) execute(raw string) {
 
 	cmdName := parts[0]
 
+	// Built-in commands: fast path, no goroutine needed
 	if cmdName == "help" || cmdName == "--help" || cmdName == "-h" {
 		if len(parts) > 1 {
-			// Delegate to ans <subcommand> --help
 			rest := strings.Join(parts[1:], " ") + " --help"
-			self, err := os.Executable()
-			if err == nil {
-				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				defer cancel()
-				cmd := exec.CommandContext(ctx, self, strings.Fields(rest)...)
-				var stdout, stderr bytes.Buffer
-				cmd.Stdout = &stdout
-				cmd.Stderr = &stderr
-				cmd.Run()
-				out := stdout.String()
-				if out == "" {
-					out = stderr.String()
-				}
-				plain := stripANSI(out)
-				if plain == "" {
-					plain = "(no help available)"
-				}
-				plain = escBrackets(plain)
-				c.showOutput(fmt.Sprintf("[#e2e8f0]%s[-]", plain))
-				return
-			}
+			c.runCmdAsync(raw, rest, 10*time.Second)
+		} else {
+			c.showLocalHelp()
 		}
-		c.showLocalHelp()
 		return
 	}
-
-	// Built-in clear: clear the output area
 	if cmdName == "clear" || cmdName == "cls" {
 		c.output.SetText("")
 		return
 	}
 
+	// Run external command in background goroutine so the UI stays responsive
+	c.runCmdAsync(raw, raw, 30*time.Second)
+}
+
+func (c *commandBar) runCmdAsync(raw, cmdLine string, timeout time.Duration) {
 	self, err := os.Executable()
 	if err != nil {
 		c.showOutput(fmt.Sprintf("[#f472b6]error:[-] [#94a3b8]cannot find binary: %v[-]", err))
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+	// Show pending indicator immediately
+	pending := fmt.Sprintf("[#2ecc71]>[-] [#94a3b8]%s[-]\n[#f59e0b]  running...[-]", escBrackets(raw))
+	c.showOutput(pending)
 
-	cmd := exec.CommandContext(ctx, self, parts...)
+	parts := strings.Fields(cmdLine)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+		cmd := exec.CommandContext(ctx, self, parts...)
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
 
-	runErr := cmd.Run()
+		runErr := cmd.Run()
 
-	out := stdout.String()
-	errOut := stderr.String()
+		out := stdout.String()
+		errOut := stderr.String()
 
-	plain := out
-	if plain == "" {
-		plain = errOut
-	}
-	if runErr != nil && plain == "" {
-		plain = runErr.Error()
-	}
-	if ctx.Err() == context.DeadlineExceeded {
-		plain = "command timed out after 30s"
-	}
+		plain := out
+		if plain == "" {
+			plain = errOut
+		}
+		if runErr != nil && plain == "" {
+			plain = runErr.Error()
+		}
+		if ctx.Err() == context.DeadlineExceeded {
+			plain = "command timed out"
+		}
 
-	plain = stripANSI(plain)
+		plain = stripANSI(plain)
+		if plain == "" {
+			plain = "(ok)"
+		}
+		if len(plain) > 2000 {
+			plain = plain[:2000] + "\n... (truncated)"
+		}
 
-	if plain == "" {
-		plain = "(ok)"
-	}
-	if len(plain) > 2000 {
-		plain = plain[:2000] + "\n... (truncated)"
-	}
+		plain = escBrackets(plain)
+		cmdDisplay := escBrackets(raw)
 
-	plain = escBrackets(plain)
-	cmdDisplay := escBrackets(raw)
+		display := fmt.Sprintf("[#2ecc71]>[-] [#e2e8f0]%s[-]\n[#e2e8f0]%s[-]", cmdDisplay, plain)
 
-	display := fmt.Sprintf("[#2ecc71]>[-] [#e2e8f0]%s[-]\n[#e2e8f0]%s[-]", cmdDisplay, plain)
-	c.showOutput(display)
-
-	c.provider.RecentEvents()
-	c.app.QueueUpdateDraw(func() {})
+		c.app.QueueUpdateDraw(func() {
+			c.showOutput(display)
+			c.provider.RecentEvents()
+		})
+	}()
 }
 
 func (c *commandBar) showLocalHelp() {

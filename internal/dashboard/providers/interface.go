@@ -84,6 +84,7 @@ type ChartDataPoint struct {
 
 type DashboardProvider interface {
 	Stats() ComponentStats
+	RefreshHardware()
 	RecentEvents() []AuditEvent
 	ChartData() []ChartDataPoint
 	ActiveRules() []RuleEntry

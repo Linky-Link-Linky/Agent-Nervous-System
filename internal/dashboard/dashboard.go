@@ -211,6 +211,8 @@ func (a *App) dataLoop() {
 	for {
 		select {
 		case <-tick.C:
+			a.provider.RefreshHardware()
+			a.overview.sample()
 			a.tview.QueueUpdateDraw(func() {
 				a.overview.refresh()
 				a.chart.refresh()

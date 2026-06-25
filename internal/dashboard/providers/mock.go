@@ -10,12 +10,13 @@ import (
 )
 
 type MockProvider struct {
-	mu        sync.RWMutex
-	startTime time.Time
-	events    []AuditEvent
-	evIdx     int
-	ruleIdx   int
-	chartBase map[int]map[Component]float64
+	mu          sync.RWMutex
+	startTime   time.Time
+	events      []AuditEvent
+	evIdx       int
+	ruleIdx     int
+	chartBase   map[int]map[Component]float64
+	cachedStats ComponentStats
 }
 
 func NewMockProvider() *MockProvider {
@@ -34,11 +35,13 @@ func NewMockProvider() *MockProvider {
 		base[h] = vals
 	}
 
-	return &MockProvider{
+	m := &MockProvider{
 		startTime: start,
 		events:    make([]AuditEvent, 0, 200),
 		chartBase: base,
 	}
+	m.RefreshHardware()
+	return m
 }
 
 func randHex(n int) string {
@@ -55,7 +58,10 @@ func randInt(n int) int {
 func (m *MockProvider) Stats() ComponentStats {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+	return m.cachedStats
+}
 
+func (m *MockProvider) RefreshHardware() {
 	uptime := time.Since(m.startTime)
 	brokerStates := []string{"IDLE", "ACTIVE", "EXPIRED"}
 	mcpStates := []string{"ACTIVE", "ACTIVE", "ACTIVE", "DEGRADED"}
@@ -69,7 +75,7 @@ func (m *MockProvider) Stats() ComponentStats {
 		}
 	}
 
-	return ComponentStats{
+	s := ComponentStats{
 		CPU: CPUStats{
 			Model:    hw.CPUModel,
 			Cores:    hw.CPUCores,
@@ -98,6 +104,10 @@ func (m *MockProvider) Stats() ComponentStats {
 		MCPStatus:      mcpStates[randInt(len(mcpStates))],
 		BrokerStatus:   brokerStates[randInt(len(brokerStates))],
 	}
+
+	m.mu.Lock()
+	m.cachedStats = s
+	m.mu.Unlock()
 }
 
 func avg(vals []float64) float64 {

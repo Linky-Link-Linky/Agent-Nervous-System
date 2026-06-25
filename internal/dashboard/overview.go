@@ -3,6 +3,7 @@ package dashboard
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/dashboard/providers"
 	"github.com/rivo/tview"
@@ -10,7 +11,9 @@ import (
 
 type overviewPanel struct {
 	*tview.TextView
-	prov providers.DashboardProvider
+	prov   providers.DashboardProvider
+	mu     sync.Mutex
+	last   providers.ComponentStats
 }
 
 func newOverviewPanel(prov providers.DashboardProvider) *overviewPanel {
@@ -26,8 +29,21 @@ func newOverviewPanel(prov providers.DashboardProvider) *overviewPanel {
 	tv.SetTitleAlign(tview.AlignLeft)
 
 	p := &overviewPanel{TextView: tv, prov: prov}
-	p.refresh()
+	p.sample()
+	p.render()
 	return p
+}
+
+// sample fetches fresh hardware data in the calling goroutine (not on the tview main thread).
+func (p *overviewPanel) sample() {
+	s := p.prov.Stats()
+	p.mu.Lock()
+	p.last = s
+	p.mu.Unlock()
+}
+
+func (p *overviewPanel) refresh() {
+	p.render()
 }
 
 func bar(pct float64, width int) string {
@@ -50,7 +66,6 @@ func bar(pct float64, width int) string {
 		color = "#ff6b6b"
 	}
 
-	fill := color
 	blocks := ""
 	for i := 0; i < filled; i++ {
 		blocks += "█"
@@ -58,27 +73,26 @@ func bar(pct float64, width int) string {
 	for i := 0; i < remain; i++ {
 		blocks += "░"
 	}
-	return fmt.Sprintf("[%s]%s[-]", fill, blocks)
+	return fmt.Sprintf("[%s]%s[-]", color, blocks)
 }
 
-func (p *overviewPanel) refresh() {
-	s := p.prov.Stats()
+func (p *overviewPanel) render() {
+	p.mu.Lock()
+	s := p.last
+	p.mu.Unlock()
 
 	barWidth := 20
 
-	// CPU Header
 	cpuModel := s.CPU.Model
 	if cpuModel == "" {
 		cpuModel = fmt.Sprintf("%d cores", s.CPU.Cores)
 	}
 
-	// CPU total usage bar
 	cpuLabel := fmt.Sprintf("[#e2e8f0]CPU[-] [#94a3b8]%s[-]", cpuModel)
 	cpuPct := s.CPU.UsagePct
 	cpuBar := bar(cpuPct, barWidth)
 	cpuLine := fmt.Sprintf("  %s\n  %s [#e2e8f0]%5.1f%%[-]\n", cpuLabel, cpuBar, cpuPct)
 
-	// Per-core bars (show up to 8 in a compact 4-wide grid)
 	coreLines := ""
 	for i := 0; i < len(s.CPU.PerCore) && i < 8; i++ {
 		if i%2 == 0 {
@@ -96,13 +110,11 @@ func (p *overviewPanel) refresh() {
 		}
 	}
 
-	// Memory bar
 	memPct := s.Mem.Pct
 	memBar := bar(memPct, barWidth)
 	memLine := fmt.Sprintf("  [#e2e8f0]MEM[-]\n  %s [#e2e8f0]%d/%d GB[-] [#94a3b8](%5.1f%%)[-]\n",
 		memBar, s.Mem.UsedGB, s.Mem.TotalGB, memPct)
 
-	// GPU section
 	gpuLines := ""
 	if s.GPU.Count > 0 {
 		for i, m := range s.GPU.Models {
