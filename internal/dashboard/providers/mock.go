@@ -60,11 +60,13 @@ func (m *MockProvider) Stats() ComponentStats {
 	brokerStates := []string{"IDLE", "ACTIVE", "EXPIRED"}
 	mcpStates := []string{"ACTIVE", "ACTIVE", "ACTIVE", "DEGRADED"}
 
+	hw := detectHardware()
+
 	return ComponentStats{
-		GPUCount:       24,
-		Units:          130,
-		A100Count:      15,
-		H100Count:      7,
+		CPUCores:       hw.CPUCores,
+		TotalRAMGB:     hw.RAMGB,
+		GPUCount:       hw.GPUCount,
+		GPUModels:      hw.GPUModels,
 		ActiveRules:    12 + randInt(5),
 		Violations24h:  8 + randInt(10),
 		LastEnforcement: time.Now().Add(-time.Duration(randInt(300)) * time.Second),

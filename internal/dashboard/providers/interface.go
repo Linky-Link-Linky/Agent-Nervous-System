@@ -37,10 +37,10 @@ type AuditEvent struct {
 }
 
 type ComponentStats struct {
+	CPUCores       int
+	TotalRAMGB     int
 	GPUCount       int
-	Units          int
-	A100Count      int
-	H100Count      int
+	GPUModels      []string
 	ActiveRules    int
 	Violations24h  int
 	LastEnforcement time.Time

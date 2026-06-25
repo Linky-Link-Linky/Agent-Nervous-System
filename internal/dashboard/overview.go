@@ -30,13 +30,24 @@ func newOverviewPanel(prov providers.DashboardProvider) *overviewPanel {
 
 func (p *overviewPanel) refresh() {
 	s := p.prov.Stats()
+	gpuLine := ""
+	if s.GPUCount > 0 {
+		models := ""
+		for i, m := range s.GPUModels {
+			if i > 0 {
+				models += ", "
+			}
+			models += m
+		}
+		gpuLine = fmt.Sprintf("  [ GPU[#94a3b8]:[#a855f7] %dx[-] [#94a3b8]%s[-] ]\n", s.GPUCount, models)
+	} else {
+		gpuLine = "  [ GPU[#94a3b8]: [#94a3b8]none detected[-] ]\n"
+	}
 	text := fmt.Sprintf(
-		"[#e2e8f0]  [ GPU's: [#a855f7]%d[-] ]  [ [#94a3b8]Units[-]: [#a855f7]%d[-] ]\n"+
-			"  [ [#94a3b8]A100s[-]: [#a855f7]%d[-] ]  [ [#94a3b8]H100s[-]: [#a855f7]%d[-] ]",
-		s.GPUCount,
-		s.Units,
-		s.A100Count,
-		s.H100Count,
+		"[#e2e8f0]  [ CPU[#94a3b8]: [#a855f7]%d cores[-] ]  [ RAM[#94a3b8]: [#a855f7]%d GB[-] ]\n"+
+			gpuLine,
+		s.CPUCores,
+		s.TotalRAMGB,
 	)
 	p.SetText(text)
 }
