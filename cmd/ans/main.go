@@ -4,6 +4,7 @@
 package main
 
 import (
+	cryptoRand "crypto/rand"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
@@ -307,7 +308,7 @@ func cmdStart() {
 			pretty.Item(w, "Socket", daemon.SocketPath())
 			fmt.Fprintln(w)
 			pretty.Step(w, 1, "Register an agent:")
-			pretty.Code(w, "ans register --name my-agent --version 1.0.0")
+			pretty.Code(w, "ans register")
 			fmt.Fprintln(w)
 			pretty.Step(w, 2, "View the chain:")
 			pretty.Code(w, "ans chain")
@@ -495,19 +496,17 @@ func cmdAgents() {
 // cmdRegister registers a new agent with the daemon.
 func cmdRegister(args []string) {
 	fs := flag.NewFlagSet("register", flag.ExitOnError)
-	name := fs.String("name", "", "Agent name (required)")
-	version := fs.String("version", "", "Agent version (required)")
+	name := fs.String("name", "", "Agent name (generated if empty)")
+	version := fs.String("version", "1.0.0", "Agent version")
 	owner := fs.String("owner", "", "Owner/creator of the agent")
 	if err := fs.Parse(args); err != nil {
 		fatalf("flag error: %v", err)
 	}
+	b := make([]byte, 4)
+	cryptoRand.Read(b)
+	rnd := hex.EncodeToString(b)
 	if *name == "" {
-		fmt.Fprintln(os.Stderr, "Usage: ans register --name <name> --version <ver> [--owner <owner>]")
-		os.Exit(1)
-	}
-	if *version == "" {
-		fmt.Fprintln(os.Stderr, "Usage: ans register --name <name> --version <ver> [--owner <owner>]")
-		os.Exit(1)
+		*name = "agent-" + rnd
 	}
 
 	conn := mustDial()
@@ -1291,7 +1290,7 @@ func cmdInit() {
 	pretty.Code(w, "ans start")
 	fmt.Fprintln(w)
 	pretty.Step(w, 2, "Register an agent:")
-	pretty.Code(w, "ans register --name my-agent --version 1.0.0")
+	pretty.Code(w, "ans register")
 	fmt.Fprintln(w)
 	pretty.Step(w, 3, "View the receipt chain:")
 	pretty.Code(w, "ans chain")

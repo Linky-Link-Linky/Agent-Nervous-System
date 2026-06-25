@@ -103,7 +103,7 @@ ans init --service            # optional: install as system service (systemd/lau
 ```bash
 ans version                   # confirm installation
 ans start                     # start the daemon (background)
-ans register --name my-agent --version 1.0.0   # create an agent identity
+ans register                     # register an agent (auto-generated name & version)
 ans chain                     # see the receipt chain
 ans verify --chain            # prove integrity: hashes + Ed25519 signatures ✓
 ```
@@ -156,7 +156,7 @@ Run it, then `ans chain` again — a new receipt appears.
 | `ans: command not found` | Run `sudo make install` (Linux/Mac) or the Windows copy command above |
 | `ans: no config` | Run `ans init` first to create the data directory |
 | Daemon won't start | Run `ans doctor` to check the socket, PID, and config. Then `ans stop` and `ans start` again |
-| `ans chain` shows nothing | Register an agent first (`ans register --name test --version 1`) |
+| `ans chain` shows nothing | Register an agent first (`ans register`) |
 | Permission denied | Prefix with `sudo` (Linux/Mac) or run terminal as Administrator (Windows) |
 | Something else | Run `ans doctor` and include the output when [opening a GitHub issue](https://github.com/Linky-Link-Linky/Agent-Nervous-System/issues) |
 
@@ -195,7 +195,7 @@ That's it. The daemon listens on a local Unix socket (or named pipe on Windows).
 Every traced action needs an agent identity — an Ed25519 keypair stored encrypted on disk:
 
 ```bash
-ans register --name my-bot --version 1.0.0
+ans register
 ```
 
 Output:
@@ -475,7 +475,7 @@ No more reconstructing "what happened" from interleaved log files. The chain cap
 
 ```bash
 # Register a new agent (generates keypair)
-$ ans register --name my-agent --version 1.0.0 --owner acme-corp
+$ ans register --name my-agent --version 1.0.0 --owner acme-corp  # all flags optional
 ans_3vQb7uL6x9
 
 # Verify who signed a receipt

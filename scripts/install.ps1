@@ -224,8 +224,8 @@ try {
     Write-Cmd "ans"
     Write-Host "      Opens the live dashboard (full-screen TUI)" -ForegroundColor $Gray
     Write-Host ""
-    Write-Cmd "ans register --name my-agent --version 1.0.0"
-    Write-Host "      Register your first AI agent" -ForegroundColor $Gray
+Write-Cmd "ans register"
+Write-Host "      Register an AI agent (name and version auto-generated)" -ForegroundColor $Gray
     Write-Host ""
     Write-Cmd "ans chain"
     Write-Host "      View the receipt chain" -ForegroundColor $Gray

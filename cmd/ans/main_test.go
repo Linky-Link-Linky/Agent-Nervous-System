@@ -199,16 +199,15 @@ func TestHelpFlag(t *testing.T) {
 	}
 }
 
-func TestRegisterNoFlags(t *testing.T) {
+func TestRegisterDefaults(t *testing.T) {
 	bin := buildBinary(t)
 	cmd := exec.Command(bin, "register")
 	cmd.Env = append(os.Environ(), "NO_COLOR=1")
-	out, err := cmd.CombinedOutput()
-	if err == nil {
-		t.Fatal("register without flags did not exit with error")
-	}
-	if !strings.Contains(string(out), "Usage") {
-		t.Errorf("output = %q, want 'Usage'", string(out))
+	out, _ := cmd.CombinedOutput()
+	// Without a running daemon, register fails with a dial error instead of Usage.
+	// The important thing is it doesn't print Usage (no longer required flags).
+	if strings.Contains(string(out), "Usage") {
+		t.Errorf("ans register with no flags printed Usage, but should try to connect: %s", string(out))
 	}
 }
 
