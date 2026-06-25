@@ -63,8 +63,11 @@ func (m *MockProvider) Stats() ComponentStats {
 	hw := detectHardware()
 
 	return ComponentStats{
+		CPUModel:       hw.CPUModel,
 		CPUCores:       hw.CPUCores,
+		CPUUsagePct:    23.5 + float64(randInt(200))/10,
 		TotalRAMGB:     hw.RAMGB,
+		UsedRAMGB:      hw.UsedRAMGB,
 		GPUCount:       hw.GPUCount,
 		GPUModels:      hw.GPUModels,
 		ActiveRules:    12 + randInt(5),

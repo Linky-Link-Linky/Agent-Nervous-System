@@ -39,15 +39,24 @@ func (p *overviewPanel) refresh() {
 			}
 			models += m
 		}
-		gpuLine = fmt.Sprintf("  [ GPU[#94a3b8]:[#a855f7] %dx[-] [#94a3b8]%s[-] ]\n", s.GPUCount, models)
+		gpuLine = fmt.Sprintf("  [#e2e8f0][ GPU[#94a3b8]:[#2ecc71] %dx[-] [#94a3b8]%s[-] ]\n", s.GPUCount, models)
 	} else {
-		gpuLine = "  [ GPU[#94a3b8]: [#94a3b8]none detected[-] ]\n"
+		gpuLine = "  [#e2e8f0][ GPU[#94a3b8]: [#94a3b8]none detected[-] ]\n"
+	}
+	cpuModel := s.CPUModel
+	if cpuModel == "" {
+		cpuModel = fmt.Sprintf("%d cores", s.CPUCores)
+	}
+	ramLine := fmt.Sprintf("[#e2e8f0]  [ RAM[#94a3b8]:[#2ecc71] %d GB[-] ]", s.TotalRAMGB)
+	if s.UsedRAMGB > 0 {
+		ramLine = fmt.Sprintf("[#e2e8f0]  [ RAM[#94a3b8]:[#2ecc71] %d/%d GB[-] ]", s.UsedRAMGB, s.TotalRAMGB)
 	}
 	text := fmt.Sprintf(
-		"[#e2e8f0]  [ CPU[#94a3b8]: [#a855f7]%d cores[-] ]  [ RAM[#94a3b8]: [#a855f7]%d GB[-] ]\n"+
+		"[#e2e8f0]  [ CPU[#94a3b8]:[#2ecc71] %s[-] ]  [ Usage[#94a3b8]: [#2ecc71]%.0f%%[-] ]\n"+
+			ramLine+"\n"+
 			gpuLine,
-		s.CPUCores,
-		s.TotalRAMGB,
+		cpuModel,
+		s.CPUUsagePct,
 	)
 	p.SetText(text)
 }

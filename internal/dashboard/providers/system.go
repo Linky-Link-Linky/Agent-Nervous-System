@@ -8,23 +8,28 @@ import (
 )
 
 type hardwareStats struct {
+	CPUModel  string
 	CPUCores  int
 	RAMGB     int
+	UsedRAMGB int
 	GPUCount  int
 	GPUModels []string
 }
 
 func detectHardware() hardwareStats {
-	h := hardwareStats{CPUCores: runtime.NumCPU()}
+	h := hardwareStats{CPUCores: runtime.NumCPU(), UsedRAMGB: 0}
 
 	switch runtime.GOOS {
 	case "windows":
-		h.RAMGB = winRAM()
+		h.CPUModel = winCPUModel()
+		h.RAMGB, h.UsedRAMGB = winRAM()
 		h.GPUCount, h.GPUModels = winGPU()
 	case "linux":
+		h.CPUModel = linuxCPUModel()
 		h.RAMGB = linuxRAM()
 		h.GPUCount, h.GPUModels = linuxGPU()
 	case "darwin":
+		h.CPUModel = darwinCPUModel()
 		h.RAMGB = darwinRAM()
 		h.GPUCount, h.GPUModels = darwinGPU()
 	}
@@ -39,35 +44,63 @@ func detectHardware() hardwareStats {
 	return h
 }
 
-func winRAM() int {
-	out, err := exec.Command("wmic", "OS", "get", "TotalVisibleMemorySize", "/Value").Output()
+func winCPUModel() string {
+	out, err := exec.Command("powershell", "-NoProfile", "-Command",
+		"(Get-CimInstance Win32_Processor).Name").Output()
 	if err != nil {
-		return 0
+		return ""
 	}
-	parts := strings.Split(string(out), "=")
+	return strings.TrimSpace(string(out))
+}
+
+func winRAM() (int, int) {
+	out, err := exec.Command("powershell", "-NoProfile", "-Command",
+		"$t=(Get-CimInstance Win32_OperatingSystem); Write-Output \"$($t.TotalVisibleMemorySize) $($t.FreePhysicalMemory)\"").Output()
+	if err != nil {
+		return 0, 0
+	}
+	parts := strings.Fields(string(out))
 	if len(parts) < 2 {
-		return 0
+		return 0, 0
 	}
-	kb, err := strconv.ParseInt(strings.TrimSpace(parts[1]), 10, 64)
-	if err != nil {
-		return 0
+	totalKB, err1 := strconv.ParseInt(parts[0], 10, 64)
+	freeKB, err2 := strconv.ParseInt(parts[1], 10, 64)
+	if err1 != nil || err2 != nil {
+		return 0, 0
 	}
-	return int(kb / 1024 / 1024)
+	return int(totalKB / 1024 / 1024), int((totalKB - freeKB) / 1024 / 1024)
 }
 
 func winGPU() (int, []string) {
-	out, err := exec.Command("wmic", "path", "win32_VideoController", "get", "Name").Output()
+	out, err := exec.Command("powershell", "-NoProfile", "-Command",
+		"(Get-CimInstance Win32_VideoController).Name").Output()
 	if err != nil {
 		return 0, nil
 	}
 	var models []string
 	for _, line := range strings.Split(string(out), "\n") {
 		line = strings.TrimSpace(line)
-		if line != "" && !strings.HasPrefix(line, "Name") {
+		if line != "" {
 			models = append(models, line)
 		}
 	}
 	return len(models), models
+}
+
+func linuxCPUModel() string {
+	out, err := exec.Command("sh", "-c", "grep 'model name' /proc/cpuinfo | head -1 | cut -d: -f2").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func linuxCPUUsage() float64 {
+	out1, err := exec.Command("sh", "-c", "awk '/cpu / {print $2+$3+$4+$5+$6+$7+$8,$5}' /proc/stat").Output()
+	if err != nil || len(out1) == 0 {
+		return 0
+	}
+	return 0 // placeholder; accurate usage needs two samples with delay
 }
 
 func linuxRAM() int {
@@ -95,6 +128,14 @@ func linuxGPU() (int, []string) {
 		}
 	}
 	return len(models), models
+}
+
+func darwinCPUModel() string {
+	out, err := exec.Command("sysctl", "-n", "machdep.cpu.brand_string").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func darwinRAM() int {

@@ -37,8 +37,11 @@ type AuditEvent struct {
 }
 
 type ComponentStats struct {
+	CPUModel       string
 	CPUCores       int
+	CPUUsagePct    float64
 	TotalRAMGB     int
+	UsedRAMGB      int
 	GPUCount       int
 	GPUModels      []string
 	ActiveRules    int

@@ -60,9 +60,11 @@ func newCommandBar(app *tview.Application, provider providers.DashboardProvider)
 			}
 			input.SetText("")
 			cb.inputMode = false
+			cb.app.SetFocus(nil)
 		}
 		if key == tcell.KeyEscape {
 			cb.inputMode = false
+			cb.app.SetFocus(nil)
 		}
 	})
 
@@ -131,6 +133,11 @@ func (c *commandBar) execute(raw string) {
 	parts := strings.Fields(raw)
 	if len(parts) == 0 {
 		return
+	}
+
+	// Strip leading "ans" if user types "ans chain" thinking it's a shell
+	if parts[0] == "ans" && len(parts) > 1 {
+		parts = parts[1:]
 	}
 
 	cmdName := parts[0]
