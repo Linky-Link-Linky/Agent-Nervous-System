@@ -41,7 +41,7 @@ func newCommandBar(app *tview.Application, provider providers.DashboardProvider)
 		SetRegions(false).
 		SetScrollable(true)
 	output.SetBackgroundColor(bgColor)
-	output.SetText("[#94a3b8]Press [:#2ecc71]:[-] to enter a command, [#94a3b8]Esc to return[-]\n")
+	output.SetText("[#94a3b8]Press [:#2ecc71]:[-] or [:#2ecc71]/[-] to enter a command, [#94a3b8]Esc to return[-]\n")
 
 	cb := &commandBar{
 		flex:     tview.NewFlex().SetDirection(tview.FlexRow),

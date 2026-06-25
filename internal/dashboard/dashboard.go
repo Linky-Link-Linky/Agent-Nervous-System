@@ -81,7 +81,7 @@ func (a *App) Run() error {
 			}
 			return nil
 		}
-		if ev.Rune() == ':' && !a.cmdBar.inputMode {
+		if !a.cmdBar.inputMode && (ev.Rune() == ':' || ev.Rune() == '/') {
 			a.cmdBar.activate()
 			return nil
 		}
