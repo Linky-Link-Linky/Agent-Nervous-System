@@ -233,6 +233,9 @@ Write-Host "      Register an AI agent (name and version auto-generated)" -Foreg
     Write-Cmd "ans init --service"
     Write-Host "      Auto-start ANS at system boot" -ForegroundColor $Gray
     Write-Host ""
+    Write-Cmd "ans update"
+    Write-Host "      Self-update to the latest release" -ForegroundColor $Gray
+    Write-Host ""
     Write-Host "  Need help? Run: ans doctor" -ForegroundColor $Emerald
     Write-Host ""
 }
