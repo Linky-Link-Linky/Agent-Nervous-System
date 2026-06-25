@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"encoding/json"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -8,14 +9,14 @@ import (
 )
 
 type hardwareStats struct {
-	CPUModel   string
-	CPUCores   int
-	PerCore    []float64
-	RAMGB      int
-	UsedRAMGB  int
-	RAMUsage   float64
-	GPUCount   int
-	GPUModels  []string
+	CPUModel  string
+	CPUCores  int
+	PerCore   []float64
+	RAMGB     int
+	UsedRAMGB int
+	RAMUsage  float64
+	GPUCount  int
+	GPUModels []string
 	GPUUsePct  float64
 	GPUMemT    int
 	GPUMemU    int
@@ -27,10 +28,7 @@ func sampleHardware() hardwareStats {
 
 	switch runtime.GOOS {
 	case "windows":
-		h.CPUModel = winCPUModel()
-		h.PerCore = winPerCoreCPU()
-		h.RAMGB, h.UsedRAMGB, h.RAMUsage = winMem()
-		h.GPUCount, h.GPUModels, h.GPUUsePct, h.GPUMemT, h.GPUMemU, h.GPUTemp = winGPU()
+		winSample(&h)
 	case "linux":
 		h.CPUModel = linuxCPUModel()
 		h.RAMGB = linuxRAM()
@@ -52,95 +50,59 @@ func sampleHardware() hardwareStats {
 	return h
 }
 
-// --- Windows ---
-
-func winCPUModel() string {
-	out, err := exec.Command("powershell", "-NoProfile", "-Command",
-		"(Get-CimInstance Win32_Processor).Name").Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
+type winData struct {
+	CPUModel       string    `json:"cpuModel"`
+	PerCore        []float64 `json:"perCore"`
+	MemTotalKB     int64     `json:"memTotalKB"`
+	MemFreeKB      int64     `json:"memFreeKB"`
+	GPUModels      []string  `json:"gpuModels"`
+	NVGPU          float64   `json:"nvgpu"`
+	NVMemUsed      int       `json:"nvMemUsed"`
+	NVMemTotal     int       `json:"nvMemTotal"`
+	NVTemp         float64   `json:"nvTemp"`
 }
 
-func winPerCoreCPU() []float64 {
-	out, err := exec.Command("powershell", "-NoProfile", "-Command",
-		"(Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor | Where-Object Name -ne '_Total' | Select-Object -ExpandProperty PercentProcessorTime) -join ','").Output()
+func winSample(h *hardwareStats) {
+	script := `
+$cpu = (Get-CimInstance Win32_Processor).Name
+$cores = (Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor | Where-Object Name -ne '_Total' | Select-Object -ExpandProperty PercentProcessorTime)
+$os = Get-CimInstance Win32_OperatingSystem
+$gpu = Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name
+$nv = if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) { (nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits) } else { "" }
+$nvParts = if ($nv -and $nv.Length -gt 0) { $nv -split ',' } else { @("","","","") }
+@{
+  cpuModel = "$cpu";
+  perCore = @($cores);
+  memTotalKB = [long]$os.TotalVisibleMemorySize;
+  memFreeKB  = [long]$os.FreePhysicalMemory;
+  gpuModels  = @($gpu);
+  nvgpu      = if ($nvParts[0]) { [double]$nvParts[0] } else { 0 };
+  nvMemUsed  = if ($nvParts[1]) { [int]$nvParts[1] } else { 0 };
+  nvMemTotal = if ($nvParts[2]) { [int]$nvParts[2] } else { 0 };
+  nvTemp     = if ($nvParts[3]) { [double]$nvParts[3] } else { 0 };
+} | ConvertTo-Json -Compress
+`
+	out, err := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script).Output()
 	if err != nil || len(out) == 0 {
-		return nil
+		return
 	}
-	s := strings.TrimSpace(string(out))
-	if s == "" {
-		return nil
+	var d winData
+	if err := json.Unmarshal(out, &d); err != nil {
+		return
 	}
-	parts := strings.Split(s, ",")
-	res := make([]float64, 0, len(parts))
-	for _, p := range parts {
-		v, _ := strconv.ParseFloat(strings.TrimSpace(p), 64)
-		res = append(res, v)
+	h.CPUModel = d.CPUModel
+	h.PerCore = d.PerCore
+	if d.MemTotalKB > 0 {
+		h.RAMGB = int(d.MemTotalKB / 1024 / 1024)
+		h.UsedRAMGB = int((d.MemTotalKB - d.MemFreeKB) / 1024 / 1024)
+		h.RAMUsage = float64(d.MemTotalKB-d.MemFreeKB) / float64(d.MemTotalKB) * 100
 	}
-	return res
-}
-
-func winMem() (totalGB, usedGB int, pct float64) {
-	out, err := exec.Command("powershell", "-NoProfile", "-Command",
-		"$t=(Get-CimInstance Win32_OperatingSystem); Write-Output \"$($t.TotalVisibleMemorySize) $($t.FreePhysicalMemory)\"").Output()
-	if err != nil {
-		return 0, 0, 0
-	}
-	parts := strings.Fields(string(out))
-	if len(parts) < 2 {
-		return 0, 0, 0
-	}
-	totalKB, err1 := strconv.ParseInt(parts[0], 10, 64)
-	freeKB, err2 := strconv.ParseInt(parts[1], 10, 64)
-	if err1 != nil || err2 != nil {
-		return 0, 0, 0
-	}
-	totalGB = int(totalKB / 1024 / 1024)
-	usedGB = int((totalKB - freeKB) / 1024 / 1024)
-	if totalKB > 0 {
-		pct = float64(totalKB-freeKB) / float64(totalKB) * 100
-	}
-	return
-}
-
-func winGPU() (count int, models []string, usePct float64, memT, memU int, temp float64) {
-	out, err := exec.Command("powershell", "-NoProfile", "-Command",
-		"Get-CimInstance Win32_VideoController | Select-Object Name,AdapterRAM | ConvertTo-Csv -NoHeader").Output()
-	if err != nil {
-		return 0, nil, 0, 0, 0, 0
-	}
-	for _, line := range strings.Split(string(out), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		cols := strings.Split(line, ",")
-		if len(cols) > 0 {
-			name := strings.Trim(cols[0], "\"")
-			if name != "" {
-				models = append(models, name)
-			}
-		}
-	}
-	count = len(models)
-	// nvidia-smi for detailed stats if available
-	nvOut, nvErr := exec.Command("powershell", "-NoProfile", "-Command",
-		"if (Get-Command nvidia-smi -ErrorAction SilentlyContinue) { nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits } else { Write-Output '' }").Output()
-	if nvErr == nil && len(nvOut) > 0 {
-		line := strings.TrimSpace(string(nvOut))
-		if line != "" {
-			vals := strings.Split(line, ",")
-			if len(vals) >= 4 {
-				usePct, _ = strconv.ParseFloat(strings.TrimSpace(vals[0]), 64)
-				memU, _ = strconv.Atoi(strings.TrimSpace(vals[1]))
-				memT, _ = strconv.Atoi(strings.TrimSpace(vals[2]))
-				temp, _ = strconv.ParseFloat(strings.TrimSpace(vals[3]), 64)
-			}
-		}
-	}
-	return
+	h.GPUModels = d.GPUModels
+	h.GPUCount = len(d.GPUModels)
+	h.GPUUsePct = d.NVGPU
+	h.GPUMemU = d.NVMemUsed
+	h.GPUMemT = d.NVMemTotal
+	h.GPUTemp = d.NVTemp
 }
 
 // --- Linux ---
@@ -165,21 +127,6 @@ func linuxRAM() int {
 	return int(bytes / 1024 / 1024 / 1024)
 }
 
-func linuxGPU() (int, []string) {
-	out, err := exec.Command("nvidia-smi", "--query-gpu=name", "--format=csv,noheader").Output()
-	if err != nil {
-		return 0, nil
-	}
-	var models []string
-	for _, line := range strings.Split(string(out), "\n") {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			models = append(models, line)
-		}
-	}
-	return len(models), models
-}
-
 // --- Darwin ---
 
 func darwinCPUModel() string {
@@ -200,20 +147,4 @@ func darwinRAM() int {
 		return 0
 	}
 	return int(bytes / 1024 / 1024 / 1024)
-}
-
-func darwinGPU() (int, []string) {
-	out, err := exec.Command("system_profiler", "SPDisplaysDataType").Output()
-	if err != nil {
-		return 0, nil
-	}
-	var models []string
-	for _, line := range strings.Split(string(out), "\n") {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "Chipset Model:") {
-			model := strings.TrimSpace(strings.TrimPrefix(trimmed, "Chipset Model:"))
-			models = append(models, model)
-		}
-	}
-	return len(models), models
 }

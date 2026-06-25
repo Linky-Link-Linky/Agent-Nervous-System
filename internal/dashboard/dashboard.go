@@ -206,7 +206,7 @@ func (a *App) buildHeader() tview.Primitive {
 }
 
 func (a *App) dataLoop() {
-	tick := time.NewTicker(2 * time.Second)
+	tick := time.NewTicker(3 * time.Second)
 	defer tick.Stop()
 	for {
 		select {
