@@ -155,8 +155,8 @@ func (a *App) buildMainUI() tview.Primitive {
 
 	midFlex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(resFlex, 5, 0, false).
-		AddItem(a.chart, 0, 2, false)
+		AddItem(resFlex, 12, 0, false).
+		AddItem(a.chart, 0, 1, false)
 
 	bottomFlex := tview.NewFlex().
 		AddItem(a.auditLog, 0, 1, false).

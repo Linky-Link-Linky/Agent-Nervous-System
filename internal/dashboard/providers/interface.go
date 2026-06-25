@@ -36,14 +36,32 @@ type AuditEvent struct {
 	Hash      string
 }
 
+type CPUStats struct {
+	Model     string
+	Cores     int
+	UsagePct  float64
+	PerCore   []float64
+}
+
+type GPUStats struct {
+	Count      int
+	Models     []string
+	UsagePct   float64
+	MemTotalMB int
+	MemUsedMB  int
+	TempC      float64
+}
+
+type MemStats struct {
+	TotalGB  int
+	UsedGB   int
+	Pct      float64
+}
+
 type ComponentStats struct {
-	CPUModel       string
-	CPUCores       int
-	CPUUsagePct    float64
-	TotalRAMGB     int
-	UsedRAMGB      int
-	GPUCount       int
-	GPUModels      []string
+	CPU            CPUStats
+	GPU            GPUStats
+	Mem            MemStats
 	ActiveRules    int
 	Violations24h  int
 	LastEnforcement time.Time

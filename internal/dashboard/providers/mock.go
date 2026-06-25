@@ -59,17 +59,36 @@ func (m *MockProvider) Stats() ComponentStats {
 	uptime := time.Since(m.startTime)
 	brokerStates := []string{"IDLE", "ACTIVE", "EXPIRED"}
 	mcpStates := []string{"ACTIVE", "ACTIVE", "ACTIVE", "DEGRADED"}
+	hw := sampleHardware()
 
-	hw := detectHardware()
+	perCore := hw.PerCore
+	if len(perCore) == 0 {
+		perCore = make([]float64, hw.CPUCores)
+		for i := range perCore {
+			perCore[i] = 10 + float64(randInt(80))
+		}
+	}
 
 	return ComponentStats{
-		CPUModel:       hw.CPUModel,
-		CPUCores:       hw.CPUCores,
-		CPUUsagePct:    23.5 + float64(randInt(200))/10,
-		TotalRAMGB:     hw.RAMGB,
-		UsedRAMGB:      hw.UsedRAMGB,
-		GPUCount:       hw.GPUCount,
-		GPUModels:      hw.GPUModels,
+		CPU: CPUStats{
+			Model:    hw.CPUModel,
+			Cores:    hw.CPUCores,
+			UsagePct: avg(perCore),
+			PerCore:  perCore,
+		},
+		GPU: GPUStats{
+			Count:      hw.GPUCount,
+			Models:     hw.GPUModels,
+			UsagePct:   hw.GPUUsePct,
+			MemTotalMB: hw.GPUMemT,
+			MemUsedMB:  hw.GPUMemU,
+			TempC:      hw.GPUTemp,
+		},
+		Mem: MemStats{
+			TotalGB: hw.RAMGB,
+			UsedGB:  hw.UsedRAMGB,
+			Pct:     hw.RAMUsage,
+		},
 		ActiveRules:    12 + randInt(5),
 		Violations24h:  8 + randInt(10),
 		LastEnforcement: time.Now().Add(-time.Duration(randInt(300)) * time.Second),
@@ -79,6 +98,17 @@ func (m *MockProvider) Stats() ComponentStats {
 		MCPStatus:      mcpStates[randInt(len(mcpStates))],
 		BrokerStatus:   brokerStates[randInt(len(brokerStates))],
 	}
+}
+
+func avg(vals []float64) float64 {
+	if len(vals) == 0 {
+		return 0
+	}
+	s := 0.0
+	for _, v := range vals {
+		s += v
+	}
+	return s / float64(len(vals))
 }
 
 func (m *MockProvider) RecentEvents() []AuditEvent {
