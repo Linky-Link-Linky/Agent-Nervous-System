@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/commands"
 )
 
 var ansBin string
@@ -69,7 +71,7 @@ func TestNoColor(t *testing.T) {
 			for k, v := range tt.env {
 				os.Setenv(k, v)
 			}
-			if got := noColor(); got != tt.want {
+			if got := commands.NoColor(); got != tt.want {
 				t.Errorf("noColor() = %v, want %v", got, tt.want)
 			}
 			os.Unsetenv("NO_COLOR")
@@ -99,14 +101,14 @@ func TestIsHex(t *testing.T) {
 		{"0x1234", false},
 	}
 	for _, tt := range tests {
-		if got := isHex(tt.input); got != tt.want {
-			t.Errorf("isHex(%q) = %v, want %v", tt.input, got, tt.want)
+		if got := commands.IsHex(tt.input); got != tt.want {
+				t.Errorf("isHex(%q) = %v, want %v", tt.input, got, tt.want)
 		}
 	}
 }
 
 func TestPidFilePath(t *testing.T) {
-	path := pidFilePath()
+	path := commands.PidFilePath()
 	if path == "" {
 		t.Fatal("pidFilePath() returned empty")
 	}
@@ -219,8 +221,8 @@ func TestRotateNoArgs(t *testing.T) {
 	if err == nil {
 		t.Fatal("rotate without args did not exit with error")
 	}
-	if !strings.Contains(string(out), "Usage") {
-		t.Errorf("output = %q, want 'Usage'", string(out))
+	if !strings.Contains(strings.ToLower(string(out)), "usage") {
+		t.Errorf("output = %q, want lower-case 'usage'", string(out))
 	}
 }
 
@@ -232,8 +234,8 @@ func TestPolicyAddNoFile(t *testing.T) {
 	if err == nil {
 		t.Fatal("policy add without args did not exit with error")
 	}
-	if !strings.Contains(string(out), "Usage") {
-		t.Errorf("output = %q, want 'Usage'", string(out))
+	if !strings.Contains(strings.ToLower(string(out)), "usage") {
+		t.Errorf("output = %q, want lower-case 'usage'", string(out))
 	}
 }
 
@@ -245,8 +247,8 @@ func TestPruneRequiresFlag(t *testing.T) {
 	if err == nil {
 		t.Fatal("prune without --up-to did not exit with error")
 	}
-	if !strings.Contains(string(out), "Usage") {
-		t.Errorf("output = %q, want 'Usage'", string(out))
+	if !strings.Contains(strings.ToLower(string(out)), "usage") {
+		t.Errorf("output = %q, want lower-case 'usage'", string(out))
 	}
 }
 
@@ -258,7 +260,7 @@ func TestCompensateMissingArg(t *testing.T) {
 	if err == nil {
 		t.Fatal("compensate without arg did not exit with error")
 	}
-	if !strings.Contains(string(out), "Usage") {
-		t.Errorf("output = %q, want 'Usage'", string(out))
+	if !strings.Contains(strings.ToLower(string(out)), "usage") {
+		t.Errorf("output = %q, want lower-case 'usage'", string(out))
 	}
 }

@@ -1,21 +1,23 @@
 package dashboard
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/commands"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/dashboard/providers"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
 var ansiRE = regexp.MustCompile(`\033\[[0-9;]*[a-zA-Z]|\033][^\a]*(\a|\033\\)`)
+
+func stripANSI(s string) string {
+	return ansiRE.ReplaceAllString(s, "")
+}
 
 type commandBar struct {
 	flex      *tview.Flex
@@ -124,10 +126,6 @@ func (c *commandBar) histNext() {
 	c.input.SetText(c.history[c.histPos])
 }
 
-func stripANSI(s string) string {
-	return ansiRE.ReplaceAllString(s, "")
-}
-
 func escBrackets(s string) string {
 	return strings.ReplaceAll(s, "[", "[[")
 }
@@ -138,7 +136,7 @@ func (c *commandBar) execute(raw string) {
 		return
 	}
 
-	// Strip leading "ans" if user types "ans chain" thinking it's a shell
+	// Strip leading "ans" if user types "ans chain"
 	if parts[0] == "ans" && len(parts) > 1 {
 		parts = parts[1:]
 	}
@@ -148,8 +146,8 @@ func (c *commandBar) execute(raw string) {
 	// Built-in commands: fast path, no goroutine needed
 	if cmdName == "help" || cmdName == "--help" || cmdName == "-h" {
 		if len(parts) > 1 {
-			rest := strings.Join(parts[1:], " ") + " --help"
-			c.runCmdAsync(raw, rest, 10*time.Second)
+			rest := strings.Join(parts[1:], " ")
+			c.runCmdAsync(raw, strings.Fields(rest), 10*time.Second)
 		} else {
 			c.showLocalHelp()
 		}
@@ -161,59 +159,50 @@ func (c *commandBar) execute(raw string) {
 		return
 	}
 
-	// Run external command in background goroutine so the UI stays responsive
-	c.runCmdAsync(raw, raw, 30*time.Second)
+	// Run command in background goroutine so the UI stays responsive
+	c.runCmdAsync(raw, parts, 30*time.Second)
 }
 
-func (c *commandBar) runCmdAsync(raw, cmdLine string, timeout time.Duration) {
-	self, err := os.Executable()
-	if err != nil {
-		c.showOutput(fmt.Sprintf("[#ff6b6b]error:[-] [#94a3b8]cannot find binary: %v[-]", err))
-		return
-	}
-
+func (c *commandBar) runCmdAsync(raw string, parts []string, timeout time.Duration) {
 	// Show pending indicator immediately
 	pending := fmt.Sprintf("[#2ecc71]>[-] [#94a3b8]%s[-]\n[#f59e0b]  running...[-]", escBrackets(raw))
 	c.showOutput(pending)
 
-	parts := strings.Fields(cmdLine)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 
-		cmd := exec.CommandContext(ctx, self, parts...)
-		var stdout, stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
+		done := make(chan string, 1)
 
-		runErr := cmd.Run()
+		go func() {
+			var buf strings.Builder
+			err := commands.DispatchTo(&buf, parts)
+			result := buf.String()
+			if err != nil && err.Error() != "" {
+				if result != "" && !strings.HasSuffix(result, "\n") {
+					result += "\n"
+				}
+				result += err.Error()
+			}
+			if result == "" {
+				result = "(ok)"
+			}
+			done <- result
+		}()
 
-		out := stdout.String()
-		errOut := stderr.String()
-
-		plain := out
-		if plain == "" {
-			plain = errOut
-		}
-		if runErr != nil && plain == "" {
-			plain = runErr.Error()
-		}
-		if ctx.Err() == context.DeadlineExceeded {
-			plain = "command timed out"
+		var result string
+		select {
+		case result = <-done:
+		case <-ctx.Done():
+			result = "command timed out"
 		}
 
-		plain = stripANSI(plain)
-		if plain == "" {
-			plain = "(ok)"
-		}
+		plain := stripANSI(result)
 		if len(plain) > 2000 {
 			plain = plain[:2000] + "\n... (truncated)"
 		}
 
-		plain = escBrackets(plain)
-		cmdDisplay := escBrackets(raw)
-
-		display := fmt.Sprintf("[#2ecc71]>[-] [#e2e8f0]%s[-]\n[#e2e8f0]%s[-]", cmdDisplay, plain)
+		display := fmt.Sprintf("[#2ecc71]>[-] [#e2e8f0]%s[-]\n[#e2e8f0]%s[-]", escBrackets(raw), escBrackets(plain))
 
 		c.app.QueueUpdateDraw(func() {
 			c.showOutput(display)
