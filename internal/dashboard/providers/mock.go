@@ -150,39 +150,7 @@ func avg(vals []float64) float64 {
 }
 
 func (m *MockProvider) RecentEvents() []AuditEvent {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	now := time.Now()
-	components := []Component{AuditTrail, SnapshotEngine, MCPProxy, PolicyEngine, IdentityBroker}
-	eventTypes := []EventType{EventRequest, EventInfo, EventCommit, EventAlloc, EventTrigger, EventAllowed}
-	alertTypes := []EventType{EventBlocked, EventViolation, EventExpired}
-
-	n := 1 + randInt(3)
-	for i := 0; i < n; i++ {
-		comp := components[randInt(len(components))]
-		var et EventType
-		if randInt(10) < 7 {
-			et = eventTypes[randInt(len(eventTypes))]
-		} else {
-			et = alertTypes[randInt(len(alertTypes))]
-		}
-		m.events = append(m.events, AuditEvent{
-			Timestamp: now.Add(-time.Duration(randInt(3)) * time.Second),
-			Component: comp,
-			EventType: et,
-			Hash:      randHex(7),
-		})
-		m.evIdx++
-	}
-
-	if len(m.events) > 200 {
-		m.events = m.events[len(m.events)-200:]
-	}
-
-	out := make([]AuditEvent, len(m.events))
-	copy(out, m.events)
-	return out
+	return nil
 }
 
 func (m *MockProvider) ChartData() []ChartDataPoint {

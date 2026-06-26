@@ -600,33 +600,20 @@ func cmdUninstall(w io.Writer, args []string) error {
 	}
 	pretty.Done(w, "Daemon stopped")
 
+	home, _ := os.UserHomeDir()
+	dotDir := path.Join(home, ".ans")
+
 	pretty.Step(w, 2, "Removing data directory")
-	dataDir, dataErr := config.Dir()
-	removed := false
-	if dataErr == nil {
-		if err := os.RemoveAll(dataDir); err == nil {
-			pretty.Done(w, "Deleted "+dataDir)
-			removed = true
-		} else {
-			pretty.Warn(w, "Could not delete "+dataDir+": "+err.Error())
-		}
-	}
-	if !removed {
-		home, _ := os.UserHomeDir()
-		known := []string{
-			path.Join(home, ".ans"),
-		}
-		for _, p := range known {
-			if err := os.RemoveAll(p); err == nil {
-				pretty.Done(w, "Deleted "+p)
-				break
-			}
-		}
+	if err := os.RemoveAll(dotDir); err == nil {
+		pretty.Done(w, "Deleted "+dotDir)
+	} else {
+		pretty.Warn(w, "Could not delete "+dotDir+": "+err.Error())
+		pretty.Item(w, "Hint", "Close any running ANS processes and try again")
 	}
 
 	if runtime.GOOS == "windows" {
 		pretty.Step(w, 3, "Cleaning PATH")
-		binDir := path.Join(dataDir, "bin")
+		binDir := path.Join(dotDir, "bin")
 		userPath := os.Getenv("Path")
 		parts := strings.Split(userPath, ";")
 		filtered := make([]string, 0, len(parts))
@@ -638,14 +625,22 @@ func cmdUninstall(w io.Writer, args []string) error {
 		}
 		newPath := strings.Join(filtered, ";")
 		if newPath != userPath {
-			if err := os.Setenv("Path", newPath); err == nil {
-				pretty.Done(w, "Removed "+binDir+" from PATH")
+			os.Setenv("Path", newPath)
+			pretty.Done(w, "Removed "+binDir+" from PATH")
+
+			// Update user-level PATH with a timeout to avoid hanging
+			psCmd := fmt.Sprintf(`[Environment]::SetEnvironmentVariable("Path", "%s", "User")`,
+				strings.ReplaceAll(newPath, `"`, `""`))
+			done := make(chan struct{}, 1)
+			go func() {
+				exec.Command("powershell", "-NoProfile", "-Command", psCmd).Run()
+				done <- struct{}{}
+			}()
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				pretty.Warn(w, "PowerShell PATH update timed out — set manually if needed")
 			}
-			_ = exec.Command("powershell", "-NoProfile",
-				"-Command",
-				fmt.Sprintf(`[Environment]::SetEnvironmentVariable("Path", "%s", "User")`,
-					strings.ReplaceAll(newPath, `"`, `""`)),
-			).Run()
 		} else {
 			pretty.Done(w, "PATH already clean")
 		}

@@ -213,6 +213,16 @@ try {
         Write-Host "       Run 'ans start' manually after install." -ForegroundColor $Yellow
     }
 
+    # --- PATH refresh ---
+    Write-Step $($AutoStep + 1) "Refreshing PATH for this session..."
+    try {
+        $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
+        Write-Done "PATH refreshed for current session"
+    } catch {
+        $env:Path += ";$InstallDir"
+        Write-Warn "Partial PATH refresh — ans may not work until you restart your terminal"
+    }
+
     # --- Success message ---
     Write-Host ""
     Write-Host ("  " + ([string][char]0x2500) * 40) -ForegroundColor $Muted
@@ -237,6 +247,9 @@ Write-Host "      Register an AI agent (name and version auto-generated)" -Foreg
     Write-Host "      Self-update to the latest release" -ForegroundColor $Gray
     Write-Host ""
     Write-Host "  Need help? Run: ans doctor" -ForegroundColor $Emerald
+    Write-Host ""
+    Write-Host "  IMPORTANT: If 'ans' is not recognized, close and reopen" -ForegroundColor $Yellow
+    Write-Host "  your terminal, or run: refreshenv" -ForegroundColor $Yellow
     Write-Host ""
 }
 catch {

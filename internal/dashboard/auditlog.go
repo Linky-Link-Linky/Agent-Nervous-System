@@ -86,6 +86,11 @@ func (p *auditLogPanel) render() {
 	filter := p.filter
 	p.mu.Unlock()
 
+	if len(events) == 0 {
+		p.eventView.SetText("[#94a3b8]No audit events yet. Start the daemon with 'ans start' to begin recording.[-]")
+		return
+	}
+
 	var b strings.Builder
 	start := 0
 	if len(events) > 200 {

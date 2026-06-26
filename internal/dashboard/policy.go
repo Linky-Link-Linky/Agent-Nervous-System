@@ -34,6 +34,11 @@ func (p *policyPanel) refresh() {
 	rules := p.prov.ActiveRules()
 
 	var b strings.Builder
+	if s.ActiveRules == 0 && len(rules) == 0 {
+		b.WriteString("[#94a3b8]Policy engine idle. Start the daemon with 'ans start' to enable policy enforcement.[-]")
+		p.SetText(b.String())
+		return
+	}
 	b.WriteString(fmt.Sprintf("[#94a3b8]Active Rules[-]: [#e2e8f0]%d[-]\n", s.ActiveRules))
 	b.WriteString(fmt.Sprintf("[#94a3b8]Violations (24h)[-]: [#ff6b6b]%d[-]\n", s.Violations24h))
 	b.WriteString(fmt.Sprintf("[#94a3b8]Last Enforcement[-]: [#e2e8f0]%s[-]\n\n", s.LastEnforcement.Format("15:04:05")))
