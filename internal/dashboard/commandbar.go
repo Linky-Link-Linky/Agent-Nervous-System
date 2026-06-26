@@ -71,6 +71,12 @@ func newCommandBar(app *tview.Application, provider providers.DashboardProvider)
 		}
 	})
 
+	input.SetAutocompleteFunc(func(currentText string) []string {
+		return cb.autocomplete(currentText)
+	}).SetAutocompleteStyles(bgColor,
+		tcell.StyleDefault.Foreground(dimText),
+		tcell.StyleDefault.Foreground(primaryColor).Background(dimColor))
+
 	input.SetInputCapture(func(ev *tcell.EventKey) *tcell.EventKey {
 		if ev.Key() == tcell.KeyUp {
 			cb.histPrev()
@@ -234,4 +240,55 @@ func (c *commandBar) showOutput(text string) {
 		c.outputs = c.outputs[len(c.outputs)-10:]
 	}
 	c.output.SetText(strings.Join(c.outputs, "\n[#334155]────────────────────────────────────────────────────[-]\n"))
+}
+
+var knownCommands = map[string][]string{
+	"":                    {"init", "start", "stop", "status", "doctor", "update", "uninstall", "version", "chain", "verify", "agents", "register", "export", "prune", "rotate", "snapshot", "time-travel", "compensate", "policy", "token", "mcp", "help", "clear", "ans"},
+	"snapshot":            {"take", "diff", "list", "ls"},
+	"policy":              {"add", "list", "ls", "remove", "rm", "delete", "del", "eval"},
+	"token":               {"request", "list", "ls", "revoke", "rm"},
+	"mcp":                 {"start", "stop", "status", "log"},
+	"help":                {"init", "start", "stop", "status", "doctor", "update", "uninstall", "version", "chain", "verify", "agents", "register", "export", "prune", "rotate", "snapshot", "time-travel", "compensate", "policy", "token", "mcp"},
+	"export":              {"--format", "--output"},
+	"chain":               {"--n", "--agent"},
+	"verify":              {"--chain"},
+	"snapshot take":       {"--agent"},
+	"ans":                 {"init", "start", "stop", "status", "doctor", "update", "uninstall", "version", "chain", "verify", "agents", "register", "export", "prune", "rotate", "snapshot", "time-travel", "compensate", "policy", "token", "mcp", "help", "clear"},
+}
+
+func (c *commandBar) autocomplete(text string) []string {
+	if text == "" {
+		return knownCommands[""]
+	}
+	parts := strings.Fields(text)
+	if len(parts) == 0 {
+		return nil
+	}
+	if parts[0] == "ans" {
+		parts = parts[1:]
+	}
+	if len(parts) == 1 {
+		prefix := strings.ToLower(parts[0])
+		var matches []string
+		for _, cmd := range knownCommands[""] {
+			if strings.HasPrefix(cmd, prefix) {
+				matches = append(matches, cmd)
+			}
+		}
+		return matches
+	}
+	if len(parts) >= 2 {
+		parent := strings.ToLower(parts[0])
+		if subs, ok := knownCommands[parent]; ok {
+			prefix := strings.ToLower(parts[len(parts)-1])
+			var matches []string
+			for _, sub := range subs {
+				if strings.HasPrefix(sub, prefix) {
+					matches = append(matches, sub)
+				}
+			}
+			return matches
+		}
+	}
+	return nil
 }

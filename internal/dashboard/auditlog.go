@@ -10,25 +10,54 @@ import (
 )
 
 type auditLogPanel struct {
-	*tview.TextView
-	prov   providers.DashboardProvider
-	mu     sync.Mutex
-	events []providers.AuditEvent
+	*tview.Flex
+	prov       providers.DashboardProvider
+	mu         sync.Mutex
+	events     []providers.AuditEvent
+	filter     string
+	filterInp  *tview.InputField
+	eventView  *tview.TextView
 }
 
-func newAuditLogPanel(prov providers.DashboardProvider) *auditLogPanel {
-	tv := tview.NewTextView().
+func newAuditLogPanel(prov providers.DashboardProvider, app *tview.Application) *auditLogPanel {
+	evView := tview.NewTextView().
 		SetDynamicColors(true).
 		SetRegions(false).
 		SetScrollable(true)
-	tv.SetBorder(true).
+	evView.SetBackgroundColor(bgColor)
+
+	filterInp := tview.NewInputField().
+		SetLabel("[#94a3b8]filter[-] ").
+		SetPlaceholder("Search by component, event type, or hash...").
+		SetFieldWidth(0)
+	filterInp.SetBackgroundColor(bgColor)
+	filterInp.SetPlaceholderTextColor(dimText)
+	filterInp.SetFieldTextColor(foreground)
+	filterInp.SetLabelColor(dimText)
+
+	p := &auditLogPanel{
+		Flex:      tview.NewFlex().SetDirection(tview.FlexRow),
+		prov:      prov,
+		eventView: evView,
+		filterInp: filterInp,
+	}
+
+	filterInp.SetChangedFunc(func(text string) {
+		p.mu.Lock()
+		p.filter = strings.ToLower(text)
+		p.mu.Unlock()
+		p.render()
+	})
+
+	p.AddItem(filterInp, 1, 0, false)
+	p.AddItem(evView, 0, 1, false)
+	p.SetBorder(true).
 		SetBorderColor(borderColor).
 		SetTitle("[#2ecc71]AUDIT TRAIL[-]").
 		SetTitleColor(primaryColor).
 		SetBackgroundColor(bgColor)
-	tv.SetTitleAlign(tview.AlignLeft)
+	p.SetTitleAlign(tview.AlignLeft)
 
-	p := &auditLogPanel{TextView: tv, prov: prov}
 	p.refresh()
 	return p
 }
@@ -54,15 +83,24 @@ func (p *auditLogPanel) injectEvent(ev providers.AuditEvent) {
 func (p *auditLogPanel) render() {
 	p.mu.Lock()
 	events := p.events
+	filter := p.filter
 	p.mu.Unlock()
 
 	var b strings.Builder
 	start := 0
-	if len(events) > 30 {
-		start = len(events) - 30
+	if len(events) > 200 {
+		start = len(events) - 200
 	}
+	count := 0
 	for i := start; i < len(events); i++ {
 		ev := events[i]
+		if filter != "" {
+			lower := strings.ToLower(string(ev.Component) + " " + string(ev.EventType) + " " + ev.Hash)
+			if !strings.Contains(lower, filter) {
+				continue
+			}
+		}
+		count++
 		ts := ev.Timestamp.Format("15:04:05")
 		var color string
 		switch ev.EventType {
@@ -77,6 +115,11 @@ func (p *auditLogPanel) render() {
 			ts, ev.Component, color, ev.EventType, ev.Hash)
 		b.WriteString(line)
 	}
-	p.SetText(b.String())
-	p.ScrollToEnd()
+	if filter != "" {
+		header := fmt.Sprintf("[#94a3b8]Filter: \"%s\" — %d matches[-]\n\n", filter, count)
+		p.eventView.SetText(header + b.String())
+	} else {
+		p.eventView.SetText(b.String())
+	}
+	p.eventView.ScrollToEnd()
 }

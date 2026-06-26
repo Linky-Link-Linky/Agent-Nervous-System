@@ -14,10 +14,11 @@ import (
 // for service stats and audit events, with local hardware sampling.
 // Falls back gracefully when the daemon is not available.
 type RealProvider struct {
-	mu          sync.RWMutex
-	startTime   time.Time
-	cachedStats ComponentStats
-	events      []AuditEvent
+	mu             sync.RWMutex
+	startTime      time.Time
+	cachedStats    ComponentStats
+	events         []AuditEvent
+	daemonReachable bool
 }
 
 func NewRealProvider() *RealProvider {
@@ -67,6 +68,20 @@ func (p *RealProvider) RefreshHardware() {
 			UsedGB:  hw.UsedRAMGB,
 			Pct:     hw.RAMUsage,
 		},
+		Disk: DiskStats{
+			ReadSpeedMBs:  hw.DiskReadMBs,
+			WriteSpeedMBs: hw.DiskWriteMBs,
+			UsedGB:        hw.DiskUsedGB,
+			TotalGB:       hw.DiskTotalGB,
+			Pct:           hw.DiskPct,
+		},
+		Net: NetStats{
+			BytesInMB:    hw.NetInMB,
+			BytesOutMB:   hw.NetOutMB,
+			SpeedInMBs:   hw.NetSpeedInMBs,
+			SpeedOutMBs:  hw.NetSpeedOutMBs,
+		},
+		Procs: toProcEntries(hw.Procs),
 		Uptime:       uptime,
 		LastSnapshot: time.Now().Add(-time.Duration(randInt(300)) * time.Second),
 		MCPStatus:    "UNKNOWN",
@@ -220,6 +235,29 @@ func (p *RealProvider) ActiveRules() []RuleEntry {
 		{"agent.exec → shell_invoke", "DENY"},
 	}
 	return entries
+}
+
+// TryReconnect attempts to dial the daemon. If successful, sets daemonReachable
+// so subsequent RefreshHardware calls will fetch real data.
+func (p *RealProvider) TryReconnect() bool {
+	conn, err := daemon.Dial()
+	if err != nil {
+		p.mu.Lock()
+		p.daemonReachable = false
+		p.mu.Unlock()
+		return false
+	}
+	conn.Close()
+	p.mu.Lock()
+	p.daemonReachable = true
+	p.mu.Unlock()
+	return true
+}
+
+func (p *RealProvider) TopProcesses() []ProcEntry {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.cachedStats.Procs
 }
 
 // Ensure json is imported (used in RealProvider via daemon package indirectly)

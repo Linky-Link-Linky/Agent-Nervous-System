@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	app := dashboard.NewApp()
+	app := dashboard.NewApp(3)
 	if err := app.Run(); err != nil {
 		log.Fatalf("dashboard error: %v", err)
 	}

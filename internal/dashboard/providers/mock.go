@@ -95,6 +95,20 @@ func (m *MockProvider) RefreshHardware() {
 			UsedGB:  hw.UsedRAMGB,
 			Pct:     hw.RAMUsage,
 		},
+		Disk: DiskStats{
+			ReadSpeedMBs:  hw.DiskReadMBs,
+			WriteSpeedMBs: hw.DiskWriteMBs,
+			UsedGB:        hw.DiskUsedGB,
+			TotalGB:       hw.DiskTotalGB,
+			Pct:           hw.DiskPct,
+		},
+		Net: NetStats{
+			BytesInMB:    hw.NetInMB,
+			BytesOutMB:   hw.NetOutMB,
+			SpeedInMBs:   hw.NetSpeedInMBs,
+			SpeedOutMBs:  hw.NetSpeedOutMBs,
+		},
+		Procs: toProcEntries(hw.Procs),
 		ActiveRules:    12 + randInt(5),
 		Violations24h:  8 + randInt(10),
 		LastEnforcement: time.Now().Add(-time.Duration(randInt(300)) * time.Second),
@@ -108,6 +122,20 @@ func (m *MockProvider) RefreshHardware() {
 	m.mu.Lock()
 	m.cachedStats = s
 	m.mu.Unlock()
+}
+
+func toProcEntries(samples []procSample) []ProcEntry {
+	out := make([]ProcEntry, len(samples))
+	for i, s := range samples {
+		out[i] = ProcEntry{Name: s.Name, PID: s.PID, CPU: s.CPU, MemMB: s.MemMB}
+	}
+	return out
+}
+
+func (m *MockProvider) TopProcesses() []ProcEntry {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.cachedStats.Procs
 }
 
 func avg(vals []float64) float64 {

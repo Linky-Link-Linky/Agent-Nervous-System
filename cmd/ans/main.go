@@ -23,7 +23,7 @@ func main() {
 			commands.PrintUsageTo(os.Stderr)
 			os.Exit(0)
 		}
-		cmdDashboard()
+		cmdDashboard(3)
 		return
 	}
 
@@ -33,8 +33,22 @@ func main() {
 	}
 
 	if os.Args[1] == "dashboard" || os.Args[1] == "dash" {
-		cmdDashboard()
+		refreshSec := 3
+		if len(os.Args) > 2 {
+			if os.Args[2] == "--refresh" && len(os.Args) > 3 {
+				if s, err := strconv.Atoi(os.Args[3]); err == nil {
+					refreshSec = s
+				}
+			}
+		}
+		cmdDashboard(refreshSec)
 		return
+	}
+	if os.Getenv("ANS_DASHBOARD_REFRESH") != "" {
+		if s, err := strconv.Atoi(os.Getenv("ANS_DASHBOARD_REFRESH")); err == nil {
+			runDashboard(s)
+			return
+		}
 	}
 
 	if err := commands.Dispatch(os.Args[1:]); err != nil {
@@ -78,7 +92,15 @@ func runDaemon() {
 	}
 }
 
-func cmdDashboard() {
+func runDashboard(refreshSec int) {
+	app := dashboard.NewApp(refreshSec)
+	if err := app.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "ans: dashboard error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func cmdDashboard(refreshSec int) {
 	if conn, err := daemon.Dial(); err != nil {
 		if self, exeErr := os.Executable(); exeErr == nil {
 			cmd := exec.Command(self, "_daemon")
@@ -96,12 +118,7 @@ func cmdDashboard() {
 	} else {
 		conn.Close()
 	}
-
-	app := dashboard.NewApp()
-	if err := app.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "ans: dashboard error: %v\n", err)
-		os.Exit(1)
-	}
+	runDashboard(refreshSec)
 }
 
 // --- helpers ---

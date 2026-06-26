@@ -58,10 +58,28 @@ type MemStats struct {
 	Pct      float64
 }
 
+type DiskStats struct {
+	ReadSpeedMBs  float64
+	WriteSpeedMBs float64
+	UsedGB        int
+	TotalGB       int
+	Pct           float64
+}
+
+type NetStats struct {
+	BytesInMB  float64
+	BytesOutMB float64
+	SpeedInMBs float64
+	SpeedOutMBs float64
+}
+
 type ComponentStats struct {
 	CPU            CPUStats
 	GPU            GPUStats
 	Mem            MemStats
+	Disk           DiskStats
+	Net            NetStats
+	Procs          []ProcEntry
 	ActiveRules    int
 	Violations24h  int
 	LastEnforcement time.Time
@@ -82,10 +100,18 @@ type ChartDataPoint struct {
 	Values  map[Component]float64
 }
 
+type ProcEntry struct {
+	Name   string
+	PID    int
+	CPU    float64
+	MemMB  int
+}
+
 type DashboardProvider interface {
 	Stats() ComponentStats
 	RefreshHardware()
 	RecentEvents() []AuditEvent
 	ChartData() []ChartDataPoint
 	ActiveRules() []RuleEntry
+	TopProcesses() []ProcEntry
 }
