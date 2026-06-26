@@ -182,90 +182,81 @@ func (p *overviewPanel) render() {
 	s := p.last
 	p.mu.Unlock()
 
-	barWidth := 20
+	barWidth := 12
 
 	cpuModel := s.CPU.Model
 	if cpuModel == "" {
 		cpuModel = fmt.Sprintf("%d cores", s.CPU.Cores)
 	}
-
-	cpuLabel := fmt.Sprintf("[#e2e8f0]CPU[-] [#94a3b8]%s[-]", cpuModel)
 	cpuPct := s.CPU.UsagePct
 	cpuBar := bar(cpuPct, barWidth)
 	cpuSpark := spark(p.cpuHist.samples())
-	cpuLine := fmt.Sprintf("  %s  %s\n  %s [#e2e8f0]%5.1f%%[-]\n", cpuLabel, cpuSpark, cpuBar, cpuPct)
+	cpuLine := fmt.Sprintf("  [#e2e8f0]CPU[-] %s [#e2e8f0]%5.1f%%[-]  %s  %s\n",
+		cpuBar, cpuPct, cpuSpark, cpuModel)
 
-	coreLines := ""
-	for i := 0; i < len(s.CPU.PerCore) && i < 8; i++ {
-		if i%2 == 0 {
-			coreLines += "  "
-		} else {
-			coreLines += "      "
-		}
-		corePct := s.CPU.PerCore[i]
-		coreBar := bar(corePct, 10)
-		coreLines += fmt.Sprintf("[#94a3b8]C%d[-] %s [#e2e8f0]%5.1f%%[-]", i, coreBar, corePct)
-		if i%2 == 1 || i == len(s.CPU.PerCore)-1 || i == 7 {
-			coreLines += "\n"
-		} else {
-			coreLines += "  "
-		}
+	coreParts := make([]string, 0, 8)
+	ncores := len(s.CPU.PerCore)
+	if ncores > 8 {
+		ncores = 8
 	}
+	for i := 0; i < ncores; i++ {
+		cb := bar(s.CPU.PerCore[i], 3)
+		coreParts = append(coreParts, fmt.Sprintf("[#94a3b8]C%d[-]%s", i, cb))
+	}
+	coreLine := fmt.Sprintf("  %s\n", strings.Join(coreParts, " "))
 
 	memPct := s.Mem.Pct
 	memBar := bar(memPct, barWidth)
 	memSpark := spark(p.memHist.samples())
-	memLine := fmt.Sprintf("  [#e2e8f0]MEM[-]  %s\n  %s [#e2e8f0]%d/%d GB[-] [#94a3b8](%5.1f%%)[-]\n",
-		memSpark, memBar, s.Mem.UsedGB, s.Mem.TotalGB, memPct)
-
-	gpuLines := ""
-	if s.GPU.Count > 0 {
-		for i, m := range s.GPU.Models {
-			gpuLines += fmt.Sprintf("  [#e2e8f0]GPU %d[-] [#94a3b8]%s[-]\n", i+1, m)
-			if s.GPU.UsagePct > 0 {
-				gpuBar := bar(s.GPU.UsagePct, barWidth)
-				gpuLines += fmt.Sprintf("  %s [#e2e8f0]%5.1f%%[-]\n", gpuBar, s.GPU.UsagePct)
-			}
-			if s.GPU.MemTotalMB > 0 {
-				gpuMemPct := float64(s.GPU.MemUsedMB) / float64(s.GPU.MemTotalMB) * 100
-				gpuMemBar := bar(gpuMemPct, barWidth)
-				gpuLines += fmt.Sprintf("  [#94a3b8]VRAM[-] %s [#e2e8f0]%d/%d MB[-]\n", gpuMemBar, s.GPU.MemUsedMB, s.GPU.MemTotalMB)
-			}
-			if s.GPU.TempC > 0 {
-				gpuLines += fmt.Sprintf("  [#94a3b8]Temp[-] [#e2e8f0]%.0f°C[-]\n", s.GPU.TempC)
-			}
-		}
-	} else {
-		gpuLines = "  [#94a3b8]GPU: none detected[-]\n"
-	}
+	memLine := fmt.Sprintf("  [#e2e8f0]MEM[-] %s [#e2e8f0]%d/%d GB[-] [#94a3b8](%5.1f%%)[-]  %s\n",
+		memBar, s.Mem.UsedGB, s.Mem.TotalGB, memPct, memSpark)
 
 	diskLine := ""
 	if s.Disk.TotalGB > 0 {
 		diskBar := bar(s.Disk.Pct, barWidth)
-		diskLine = fmt.Sprintf("\n  [#e2e8f0]DISK[-]\n  %s [#e2e8f0]%d/%d GB[-] [#94a3b8](%5.1f%%)[-]  [#94a3b8]R:%s W:%s[-]\n",
+		diskLine = fmt.Sprintf("  [#e2e8f0]DISK[-] %s [#e2e8f0]%d/%d GB[-] [#94a3b8](%5.1f%%)[-]  [#94a3b8]R:%.0f W:%.0f MB/s[-]\n",
 			diskBar, s.Disk.UsedGB, s.Disk.TotalGB, s.Disk.Pct,
-			fmt.Sprintf("%.1fMB/s", s.Disk.ReadSpeedMBs),
-			fmt.Sprintf("%.1fMB/s", s.Disk.WriteSpeedMBs))
+			s.Disk.ReadSpeedMBs, s.Disk.WriteSpeedMBs)
 	}
 
-	netLine := fmt.Sprintf("\n  [#e2e8f0]NET[-]\n  [#94a3b8]▼ %.1f MB/s[-]  [#94a3b8]▲ %.1f MB/s[-]  [#1a6b3a]%s[-]\n",
-		s.Net.SpeedInMBs, s.Net.SpeedOutMBs,
-		fmt.Sprintf("total: %.0f↓/%.0f↑ MB", s.Net.BytesInMB, s.Net.BytesOutMB))
+	netLine := fmt.Sprintf("  [#e2e8f0]NET[-]  [#94a3b8]▼%.0f ▲%.0f MB/s[-]  [#1a6b3a]%.0f↓/%.0f↑ MB[-]\n",
+		s.Net.SpeedInMBs, s.Net.SpeedOutMBs, s.Net.BytesInMB, s.Net.BytesOutMB)
+
+	gpuLines := ""
+	if s.GPU.Count > 0 {
+		parts := make([]string, 0, 3)
+		for i, m := range s.GPU.Models {
+			info := fmt.Sprintf("[#e2e8f0]GPU%d[-] [#94a3b8]%s[-]", i+1, trunc(m, 20))
+			if s.GPU.UsagePct > 0 {
+				info += fmt.Sprintf(" %.0f%%", s.GPU.UsagePct)
+			}
+			if s.GPU.MemTotalMB > 0 {
+				info += fmt.Sprintf(" [/#4a3b8]%d/%d MB[-]", s.GPU.MemUsedMB, s.GPU.MemTotalMB)
+			}
+			if s.GPU.TempC > 0 {
+				info += fmt.Sprintf(" %.0f°C", s.GPU.TempC)
+			}
+			parts = append(parts, info)
+		}
+		gpuLines = "  [#e2e8f0]GPU[-] " + strings.Join(parts, "  ") + "\n"
+	} else {
+		gpuLines = ""
+	}
 
 	procLines := ""
 	if len(s.Procs) > 0 {
-		procLines += "\n  [#e2e8f0]TOP PROCESSES[-]\n"
+		procs := make([]string, 0, 3)
 		for i, p := range s.Procs {
-			if i >= 5 {
+			if i >= 3 {
 				break
 			}
-			procBar := bar(p.CPU, 10)
-			procLines += fmt.Sprintf("  [#94a3b8]%-16s[-] %s [#e2e8f0]%5.1f%%[-] [#94a3b8]%d MB[-]\n",
-				trunc(p.Name, 16), procBar, p.CPU, p.MemMB)
+			procs = append(procs, fmt.Sprintf("[#94a3b8]%s[-] [#e2e8f0]%.0f%%[-] [#94a3b8]%d MB[-]",
+				trunc(p.Name, 12), p.CPU, p.MemMB))
 		}
+		procLines = "  [#e2e8f0]PROC[-] " + strings.Join(procs, " │ ") + "\n"
 	}
 
-	text := cpuLine + coreLines + memLine + diskLine + netLine + procLines + gpuLines
+	text := cpuLine + coreLine + memLine + diskLine + netLine + gpuLines + procLines
 	p.SetText(strings.TrimRight(text, "\n"))
 }
 
