@@ -154,7 +154,7 @@ func (c *commandBar) execute(raw string) {
 		return
 	}
 
-	c.runCmdAsync(raw, parts, 30*time.Second)
+	c.runCmdAsync(raw, parts, 8*time.Second)
 }
 
 func (c *commandBar) runCmdAsync(raw string, parts []string, timeout time.Duration) {
@@ -162,32 +162,45 @@ func (c *commandBar) runCmdAsync(raw string, parts []string, timeout time.Durati
 	c.showOutput(pending)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				c.app.QueueUpdateDraw(func() {
+					c.showOutput(fmt.Sprintf("[#2ecc71]>[-] [#e2e8f0]%s[-]\n[#ff6b6b]panic: %v[-]", escBrackets(raw), r))
+				})
+			}
+		}()
+
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
 
-		done := make(chan string, 1)
+		type cmdResult struct {
+			text string
+			err  error
+		}
+		done := make(chan cmdResult, 1)
 
 		go func() {
 			var buf strings.Builder
 			err := commands.DispatchTo(&buf, parts)
-			result := buf.String()
-			if err != nil && err.Error() != "" {
-				if result != "" && !strings.HasSuffix(result, "\n") {
-					result += "\n"
-				}
-				result += err.Error()
-			}
-			if result == "" {
-				result = "(ok)"
-			}
-			done <- result
+			done <- cmdResult{text: buf.String(), err: err}
 		}()
 
-		var result string
+		var res cmdResult
 		select {
-		case result = <-done:
+		case res = <-done:
 		case <-ctx.Done():
-			result = "command timed out"
+			res = cmdResult{text: "", err: fmt.Errorf("command timed out (%v)", timeout)}
+		}
+
+		result := res.text
+		if res.err != nil && res.err.Error() != "" {
+			if result != "" && !strings.HasSuffix(result, "\n") {
+				result += "\n"
+			}
+			result += res.err.Error()
+		}
+		if result == "" {
+			result = "(ok)"
 		}
 
 		plain := stripANSI(result)
@@ -199,7 +212,6 @@ func (c *commandBar) runCmdAsync(raw string, parts []string, timeout time.Durati
 
 		c.app.QueueUpdateDraw(func() {
 			c.showOutput(display)
-			c.provider.RecentEvents()
 		})
 	}()
 }

@@ -62,8 +62,17 @@ func newAuditLogPanel(prov providers.DashboardProvider, app *tview.Application) 
 	return p
 }
 
+// refresh fetches from provider then renders (can block — call from background).
 func (p *auditLogPanel) refresh() {
 	evs := p.prov.RecentEvents()
+	p.mu.Lock()
+	p.events = evs
+	p.mu.Unlock()
+	p.render()
+}
+
+// setEvents stores pre-fetched events and renders (safe for QueueUpdateDraw).
+func (p *auditLogPanel) setEvents(evs []providers.AuditEvent) {
 	p.mu.Lock()
 	p.events = evs
 	p.mu.Unlock()

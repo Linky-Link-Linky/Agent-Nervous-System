@@ -10,7 +10,9 @@ import (
 
 type policyPanel struct {
 	*tview.TextView
-	prov providers.DashboardProvider
+	prov       providers.DashboardProvider
+	cached     providers.ComponentStats
+	cachedRules []providers.RuleEntry
 }
 
 func newPolicyPanel(prov providers.DashboardProvider) *policyPanel {
@@ -29,10 +31,23 @@ func newPolicyPanel(prov providers.DashboardProvider) *policyPanel {
 	return p
 }
 
+// refresh fetches from provider then renders (can block — call from background).
 func (p *policyPanel) refresh() {
 	s := p.prov.Stats()
 	rules := p.prov.ActiveRules()
+	p.cached = s
+	p.cachedRules = rules
+	p.renderWith(s, rules)
+}
 
+// setData stores pre-fetched data and renders (safe for QueueUpdateDraw).
+func (p *policyPanel) setData(s providers.ComponentStats, rules []providers.RuleEntry) {
+	p.cached = s
+	p.cachedRules = rules
+	p.renderWith(s, rules)
+}
+
+func (p *policyPanel) renderWith(s providers.ComponentStats, rules []providers.RuleEntry) {
 	var b strings.Builder
 	if s.ActiveRules == 0 && len(rules) == 0 {
 		b.WriteString("[#94a3b8]Policy engine idle. Start the daemon with 'ans start' to enable policy enforcement.[-]")

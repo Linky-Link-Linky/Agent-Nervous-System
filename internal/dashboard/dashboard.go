@@ -419,28 +419,38 @@ func (a *App) dataLoop() {
 		case <-tick.C:
 			a.provider.RefreshHardware()
 			a.overview.sample()
+
+			// Fetch blocking data in background before QueueUpdateDraw
+			events := a.provider.RecentEvents()
+			s := a.provider.Stats()
+			rules := a.provider.ActiveRules()
+
 			a.tview.QueueUpdateDraw(func() {
 				a.overview.refresh()
 				a.chart.refresh()
-				a.auditLog.refresh()
-				a.policy.refresh()
+				a.auditLog.setEvents(events)
+				a.policy.setData(s, rules)
 				a.statusBar.refresh()
 				a.checkAlerts()
 			})
 		case <-reconnTick.C:
-			// If using mock (daemon was down), periodically probe for daemon
 			if a.realProv != nil {
 				if _, ok := a.provider.(*providers.MockProvider); ok {
 					if a.realProv.TryReconnect() {
 						a.provider = providers.DashboardProvider(a.realProv)
 						a.provider.RefreshHardware()
 						a.overview.sample()
+
+						ev := a.provider.RecentEvents()
+						st := a.provider.Stats()
+						rl := a.provider.ActiveRules()
+
 						a.tview.QueueUpdateDraw(func() {
 							a.showAlert("Reconnected to daemon")
 							a.overview.refresh()
 							a.chart.refresh()
-							a.auditLog.refresh()
-							a.policy.refresh()
+							a.auditLog.setEvents(ev)
+							a.policy.setData(st, rl)
 							a.statusBar.refresh()
 						})
 					}
@@ -453,7 +463,7 @@ func (a *App) dataLoop() {
 }
 
 func (a *App) checkAlerts() {
-	s := a.provider.Stats()
+	s := a.provider.Stats() // Stats() is a fast mutex read
 	if s.Violations24h > 20 {
 		a.alertBar.SetBackgroundColor(tcell.NewRGBColor(0x7F, 0x1F, 0x1F))
 		a.showAlert(fmt.Sprintf("ALERT: %d policy violations in the last 24 hours", s.Violations24h))
