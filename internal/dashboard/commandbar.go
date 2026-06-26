@@ -38,6 +38,7 @@ func newCommandBar(app *tview.Application, provider providers.DashboardProvider)
 	input.SetBackgroundColor(bgColor)
 	input.SetPlaceholderTextColor(tcell.NewRGBColor(0x94, 0xA3, 0xB8))
 	input.SetFieldTextColor(foreground)
+	input.SetFieldBackgroundColor(bgColor)
 	input.SetLabelColor(primaryColor)
 
 	output := tview.NewTextView().

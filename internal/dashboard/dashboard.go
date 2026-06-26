@@ -203,7 +203,27 @@ func (a *App) Run() error {
 		}
 		if a.cmdBar.input.GetText() == "" {
 			switch ev.Key() {
-			case tcell.KeyTab, tcell.KeyBacktab, tcell.KeyLeft, tcell.KeyRight:
+			case tcell.KeyTab:
+				if a.currentTab == 0 {
+					a.tiled.focusNext()
+					a.tview.QueueUpdateDraw(func() {
+						a.tiled.updateFocusBorder()
+					})
+				} else {
+					a.handleTabNav(tcell.KeyTab)
+				}
+				return nil
+			case tcell.KeyBacktab:
+				if a.currentTab == 0 {
+					a.tiled.focusPrev()
+					a.tview.QueueUpdateDraw(func() {
+						a.tiled.updateFocusBorder()
+					})
+				} else {
+					a.handleTabNav(tcell.KeyBacktab)
+				}
+				return nil
+			case tcell.KeyLeft, tcell.KeyRight:
 				a.handleTabNav(ev.Key())
 				return nil
 			}
@@ -243,6 +263,9 @@ func (a *App) Run() error {
 				return nil
 			case 'i', 'I':
 				a.tiled.toggleSidebar()
+				return nil
+			case 'k', 'K':
+				a.tiled.cycleSort()
 				return nil
 			}
 		}
@@ -389,7 +412,7 @@ func (a *App) buildTabHint() tview.Primitive {
 	tv := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignRight).
-		SetText("[#334155]Tab/← → switch │ o settings │ i sidebar │ t theme │ q quit[-]")
+		SetText("[#334155]Tab focus │ ← → switch │ k sort │ o set │ i side│ t thm │ q quit[-]")
 	tv.SetBackgroundColor(bgColor)
 	return tv
 }

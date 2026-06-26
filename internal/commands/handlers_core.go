@@ -652,6 +652,9 @@ func cmdUninstall(w io.Writer, args []string) error {
 	fmt.Fprintln(w)
 	pretty.Step(w, 4, "Reinstall anytime with")
 	pretty.Code(w, `irm https://raw.githubusercontent.com/Linky-Link-Linky/Agent-Nervous-System/master/scripts/install.ps1 | iex`)
+	fmt.Fprintln(w)
+	time.Sleep(2 * time.Second)
+	os.Exit(0)
 	return nil
 }
 

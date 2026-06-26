@@ -33,6 +33,7 @@ func newAuditLogPanel(prov providers.DashboardProvider, app *tview.Application) 
 	filterInp.SetBackgroundColor(bgColor)
 	filterInp.SetPlaceholderTextColor(dimText)
 	filterInp.SetFieldTextColor(foreground)
+	filterInp.SetFieldBackgroundColor(bgColor)
 	filterInp.SetLabelColor(dimText)
 
 	p := &auditLogPanel{
