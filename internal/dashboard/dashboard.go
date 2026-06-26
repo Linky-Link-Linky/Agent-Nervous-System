@@ -117,6 +117,7 @@ type App struct {
 	alertBar  *tview.TextView
 	alertTimer *time.Timer
 	realProv  *providers.RealProvider
+	tiled     *tiledLayout
 
 	currentTab   int
 	stopCh       chan struct{}
@@ -139,6 +140,7 @@ func NewApp(refreshInterval int) *App {
 
 	overview := newOverviewPanel(prov)
 	chart := newChartPanel(prov)
+	tiled := newTiledLayout(prov)
 
 	a := &App{
 		tview:       tview.NewApplication(),
@@ -149,6 +151,7 @@ func NewApp(refreshInterval int) *App {
 		stopCh:      make(chan struct{}),
 		refreshSec:  refreshInterval,
 		overview:    overview,
+		tiled:       tiled,
 	}
 
 	auditLog := newAuditLogPanel(prov, a.tview)
@@ -167,7 +170,7 @@ func NewApp(refreshInterval int) *App {
 	a.alertBar.SetText("")
 
 	a.tabPages = tview.NewPages()
-	a.tabPages.AddPage("overview", a.overview, true, true)
+	a.tabPages.AddPage("overview", a.tiled, true, true)
 	a.tabPages.AddPage("chart", a.chart, true, false)
 	a.tabPages.AddPage("audit", a.auditLog, true, false)
 	a.tabPages.AddPage("policy", a.policy, true, false)
@@ -235,6 +238,12 @@ func (a *App) Run() error {
 			case 't', 'T':
 				a.cycleTheme()
 				return nil
+			case 'o', 'O':
+				a.showSettings()
+				return nil
+			case 'i', 'I':
+				a.tiled.toggleSidebar()
+				return nil
 			}
 		}
 		return ev
@@ -287,6 +296,10 @@ func (a *App) cycleTheme() {
 		a.auditLog.refresh()
 		a.policy.refresh()
 		a.statusBar.refresh()
+		s := a.provider.Stats()
+		ev := a.provider.RecentEvents()
+		rules := a.provider.ActiveRules()
+		a.tiled.updateAll(s, ev, rules)
 	})
 }
 
@@ -376,7 +389,7 @@ func (a *App) buildTabHint() tview.Primitive {
 	tv := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignRight).
-		SetText("[#334155]Tab/← → switch │ Esc clear │ t theme │ q quit[-]")
+		SetText("[#334155]Tab/← → switch │ o settings │ i sidebar │ t theme │ q quit[-]")
 	tv.SetBackgroundColor(bgColor)
 	return tv
 }
@@ -431,6 +444,7 @@ func (a *App) dataLoop() {
 				a.auditLog.setEvents(events)
 				a.policy.setData(s, rules)
 				a.statusBar.refresh()
+				a.tiled.updateAll(s, events, rules)
 				a.checkAlerts()
 			})
 		case <-reconnTick.C:
