@@ -44,12 +44,52 @@ type Daemon struct {
 	NDJSONWriter io.Writer
 	WebhookURL   string
 
-	mcpMu sync.Mutex
+	mcpMu      sync.Mutex
+	auditMu    sync.Mutex
+	auditRing  [200]AuditEventEntry
+	auditIdx   int
+	auditCount int
+}
+
+// recordAuditEvent pushes an event into the ring buffer (thread-safe).
+func (d *Daemon) recordAuditEvent(component, eventType, description string) {
+	d.auditMu.Lock()
+	d.auditRing[d.auditIdx%200] = AuditEventEntry{
+		TimestampNS: time.Now().UnixNano(),
+		Component:   component,
+		EventType:   eventType,
+		Description: description,
+	}
+	d.auditIdx++
+	if d.auditCount < 200 {
+		d.auditCount++
+	}
+	d.auditMu.Unlock()
+}
+
+// getAuditEvents returns up to limit recent events (thread-safe).
+func (d *Daemon) getAuditEvents(limit int) []AuditEventEntry {
+	d.auditMu.Lock()
+	defer d.auditMu.Unlock()
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	if limit > d.auditCount {
+		limit = d.auditCount
+	}
+	start := (d.auditIdx - limit + 200) % 200
+	out := make([]AuditEventEntry, limit)
+	for i := 0; i < limit; i++ {
+		out[i] = d.auditRing[(start+i)%200]
+	}
+	return out
 }
 
 // afterAppend is called after every successful receipt append.
 // Emits NDJSON line to NDJSONWriter, fires webhook POST if configured.
 func (d *Daemon) afterAppend(rawReceipt json.RawMessage) {
+	d.recordAuditEvent("receipt-chain", "COMMIT", "receipt appended")
+
 	if d.NDJSONWriter != nil {
 		var buf bytes.Buffer
 		buf.WriteString(`{"type":"receipt","data":`)

@@ -134,6 +134,8 @@ func (h *Handler) Handle(ctx context.Context, conn net.Conn) {
 			h.handleSnapshotList(conn, f.Body)
 		case MsgSnapshotDiff:
 			h.handleSnapshotDiff(conn, f.Body)
+		case MsgAuditEvents:
+			h.handleAuditEvents(conn, f.Body)
 		default:
 			writeOK(conn, MsgError, ErrorResp{Message: fmt.Sprintf("unknown msg type 0x%02x", f.Type)})
 		}
@@ -679,6 +681,15 @@ func (h *Handler) handleSnapshotDiff(conn net.Conn, body []byte) {
 		Modified: modified,
 		Deleted:  deleted,
 	})
+}
+
+func (h *Handler) handleAuditEvents(conn net.Conn, body []byte) {
+	var req AuditEventsReq
+	if len(body) > 0 {
+		_ = json.Unmarshal(body, &req)
+	}
+	events := h.daemon.getAuditEvents(req.Limit)
+	writeOK(conn, MsgAuditEventsResp, AuditEventsResp{Events: events})
 }
 
 func (h *Handler) handlePolicyRegister(conn net.Conn, body []byte) {

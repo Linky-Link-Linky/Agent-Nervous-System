@@ -17,13 +17,16 @@
 
 ```bash
 # One daemon. Zero config. Full cryptographic accountability.
+ans                           # Launch the TUI dashboard
 ans start                      # Start the daemon
 ans chain                      # See every action, ever
+ans agents                     # List registered agents
 ans verify --chain             # Prove nothing was tampered with
 ans time-travel 42             # Rewind workspace to chain index 42
 ans compensate 42 --dry-run    # Preview undo actions
 ans policy add my-policy.json  # Register a deny policy
 ans mcp start --listen :8080   # Secure MCP traffic
+ans update                     # Update ANS to the latest version
 ```
 
 **Works fully offline. One static binary. No SaaS, no API keys, no monthly bill.**
@@ -137,14 +140,18 @@ Run it, then `ans chain` again — a new receipt appears.
 
 | I want to... | Run this |
 |-------------|----------|
+| Open the TUI dashboard | `ans` (no args) |
 | See every action in detail | `ans chain --n 50` |
 | Verify the chain hasn't been tampered with | `ans verify --chain` |
+| List registered agents | `ans agents` |
 | Rewind workspace to a point in time | `ans time-travel 42` |
 | Preview undo for an action | `ans compensate 42 --dry-run` |
 | Register a deny policy | `ans policy add examples/policies/no-pii-open-weights.json` |
 | Export a compliance PDF | `ans export --format pdf --output audit.pdf` |
 | Compact old receipts (infinite scale) | `ans prune --up-to 10000` |
 | Secure an MCP server | `ans mcp start --listen :8080 --target http://localhost:9090` |
+| Update ANS | `ans update` |
+| Uninstall ANS | `ans uninstall` |
 | Get help | `ans help` |
 
 ### Troubleshooting
@@ -189,6 +196,8 @@ ans start           # launch daemon in background
 ```
 
 That's it. The daemon listens on a local Unix socket (or named pipe on Windows). No cloud, no accounts, no API keys.
+
+Alternatively, run `ans` with no arguments to launch the real-time TUI dashboard with resource monitoring, audit trail, and a command bar for running all CLI commands interactively.
 
 ### 3. Register an Agent Identity
 
@@ -1328,9 +1337,11 @@ Audit trails should be as fundamental as `git`. You don't pay a vendor per commi
 ANS gives you the receipts — cryptographically signed, hash-linked, timestamped, snapshot-backed, verifiable, exportable, and time-travel-rewindable.
 
 ```bash
+ans                          # launch the TUI dashboard
 ans start                    # daemon started
 # ... agents run, tools get called ...
 ans chain                    # see everything, ordered causally
+ans agents                   # list registered agents
 ans verify --chain           # prove nothing was tampered with
 ans time-travel <index>      # rewind to any point in time
 ans compensate <index>       # undo an action
@@ -1338,6 +1349,7 @@ ans policy list              # check active policies
 ans token list               # see active ephemeral credentials
 ans mcp status               # monitor MCP traffic security
 ans export --format pdf      # export a compliance-ready audit report
+ans update                   # update to the latest version
 ```
 
 ---

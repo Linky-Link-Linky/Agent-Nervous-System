@@ -119,6 +119,10 @@ func DispatchTo(w io.Writer, args []string) error {
 		printVersion(w)
 		return nil
 	case "help", "--help", "-h":
+		if len(args) > 1 && args[1] != "--help" && args[1] != "-h" {
+			subArgs := append([]string{args[1]}, "--help")
+			return DispatchTo(w, subArgs)
+		}
 		PrintUsageTo(w)
 		return nil
 	default:

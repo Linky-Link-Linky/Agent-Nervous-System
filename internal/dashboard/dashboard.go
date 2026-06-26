@@ -2,8 +2,10 @@ package dashboard
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/daemon"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/dashboard/providers"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -24,9 +26,11 @@ var (
 
 
 type App struct {
-	tview   *tview.Application
-	provider providers.DashboardProvider
-	pages   *tview.Pages
+	tview    *tview.Application
+	provider  providers.DashboardProvider
+	pages    *tview.Pages
+	tabPages *tview.Pages
+	tabBar   *tview.TextView
 
 	overview  *overviewPanel
 	chart     *chartPanel
@@ -35,24 +39,45 @@ type App struct {
 	statusBar *statusBarPanel
 	cmdBar    *commandBar
 
-	stopCh chan struct{}
+	currentTab int
+	stopCh     chan struct{}
 }
 
 func NewApp() *App {
-	prov := providers.NewMockProvider()
-
-	a := &App{
-		tview:    tview.NewApplication(),
-		provider: prov,
-		pages:    tview.NewPages(),
-		stopCh:   make(chan struct{}),
+	prov := providers.DashboardProvider(providers.NewRealProvider())
+	// If daemon is not running, fall back to mock provider for demonstration
+	if _, err := daemon.Dial(); err != nil {
+		prov = providers.NewMockProvider()
 	}
 
-	a.overview = newOverviewPanel(prov)
-	a.chart = newChartPanel(prov)
-	a.auditLog = newAuditLogPanel(prov)
-	a.policy = newPolicyPanel(prov)
-	a.statusBar = newStatusBarPanel(prov)
+	overview := newOverviewPanel(prov)
+	chart := newChartPanel(prov)
+	auditLog := newAuditLogPanel(prov)
+	policy := newPolicyPanel(prov)
+	statusBar := newStatusBarPanel(prov)
+
+	a := &App{
+		tview:      tview.NewApplication(),
+		provider:   prov,
+		pages:      tview.NewPages(),
+		currentTab: 0,
+		stopCh:     make(chan struct{}),
+		overview:   overview,
+		chart:      chart,
+		auditLog:   auditLog,
+		policy:     policy,
+		statusBar:  statusBar,
+	}
+
+	a.tabPages = tview.NewPages()
+	a.tabPages.AddPage("overview", a.overview, true, true)
+	a.tabPages.AddPage("chart", a.chart, true, false)
+	a.tabPages.AddPage("audit", a.auditLog, true, false)
+	a.tabPages.AddPage("policy", a.policy, true, false)
+	a.tabBar = tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignLeft)
+	a.tabBar.SetBackgroundColor(bgColor)
+	a.renderTabBar()
+
 	a.cmdBar = newCommandBar(a.tview, prov)
 
 	return a
@@ -63,6 +88,13 @@ func (a *App) Run() error {
 		if ev.Key() == tcell.KeyCtrlC {
 			a.tview.Stop()
 			return nil
+		}
+		if a.cmdBar.input.GetText() == "" {
+			switch ev.Key() {
+			case tcell.KeyTab, tcell.KeyBacktab, tcell.KeyLeft, tcell.KeyRight:
+				a.handleTabNav(ev.Key())
+				return nil
+			}
 		}
 		// Hotkeys only fire when the input field is empty
 		if a.cmdBar.input.GetText() == "" {
@@ -158,25 +190,15 @@ func (a *App) buildSplash() tview.Primitive {
 }
 
 func (a *App) buildMainUI() tview.Primitive {
-	header := a.buildHeader()
-
-	resFlex := tview.NewFlex().
-		AddItem(a.overview, 0, 1, false)
-
-	midFlex := tview.NewFlex().
-		SetDirection(tview.FlexRow).
-		AddItem(resFlex, 12, 0, false).
-		AddItem(a.chart, 0, 1, false)
-
-	bottomFlex := tview.NewFlex().
-		AddItem(a.auditLog, 0, 1, false).
-		AddItem(a.policy, 0, 1, false)
+	tabBar := tview.NewFlex().
+		AddItem(a.tabBar, 0, 1, false).
+		AddItem(a.buildTabHint(), 0, 1, false)
+	tabBar.SetBackgroundColor(bgColor)
 
 	mainFlex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(header, 3, 0, false).
-		AddItem(midFlex, 0, 3, false).
-		AddItem(bottomFlex, 0, 3, false).
+		AddItem(tabBar, 1, 0, false).
+		AddItem(a.tabPages, 0, 1, false).
 		AddItem(a.cmdBar.flex, 6, 0, false).
 		AddItem(a.statusBar, 1, 0, false)
 
@@ -184,20 +206,55 @@ func (a *App) buildMainUI() tview.Primitive {
 	return mainFlex
 }
 
-func (a *App) buildHeader() tview.Primitive {
-	dots := ""
-	for i := 0; i < 16; i++ {
-		dots += "[#2ecc71]■[-]  "
+var tabNames = []string{"overview", "chart", "audit", "policy"}
+
+func (a *App) renderTabBar() {
+	parts := make([]string, len(tabNames))
+	for i, name := range tabNames {
+		if i == a.currentTab {
+			parts[i] = fmt.Sprintf("[#2ecc71]● %s[-]", name)
+		} else {
+			parts[i] = fmt.Sprintf("[#334155]○ %s[-]", name)
+		}
 	}
+	a.tabBar.SetText(strings.Join(parts, "  [#334155]│[-]  "))
+}
 
-	text := fmt.Sprintf("[#94a3b8]v0.8.0[-]  %s[#2ecc71]AGENT NERVOUS SYSTEM[-]", dots)
-
+func (a *App) buildTabHint() tview.Primitive {
 	tv := tview.NewTextView().
 		SetDynamicColors(true).
-		SetTextAlign(tview.AlignLeft).
-		SetText(text)
+		SetTextAlign(tview.AlignRight).
+		SetText("[#334155]Tab/← → switch │ Esc clear │ q quit[-]")
 	tv.SetBackgroundColor(bgColor)
 	return tv
+}
+
+func (a *App) switchToTab(idx int) {
+	if idx < 0 {
+		idx = len(tabNames) - 1
+	}
+	if idx >= len(tabNames) {
+		idx = 0
+	}
+	a.currentTab = idx
+	a.renderTabBar()
+	a.tabPages.SwitchToPage(tabNames[idx])
+}
+
+func (a *App) handleTabNav(key tcell.Key) {
+	if a.cmdBar.input.GetText() != "" {
+		return
+	}
+	switch key {
+	case tcell.KeyTab:
+		a.switchToTab(a.currentTab + 1)
+	case tcell.KeyBacktab:
+		a.switchToTab(a.currentTab - 1)
+	case tcell.KeyLeft:
+		a.switchToTab(a.currentTab - 1)
+	case tcell.KeyRight:
+		a.switchToTab(a.currentTab + 1)
+	}
 }
 
 func (a *App) dataLoop() {
@@ -219,16 +276,6 @@ func (a *App) dataLoop() {
 			return
 		}
 	}
-}
-
-func (a *App) triggerSnapshot() {
-	ev := providers.AuditEvent{
-		Timestamp: time.Now(),
-		Component: providers.SnapshotEngine,
-		EventType: providers.EventSnapshot,
-		Hash:      fmt.Sprintf("%x", time.Now().UnixNano())[:12],
-	}
-	a.auditLog.injectEvent(ev)
 }
 
 func fmtDuration(d time.Duration) string {

@@ -63,6 +63,8 @@ const (
 	MsgMCPLogResp          byte = 0x38
 	MsgSnapshotDiff        byte = 0x39
 	MsgSnapshotDiffResp    byte = 0x3A
+	MsgAuditEvents         byte = 0x3B
+	MsgAuditEventsResp     byte = 0x3C
 	MsgError               byte = 0xFF
 
 	MaxFrameSize uint32 = 4 * 1024 * 1024 // 4 MB
@@ -505,4 +507,22 @@ type MCPLogEntry struct {
 	Pruned        bool   `json:"pruned"`
 	PrunedChars   int    `json:"pruned_chars"`
 	TimestampNS   int64  `json:"timestamp_ns"`
+}
+
+// AuditEventsReq requests recent daemon audit events.
+type AuditEventsReq struct {
+	Limit int `json:"limit,omitempty"`
+}
+
+// AuditEventsResp returns recent daemon audit events.
+type AuditEventsResp struct {
+	Events []AuditEventEntry `json:"events"`
+}
+
+// AuditEventEntry is a single daemon audit event.
+type AuditEventEntry struct {
+	TimestampNS int64  `json:"timestamp_ns"`
+	Component   string `json:"component"`
+	EventType   string `json:"event_type"`
+	Description string `json:"description,omitempty"`
 }

@@ -136,8 +136,7 @@ func (c *commandBar) execute(raw string) {
 
 	if cmdName == "help" || cmdName == "--help" || cmdName == "-h" {
 		if len(parts) > 1 {
-			rest := strings.Join(parts[1:], " ")
-			c.runCmdAsync(raw, strings.Fields(rest), 10*time.Second)
+			c.runCmdAsync(raw, parts, 10*time.Second)
 		} else {
 			c.showLocalHelp()
 		}
