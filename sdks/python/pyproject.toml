@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ans-sdk"
+version = "0.1.0"
+description = "Agent Nervous System — Python SDK"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = ["pywin32>=306; platform_system == 'Windows'"]
+
+[project.optional-dependencies]
+langchain         = ["langchain-core>=0.2"]
+langgraph         = ["langgraph>=0.2"]
+crewai            = ["crewai>=0.30"]
+tui               = ["textual>=0.80.0"]
+mcp               = ["mcp>=1.0"]
+test              = ["pytest>=8.0", "pytest-asyncio>=0.23", "textual>=0.80.0"]
+claude-agent-sdk  = ["claude-agent-sdk>=0.1"]
+anthropic         = ["anthropic>=0.101"]
+openai            = ["openai>=1.0"]
+openai-compat     = ["openai>=1.0"]
+pydantic-ai       = ["pydantic-ai>=0.3"]
+google-genai      = ["google-genai>=1.0"]
+ollama            = ["ollama>=0.3"]
+all               = [
+    "langchain-core>=0.2", "langgraph>=0.2", "crewai>=0.30", "textual>=0.80.0",
+    "mcp>=1.0", "claude-agent-sdk>=0.1", "anthropic>=0.101",
+    "openai>=1.0", "pydantic-ai>=0.3", "google-genai>=1.0", "ollama>=0.3",
+]
+
+[project.scripts]
+ans-tui = "ans.tui.app:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ans*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

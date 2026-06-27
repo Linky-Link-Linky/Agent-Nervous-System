@@ -1,0 +1,59 @@
+{
+  "name": "ans-sdk",
+  "version": "0.1.0",
+  "description": "Agent Nervous System TypeScript SDK",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./integrations/mcp": {
+      "import": "./dist/integrations/mcp.js",
+      "types": "./dist/integrations/mcp.d.ts"
+    },
+    "./integrations/anthropic": {
+      "import": "./dist/integrations/anthropic.js",
+      "types": "./dist/integrations/anthropic.d.ts"
+    },
+    "./integrations/openai-agents": {
+      "import": "./dist/integrations/openai-agents.js",
+      "types": "./dist/integrations/openai-agents.d.ts"
+    },
+    "./integrations/google-genai": {
+      "import": "./dist/integrations/google-genai.js",
+      "types": "./dist/integrations/google-genai.d.ts"
+    },
+    "./integrations/langchain": {
+      "import": "./dist/integrations/langchain.js",
+      "types": "./dist/integrations/langchain.d.ts"
+    },
+    "./integrations/ollama": {
+      "import": "./dist/integrations/ollama.js",
+      "types": "./dist/integrations/ollama.d.ts"
+    },
+    "./integrations/langgraph": {
+      "import": "./dist/integrations/langgraph.js",
+      "types": "./dist/integrations/langgraph.d.ts"
+    }
+  },
+  "files": ["dist/**"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Linky-Link-Linky/Agent-Nervous-System.git"
+  },
+  "keywords": ["ans", "audit", "cryptographic", "ai", "agent", "receipts", "trace"],
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/**/*.test.js"
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

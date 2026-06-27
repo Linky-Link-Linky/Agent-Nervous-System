@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  binaries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+      - run: make build-all
+      - name: Generate checksums
+        run: |
+          cd bin
+          sha256sum ans_* > checksums.txt
+          cat checksums.txt
+      - name: Upload binaries
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            bin/ans_*
+            bin/checksums.txt
+          generate_release_notes: true
