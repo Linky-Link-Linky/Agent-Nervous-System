@@ -5,15 +5,17 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
-	"time"
 
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/client"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/commands"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/daemon"
-	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/dashboard"
+	_ "github.com/Linky-Link-Linky/Agent-Nervous-System/internal/model"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/poller"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/ui"
 	"golang.org/x/term"
 )
 
@@ -23,7 +25,7 @@ func main() {
 			commands.PrintUsageTo(os.Stderr)
 			os.Exit(0)
 		}
-		cmdDashboard(3)
+		runTUI(false)
 		return
 	}
 
@@ -32,23 +34,9 @@ func main() {
 		return
 	}
 
-	if os.Args[1] == "dashboard" || os.Args[1] == "dash" {
-		refreshSec := 3
-		if len(os.Args) > 2 {
-			if os.Args[2] == "--refresh" && len(os.Args) > 3 {
-				if s, err := strconv.Atoi(os.Args[3]); err == nil {
-					refreshSec = s
-				}
-			}
-		}
-		cmdDashboard(refreshSec)
+	if os.Args[1] == "dashboard" || os.Args[1] == "dash" || os.Args[1] == "tui" {
+		runTUI(false)
 		return
-	}
-	if os.Getenv("ANS_DASHBOARD_REFRESH") != "" {
-		if s, err := strconv.Atoi(os.Getenv("ANS_DASHBOARD_REFRESH")); err == nil {
-			runDashboard(s)
-			return
-		}
 	}
 
 	if err := commands.Dispatch(os.Args[1:]); err != nil {
@@ -92,36 +80,33 @@ func runDaemon() {
 	}
 }
 
-func runDashboard(refreshSec int) {
-	app := dashboard.NewApp(refreshSec)
-	if err := app.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "ans: dashboard error: %v\n", err)
-		os.Exit(1)
-	}
-}
-
-func cmdDashboard(refreshSec int) {
-	if conn, err := daemon.Dial(); err != nil {
-		if self, exeErr := os.Executable(); exeErr == nil {
-			cmd := exec.Command(self, "_daemon")
-			cmd.Stdout = nil
-			cmd.Stderr = nil
-			_ = cmd.Start()
-			for i := 0; i < 30; i++ {
-				time.Sleep(100 * time.Millisecond)
-				if conn, dialErr := daemon.Dial(); dialErr == nil {
-					conn.Close()
-					break
-				}
-			}
-		}
+func runTUI(demo bool) {
+	var c client.Client
+	if demo {
+		c = client.NewMockClient()
 	} else {
-		conn.Close()
+		sock := defaultSocketPath()
+		c = client.NewSocketClient(sock)
 	}
-	runDashboard(refreshSec)
+
+	p := poller.New(c, 2000)
+	app := ui.NewApp(p, demo)
+
+	p.Start()
+
+	if err := app.Run(); err != nil {
+		log.Fatalf("TUI error: %v", err)
+	}
+
+	p.Stop()
 }
 
 // --- helpers ---
+
+func defaultSocketPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".ans", "daemon.sock")
+}
 
 func pidFilePath() string {
 	home, _ := os.UserHomeDir()

@@ -5,8 +5,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"ans-tui/internal/client"
-	"ans-tui/internal/model"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/client"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/model"
 )
 
 type Poller struct {

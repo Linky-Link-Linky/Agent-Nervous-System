@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"ans-tui/internal/model"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/model"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )

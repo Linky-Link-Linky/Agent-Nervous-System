@@ -3,7 +3,7 @@ package ui
 import (
 	"sync"
 
-	"ans-tui/internal/poller"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/poller"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )

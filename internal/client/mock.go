@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"ans-tui/internal/model"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/model"
 )
 
 type MockClient struct {
