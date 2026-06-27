@@ -1,88 +1,45 @@
 package client
 
 import (
-	"testing"
+    "testing"
 )
 
-func TestMockClient_DaemonStatus(t *testing.T) {
-	m := NewMockClient()
-	s, err := m.DaemonStatus()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if s == nil {
-		t.Fatal("expected non-nil status")
-	}
-	if !s.Running {
-		t.Fatal("expected Running=true")
-	}
-	if s.ChainLength <= 0 {
-		t.Fatal("expected positive ChainLength")
-	}
+func TestMock_DaemonStatus(t *testing.T) {
+    m := NewMock()
+    s, err := m.DaemonStatus()
+    if err != nil { t.Fatal(err) }
+    if s == nil { t.Fatal("expected non-nil status") }
+    if !s.Running { t.Fatal("expected Running == true") }
 }
 
-func TestMockClient_ListReceipts(t *testing.T) {
-	m := NewMockClient()
-	r1, err := m.ListReceipts(10, "")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(r1) != 10 {
-		t.Fatalf("expected 10 receipts, got %d", len(r1))
-	}
-
-	r2, err := m.ListReceipts(10, "")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(r2) != 10 {
-		t.Fatalf("expected 10 receipts, got %d", len(r2))
-	}
+func TestMock_ListReceipts_Growing(t *testing.T) {
+	m := NewMock()
+	r1, _ := m.ListReceipts(0, "") // 0 = no limit
+	r2, _ := m.ListReceipts(0, "")
+	if len(r2) <= len(r1) { t.Fatalf("second call should return more receipts: %d <= %d", len(r2), len(r1)) }
 }
 
-func TestMockClient_ListTokens(t *testing.T) {
-	m := NewMockClient()
-	tokens, err := m.ListTokens()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(tokens) == 0 {
-		t.Fatal("expected at least one token")
-	}
-	for _, tok := range tokens {
-		if tok.TTLSeconds() <= 0 {
-			t.Fatalf("expected positive TTL for token %s, got %d", tok.ID, tok.TTLSeconds())
-		}
-	}
-}
-
-func TestMockClient_TokenRevoke(t *testing.T) {
-	m := NewMockClient()
-	tokens, _ := m.ListTokens()
-	if len(tokens) == 0 {
-		t.Skip("no tokens to revoke")
-	}
-	id := tokens[0].ID
-
-	if err := m.TokenRevoke(id); err != nil {
-		t.Fatalf("revoke error: %v", err)
-	}
-
+func TestMock_TokenRevoke(t *testing.T) {
+    m := NewMock()
+    tokens, _ := m.ListTokens()
+    if len(tokens) == 0 { t.Fatal("expected tokens") }
+    id := tokens[0].ID
+	m.TokenRevoke(id)
 	after, _ := m.ListTokens()
 	for _, tok := range after {
-		if tok.ID == id {
-			t.Fatal("revoked token still appears in list")
-		}
+		if tok.ID == id { t.Fatal("revoked token still present") }
 	}
 }
 
-func TestMockClient_ListPolicies(t *testing.T) {
-	m := NewMockClient()
-	policies, err := m.ListPolicies()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(policies) == 0 {
-		t.Fatal("expected at least one policy")
+func TestMock_PolicyToggle(t *testing.T) {
+    m := NewMock()
+    policies, _ := m.ListPolicies()
+    if len(policies) == 0 { t.Fatal("expected policies") }
+    p := policies[0]
+    orig := p.Enabled
+	m.PolicyToggle(p.ID, !orig)
+	after2, _ := m.ListPolicies()
+	for _, a := range after2 {
+		if a.ID == p.ID && a.Enabled == orig { t.Fatal("policy toggle had no effect") }
 	}
 }

@@ -5,17 +5,16 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/client"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/commands"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/daemon"
-	_ "github.com/Linky-Link-Linky/Agent-Nervous-System/internal/model"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/dashboard"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/poller"
-	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/ui"
 	"golang.org/x/term"
 )
 
@@ -80,33 +79,29 @@ func runDaemon() {
 	}
 }
 
+const Version = "v0.9.0"
+
 func runTUI(demo bool) {
 	var c client.Client
 	if demo {
-		c = client.NewMockClient()
+		c = client.NewMock()
 	} else {
-		sock := defaultSocketPath()
-		c = client.NewSocketClient(sock)
+		c = client.NewSocket(client.DefaultSockPath())
 	}
 
-	p := poller.New(c, 2000)
-	app := ui.NewApp(p, demo)
-
+	p := poller.New(c)
 	p.Start()
+	defer p.Stop()
 
-	if err := app.Run(); err != nil {
-		log.Fatalf("TUI error: %v", err)
+	m := dashboard.New(p, c, demo, Version)
+	prog := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	if _, err := prog.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
+		os.Exit(1)
 	}
-
-	p.Stop()
 }
 
 // --- helpers ---
-
-func defaultSocketPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".ans", "daemon.sock")
-}
 
 func pidFilePath() string {
 	home, _ := os.UserHomeDir()

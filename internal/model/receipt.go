@@ -1,65 +1,65 @@
 package model
 
 import (
-	"encoding/json"
-	"time"
+    "encoding/json"
+    "time"
 )
 
 type Receipt struct {
-	Index        int       `json:"index"`
-	ID           string    `json:"receipt_id"`
-	PrevHash     string    `json:"prev_hash"`
-	AgentID      string    `json:"agent_id"`
-	ActionType   string    `json:"action_type"`
-	Phase        string    `json:"phase"`
-	Outcome      string    `json:"outcome"`
-	DurationMS   int64     `json:"duration_ms"`
-	Timestamp    time.Time `json:"-"`
-	PolicyDecision string  `json:"policy_decision"`
-	PayloadSummary string  `json:"payload_summary"`
-	SnapshotID   string    `json:"snapshot_id"`
-	Signature    string    `json:"signature"`
+    Index          int       `json:"index"`
+    ID             string    `json:"receipt_id"`
+    PrevHash       string    `json:"prev_hash"`
+    AgentID        string    `json:"agent_id"`
+    ActionType     string    `json:"action_type"`
+    Phase          string    `json:"phase"`
+    Outcome        string    `json:"outcome"`
+    DurationMS     int64     `json:"duration_ms"`
+    Timestamp      time.Time `json:"timestamp"`
+    PolicyDecision string    `json:"policy_decision"`
+    PayloadSummary string    `json:"payload_summary"`
+    SnapshotID     string    `json:"snapshot_id"`
+    Signature      string    `json:"signature"`
 }
 
-func (r *Receipt) UnmarshalJSON(b []byte) error {
-	type raw Receipt
-	var r2 raw
-	if err := json.Unmarshal(b, &r2); err != nil {
-		return err
-	}
-	*r = Receipt(r2)
-
-	// Try nanosecond int64 or RFC3339
-	var rawMap map[string]any
-	if err := json.Unmarshal(b, &rawMap); err != nil {
-		return err
-	}
-	if ts, ok := rawMap["timestamp_ns"]; ok {
-		switch v := ts.(type) {
-		case float64:
-			r.Timestamp = time.Unix(0, int64(v))
-		case int64:
-			r.Timestamp = time.Unix(0, v)
-		case json.Number:
-			n, _ := v.Int64()
-			r.Timestamp = time.Unix(0, n)
-		}
-	} else if ts, ok := rawMap["timestamp"]; ok {
-		if s, ok := ts.(string); ok {
-			if t, err := time.Parse(time.RFC3339Nano, s); err == nil {
-				r.Timestamp = t
-			}
-		}
-	}
-	return nil
+func (r *Receipt) UnmarshalJSON(data []byte) error {
+    type alias Receipt
+    aux := &struct {
+        Timestamp json.RawMessage `json:"timestamp"`
+        *alias
+    }{alias: (*alias)(r)}
+    if err := json.Unmarshal(data, aux); err != nil {
+        return err
+    }
+    if len(aux.Timestamp) > 0 {
+        var s string
+        if err := json.Unmarshal(aux.Timestamp, &s); err == nil {
+            t, err2 := time.Parse(time.RFC3339Nano, s)
+            if err2 == nil { r.Timestamp = t; return nil }
+        }
+        var ns int64
+        if err := json.Unmarshal(aux.Timestamp, &ns); err == nil {
+            r.Timestamp = time.Unix(0, ns).UTC()
+        }
+    }
+    return nil
 }
 
-type DaemonStatus struct {
-	Running       bool    `json:"running"`
-	Uptime        string  `json:"uptime"`
-	ChainLength   int     `json:"chain_length"`
-	AgentCount    int     `json:"agent_count"`
-	DBSizeMB      float64 `json:"db_size_mb"`
-	ChainVerified bool    `json:"chain_verified"`
-	Version       string  `json:"version"`
+func (r *Receipt) ShortID() string {
+    if len(r.ID) >= 12 { return r.ID[:12] }
+    return r.ID
+}
+
+func (r *Receipt) ShortPrevHash() string {
+    if len(r.PrevHash) >= 12 { return r.PrevHash[:12] }
+    return r.PrevHash
+}
+
+func (r *Receipt) ShortSignature() string {
+    if len(r.Signature) >= 16 { return r.Signature[:16] + "…" }
+    return r.Signature
+}
+
+func (r *Receipt) ShortAgent() string {
+    if len(r.AgentID) >= 13 { return r.AgentID[:13] }
+    return r.AgentID
 }
