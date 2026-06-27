@@ -160,7 +160,7 @@ try {
 
         Write-Step 5 "Building binaries..."
         Push-Location $srcDir
-        go build -ldflags="-s -w -X github.com/Linky-Link-Linky/Agent-Nervous-System/internal/commands.Version=v0.8.0" -trimpath -o (Join-Path $InstallDir $Binary) ./cmd/ans 2>&1
+        go build -ldflags="-s -w -X github.com/Linky-Link-Linky/Agent-Nervous-System/internal/commands.Version=v0.9.0" -trimpath -o (Join-Path $InstallDir $Binary) ./cmd/ans 2>&1
         if ($LASTEXITCODE -ne 0) { throw "ans build failed" }
         Pop-Location
         Write-Done "Binaries built and installed"
