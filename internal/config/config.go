@@ -2,84 +2,42 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
-	"path/filepath"
+	path "path/filepath"
 )
 
-type Config struct {
-	Webhook string `json:"webhook,omitempty"`
-	NDJSON  bool   `json:"ndjson,omitempty"`
+type TUIConfig struct {
+	RefreshIntervalMS int `json:"refresh_interval_ms"`
 }
 
-func DefaultConfig() *Config {
-	return &Config{}
+func Default() *TUIConfig {
+	return &TUIConfig{RefreshIntervalMS: 2000}
 }
 
-func Dir() (string, error) {
-	home, err := os.UserHomeDir()
+func (c *TUIConfig) Path() string {
+	home, _ := os.UserHomeDir()
+	return path.Join(home, ".ans", "tui-config.json")
+}
+
+func Load() *TUIConfig {
+	cfg := Default()
+	data, err := os.ReadFile(cfg.Path())
 	if err != nil {
-		return "", fmt.Errorf("home directory: %w", err)
+		return cfg
 	}
-	return filepath.Join(home, ".ans"), nil
+	_ = json.Unmarshal(data, cfg)
+	return cfg
 }
 
-func Path() (string, error) {
-	dir, err := Dir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "config.json"), nil
-}
-
-func EnsureDir() (string, error) {
-	dir, err := Dir()
-	if err != nil {
-		return "", err
-	}
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return "", fmt.Errorf("creating %s: %w", dir, err)
-	}
-	return dir, nil
-}
-
-func Load() (*Config, error) {
-	p, err := Path()
-	if err != nil {
-		return nil, err
-	}
-	data, err := os.ReadFile(p)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return DefaultConfig(), nil
-		}
-		return nil, fmt.Errorf("reading config: %w", err)
-	}
-	cfg := DefaultConfig()
-	if err := json.Unmarshal(data, cfg); err != nil {
-		return nil, fmt.Errorf("parsing config: %w", err)
-	}
-	return cfg, nil
-}
-
-func Save(cfg *Config) error {
-	p, err := Path()
+func (c *TUIConfig) Save() error {
+	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err
 	}
-	if _, err := EnsureDir(); err != nil {
+	dir := path.Dir(c.Path())
+	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return fmt.Errorf("encoding config: %w", err)
-	}
-	if err := os.WriteFile(p, data, 0600); err != nil {
-		return fmt.Errorf("writing config: %w", err)
-	}
-	return nil
+	return os.WriteFile(c.Path(), data, 0644)
 }
 
-func SaveDefault() error {
-	return Save(DefaultConfig())
-}
