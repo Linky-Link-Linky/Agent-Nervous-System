@@ -6,7 +6,6 @@ set -eu
 
 REPO="Linky-Link-Linky/Agent-Nervous-System"
 BINARY="ans"
-TUI_BINARY="ans-tui"
 VERSION="${ANS_VERSION:-latest}"
 
 # --- Daytona-inspired emerald theme ---
@@ -59,8 +58,7 @@ esac
 info "${OS}/${ARCH}"
 
 ASSET="ans_${OS}_${ARCH}"
-TUI_ASSET="ans-tui_${OS}_${ARCH}"
-[ "$OS" = "windows" ] && ASSET="${ASSET}.exe" && TUI_ASSET="${TUI_ASSET}.exe"
+[ "$OS" = "windows" ] && ASSET="${ASSET}.exe"
 
 if [ "$VERSION" = "latest" ]; then
   BASE="https://github.com/${REPO}/releases/latest/download"
@@ -81,14 +79,6 @@ if ! curl -fsSL "${BASE}/${ASSET}" -o "${TMP}/${BINARY}"; then
 fi
 done_ "Downloaded ${ASSET}"
 
-step 2 "Downloading ANS TUI for ${OS}/${ARCH}..."
-if ! curl -fsSL "${BASE}/${TUI_ASSET}" -o "${TMP}/${TUI_BINARY}"; then
-  warn "ANS TUI not available for this release — skipping"
-else
-  chmod +x "${TMP}/${TUI_BINARY}"
-  done_ "Downloaded ${TUI_ASSET}"
-fi
-
 # --- Optional checksum ---
 if curl -fsSL "${BASE}/checksums.txt" -o "${TMP}/checksums.txt" 2>/dev/null; then
   EXPECTED="$(grep -F "$ASSET" "${TMP}/checksums.txt" | awk '{print $1}')"
@@ -106,20 +96,6 @@ if curl -fsSL "${BASE}/checksums.txt" -o "${TMP}/checksums.txt" 2>/dev/null; the
     fi
     done_ "Checksum verified"
   fi
-  if [ -f "${TMP}/${TUI_BINARY}" ]; then
-    TUI_EXPECTED="$(grep -F "$TUI_ASSET" "${TMP}/checksums.txt" | awk '{print $1}')"
-    if [ -n "$TUI_EXPECTED" ]; then
-      if command -v sha256sum >/dev/null 2>&1; then
-        TUI_ACTUAL="$(sha256sum "${TMP}/${TUI_BINARY}" | awk '{print $1}')"
-      elif command -v shasum >/dev/null 2>&1; then
-        TUI_ACTUAL="$(shasum -a 256 "${TMP}/${TUI_BINARY}" | awk '{print $1}')"
-      fi
-      if [ -n "${TUI_ACTUAL:-}" ] && [ "$TUI_ACTUAL" != "$TUI_EXPECTED" ]; then
-        err_ "ANS TUI checksum mismatch!"
-        exit 1
-      fi
-    fi
-  fi
 else
   warn "Checksum file not available — skipped"
 fi
@@ -134,12 +110,10 @@ for DEST_DIR in "/usr/local/bin" "$HOME/.local/bin" "$HOME/bin"; do
   mkdir -p "$DEST_DIR" 2>/dev/null || true
   if [ -w "$DEST_DIR" ] && cp "${TMP}/${BINARY}" "${DEST_DIR}/${BINARY}" 2>/dev/null; then
     DEST="${DEST_DIR}/${BINARY}"
-    [ -f "${TMP}/${TUI_BINARY}" ] && cp "${TMP}/${TUI_BINARY}" "${DEST_DIR}/${TUI_BINARY}" 2>/dev/null || true
     break
   fi
   if command -v sudo >/dev/null 2>&1 && sudo cp "${TMP}/${BINARY}" "${DEST_DIR}/${BINARY}" 2>/dev/null; then
     DEST="${DEST_DIR}/${BINARY}"
-    [ -f "${TMP}/${TUI_BINARY}" ] && sudo cp "${TMP}/${TUI_BINARY}" "${DEST_DIR}/${TUI_BINARY}" 2>/dev/null || true
     break
   fi
 done
@@ -147,7 +121,6 @@ done
 if [ -z "$DEST" ]; then
   mkdir -p "$HOME/.local/bin"
   cp "${TMP}/${BINARY}" "$HOME/.local/bin/${BINARY}"
-  [ -f "${TMP}/${TUI_BINARY}" ] && cp "${TMP}/${TUI_BINARY}" "$HOME/.local/bin/${TUI_BINARY}" || true
   DEST="$HOME/.local/bin/${BINARY}"
 fi
 
@@ -227,8 +200,8 @@ printf "\n"
 cmd_ "ans update"
 printf "  ${GRAY}  Self-update to the latest release${RESET}\n"
 printf "\n"
-cmd_ "ans-tui"
-printf "  ${GRAY}  Launch the standalone deep-space TUI dashboard${RESET}\n"
+cmd_ "ans tui"
+printf "  ${GRAY}  Launch the full-screen TUI dashboard${RESET}\n"
 printf "\n"
 printf "  ${EMERALD}Need help? Run: ans doctor${RESET}\n"
 printf "\n"

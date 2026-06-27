@@ -7,7 +7,6 @@
 
 $Repo = "Linky-Link-Linky/Agent-Nervous-System"
 $Binary = "ans.exe"
-$TuiBinary = "ans-tui.exe"
 $InstallDir = Join-Path $env:USERPROFILE ".ans\bin"
 $Version = if ($env:ANS_VERSION) { $env:ANS_VERSION } else { "latest" }
 
@@ -59,7 +58,6 @@ switch ($env:PROCESSOR_ARCHITECTURE) {
 }
 
 $Asset = "ans_windows_${Arch}.exe"
-$TuiAsset = "ans-tui_windows_${Arch}.exe"
 $Base = "https://github.com/${Repo}/releases/download/$($Version)"
 if ($Version -eq "latest") { $Base = "https://github.com/${Repo}/releases/latest/download" }
 
@@ -97,12 +95,6 @@ try {
         try {
             Invoke-WebRequest -Uri "${Base}/${Asset}" -OutFile (Join-Path $TmpDir $Binary) -UseBasicParsing
             Write-Done "Downloaded $Asset"
-            try {
-                Invoke-WebRequest -Uri "${Base}/${TuiAsset}" -OutFile (Join-Path $TmpDir $TuiBinary) -UseBasicParsing -ErrorAction Stop
-                Write-Done "Downloaded $TuiAsset"
-            } catch {
-                Write-Warn "ANS TUI not available for this release — skipping"
-            }
         } catch {
             throw "Download failed: $_"
         }
@@ -120,16 +112,7 @@ try {
                 }
                 Write-Done "Checksum verified"
             }
-            if (Test-Path (Join-Path $TmpDir $TuiBinary)) {
-                $TuiLine = Get-Content $ChecksumFile | Select-String -Pattern $TuiAsset
-                if ($TuiLine) {
-                    $TuiExpected = ($TuiLine -split '\s+')[0].ToLower()
-                    $TuiActual = (Get-FileHash (Join-Path $TmpDir $TuiBinary) -Algorithm SHA256).Hash.ToLower()
-                    if ($TuiExpected -ne $TuiActual) {
-                        throw "ANS TUI checksum mismatch: expected $TuiExpected, got $TuiActual"
-                    }
-                }
-            }
+            # TUI is now built into the ans binary
         } catch {
             if ($_.Exception.Message -match 'Checksum mismatch') { throw }
             Write-Warn "Checksum file not available — skipped"
@@ -141,10 +124,6 @@ try {
         }
         Copy-Item (Join-Path $TmpDir $Binary) (Join-Path $InstallDir $Binary) -Force
         Unblock-File -Path (Join-Path $InstallDir $Binary) -ErrorAction SilentlyContinue
-        if (Test-Path (Join-Path $TmpDir $TuiBinary)) {
-            Copy-Item (Join-Path $TmpDir $TuiBinary) (Join-Path $InstallDir $TuiBinary) -Force
-            Unblock-File -Path (Join-Path $InstallDir $TuiBinary) -ErrorAction SilentlyContinue
-        }
         Write-Done "Binaries installed to $InstallDir"
     } else {
         # Build from source (bypasses Smart App Control)
@@ -183,8 +162,6 @@ try {
         Push-Location $srcDir
         go build -ldflags="-s -w -X github.com/Linky-Link-Linky/Agent-Nervous-System/internal/commands.Version=v0.8.0" -trimpath -o (Join-Path $InstallDir $Binary) ./cmd/ans 2>&1
         if ($LASTEXITCODE -ne 0) { throw "ans build failed" }
-        go build -ldflags="-s -w" -trimpath -o (Join-Path $InstallDir $TuiBinary) ./ans-tui/cmd/ans-tui 2>&1
-        if ($LASTEXITCODE -ne 0) { Write-Warn "ans-tui build failed — continuing without it" }
         Pop-Location
         Write-Done "Binaries built and installed"
     }
@@ -270,8 +247,8 @@ Write-Host "      Register an AI agent (name and version auto-generated)" -Foreg
     Write-Cmd "ans update"
     Write-Host "      Self-update to the latest release" -ForegroundColor $Gray
     Write-Host ""
-    Write-Cmd "ans-tui"
-    Write-Host "      Launch the standalone deep-space TUI dashboard" -ForegroundColor $Gray
+    Write-Cmd "ans tui"
+    Write-Host "      Launch the full-screen TUI dashboard" -ForegroundColor $Gray
     Write-Host ""
     Write-Host "  Need help? Run: ans doctor" -ForegroundColor $Emerald
     Write-Host ""
