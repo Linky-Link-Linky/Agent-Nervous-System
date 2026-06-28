@@ -5,25 +5,33 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/client"
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/assets"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/commands"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/daemon"
-	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/dashboard"
-	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/poller"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/tui"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/tuiengine"
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/tui/styles"
 	"golang.org/x/term"
 )
 
 func main() {
+	cfg := styles.LoadConfig()
+	if cfg.ThemeIndex >= 0 && cfg.ThemeIndex < len(styles.Themes) {
+		styles.CurrentTheme = styles.Themes[cfg.ThemeIndex]
+	}
+
 	if len(os.Args) < 2 {
 		if !isTerminal() || os.Getenv("ANS_TEST") != "" {
 			commands.PrintUsageTo(os.Stderr)
 			os.Exit(0)
 		}
-		runTUI(false)
+		runTUI()
 		return
 	}
 
@@ -33,7 +41,7 @@ func main() {
 	}
 
 	if os.Args[1] == "dashboard" || os.Args[1] == "dash" || os.Args[1] == "tui" {
-		runTUI(false)
+		runTUI()
 		return
 	}
 
@@ -80,24 +88,77 @@ func runDaemon() {
 
 const Version = "v0.9.0"
 
-func runTUI(demo bool) {
-	var c client.Client
-	if demo {
-		c = client.NewMock()
-	} else {
-		c = client.NewSocket(client.DefaultSockPath())
+func runTUI() {
+	if os.Getenv("ANSTUI_NO_EBITEN") != "" {
+		runTerminalTUI()
+		return
 	}
 
-	p := poller.New(c)
-	p.Start()
-	defer p.Stop()
+	tuiOutR, tuiOutW := io.Pipe()
+	tuiInR, tuiInW := io.Pipe()
 
-	m := dashboard.New(p, c, demo, Version)
-	prog := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
-	if _, err := prog.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
+	btApp := tui.NewApp()
+	p := tea.NewProgram(btApp, tea.WithOutput(tuiOutW), tea.WithInput(tuiInR))
+	go func() {
+		if _, err := p.Run(); err != nil {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}()
+
+	fontData, err := assets.FS.ReadFile("JetBrainsMono-Regular.ttf")
+	if err != nil {
+		fontData, err = os.ReadFile(filepath.Join(assetDir(), "JetBrainsMono-Regular.ttf"))
+		if err != nil {
+			runTerminalTUI()
+			return
+		}
+	}
+
+	shaderData, err := assets.FS.ReadFile("crt.kage")
+	if err != nil {
+		shaderData, _ = os.ReadFile(filepath.Join(assetDir(), "crt.kage"))
+	}
+
+	bridge, err := tuiengine.NewBridge(tuiOutR, fontData)
+	if err != nil {
+		runTerminalTUI()
+		return
+	}
+
+	game, err := tuiengine.NewGame(bridge, tuiInW, shaderData)
+	if err != nil {
+		runTerminalTUI()
+		return
+	}
+
+	ebiten.SetWindowSize(1280, 800)
+	ebiten.SetWindowTitle("ANS — Agent Notification System")
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+	playBootSound()
+
+	if err := ebiten.RunGame(game); err != nil {
 		os.Exit(1)
 	}
+}
+
+func runTerminalTUI() {
+	p := tea.NewProgram(tui.NewApp(), tea.WithAltScreen(), tea.WithMouseCellMotion())
+	if _, err := p.Run(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func playBootSound() {
+	data, _ := assets.FS.ReadFile("boot.wav")
+	if data != nil {
+		tuiengine.PlayBootSoundData(data)
+	}
+}
+
+func assetDir() string {
+	exe, _ := os.Executable()
+	return filepath.Join(filepath.Dir(exe), "assets")
 }
 
 // --- helpers ---

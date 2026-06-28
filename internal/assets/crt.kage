@@ -1,0 +1,27 @@
+//kage:unit pixels
+package main
+
+var Resolution vec2
+var Time float
+
+func Fragment(dstPos vec4, srcPos vec2, color vec4) vec4 {
+    uv := srcPos / Resolution
+    c := uv*2.0 - 1.0
+    r2 := dot(c, c)
+    c *= 1.0 + r2*0.07
+    uv = (c + 1.0) * 0.5
+    if uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 {
+        return vec4(0.0, 0.0, 0.0, 1.0)
+    }
+    ab := 0.0006
+    r := imageSrc0At(vec2(uv.x+ab, uv.y)*Resolution).r
+    g := imageSrc0At(uv*Resolution).g
+    b := imageSrc0At(vec2(uv.x-ab, uv.y)*Resolution).b
+    col := vec4(r, g, b, 1.0)
+    sl := sin(uv.y*Resolution.y*3.14159)*0.5 + 0.5
+    col.rgb *= 0.94 + 0.06*sl
+    v := 1.0 - dot(c*1.05, c*1.05)*0.38
+    col.rgb *= clamp(v, 0.0, 1.0)
+    col.rgb *= vec3(0.96, 1.0, 0.94)
+    return col
+}
