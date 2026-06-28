@@ -276,8 +276,8 @@ func toFloat64(v interface{}) (float64, bool) {
 // CompileRegexp recursively pre-compiles all regex patterns in the condition tree.
 func (c *Condition) CompileRegexp() error {
 	if c.Operator == OpMatches {
-		pattern, ok := c.Value.(string)
-		if ok {
+		pattern := valueString(c.Value)
+		if len(pattern) > 0 && len(pattern) < 1024 {
 			re, err := regexp.Compile(pattern)
 			if err != nil {
 				return err

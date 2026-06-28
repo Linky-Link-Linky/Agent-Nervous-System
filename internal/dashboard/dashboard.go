@@ -53,7 +53,6 @@ type DashboardModel struct {
 	policyCursor  int
 	tokens        []*model.Token
 	tokenCursor   int
-	tickCount     int
 	mcpStatus     *model.MCPStatus
 	mcpLog        []*model.MCPLogEntry
 	mcpLogCursor  int
@@ -133,15 +132,18 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateGlobal(msg)
 	case MsgTick:
 		m.daemonPulse = !m.daemonPulse
-		m.tickCount++
 		if m.bannerTTL > 0 {
 			m.bannerTTL--
 		}
 	case MsgChain:
-		if !m.chainScrolled {
+		m.chain = msg.Receipts
+		if m.chainScrolled && len(msg.Receipts) > 0 {
+			if m.chainCursor >= len(msg.Receipts) {
+				m.chainCursor = len(msg.Receipts) - 1
+			}
+		} else {
 			m.chainCursor = 0
 		}
-		m.chain = msg.Receipts
 		if len(msg.Receipts) > 0 {
 			m.chainReqRate = append(m.chainReqRate, float64(len(msg.Receipts)))
 			if len(m.chainReqRate) > 30 {
@@ -151,12 +153,21 @@ func (m DashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, listenChannels(m.poller))
 	case MsgSnapshots:
 		m.snaps = msg.Snaps
+		if m.snapCursor >= len(msg.Snaps) {
+			m.snapCursor = max(0, len(msg.Snaps)-1)
+		}
 		cmds = append(cmds, listenChannels(m.poller))
 	case MsgPolicies:
 		m.policies = msg.Policies
+		if m.policyCursor >= len(msg.Policies) {
+			m.policyCursor = max(0, len(msg.Policies)-1)
+		}
 		cmds = append(cmds, listenChannels(m.poller))
 	case MsgTokens:
 		m.tokens = msg.Tokens
+		if m.tokenCursor >= len(msg.Tokens) {
+			m.tokenCursor = max(0, len(msg.Tokens)-1)
+		}
 		cmds = append(cmds, listenChannels(m.poller))
 	case MsgMCPStatus:
 		m.mcpStatus = msg.Status
@@ -237,7 +248,10 @@ func (m DashboardModel) updateGlobal(msg tea.KeyMsg) (DashboardModel, tea.Cmd) {
 		if m.focus == focusChain {
 			m.chainVerify = "checking"
 			cmds = append(cmds, func() tea.Msg {
-				ok, count, _ := m.client.VerifyChain()
+				ok, count, err := m.client.VerifyChain()
+				if err != nil {
+					return MsgBanner{Text: fmt.Sprintf("Verify failed: %v", err), IsErr: true}
+				}
 				return MsgVerifyResult{Verified: ok, Count: count}
 			})
 		}
@@ -297,16 +311,21 @@ func (m DashboardModel) updateModal(msg tea.KeyMsg) (DashboardModel, tea.Cmd) {
 		case modalConfirmTimeTravel:
 			if len(m.snaps) > m.snapCursor && m.snapCursor >= 0 {
 				s := m.snaps[m.snapCursor]
-				cmd = func() tea.Msg {
-					m.client.TimeTravel(fmt.Sprintf("%d", s.ChainIndex), "filesystem")
-					return MsgBanner{Text: fmt.Sprintf("Restored to index %d", s.ChainIndex)}
+		cmd = func() tea.Msg {
+				idx := fmt.Sprintf("%d", s.ChainIndex)
+				if err := m.client.TimeTravel(idx, "filesystem"); err != nil {
+					return MsgBanner{Text: fmt.Sprintf("Restore failed: %v", err), IsErr: true}
 				}
+				return MsgBanner{Text: fmt.Sprintf("Restored to index %d", s.ChainIndex)}
+			}
 			}
 		case modalConfirmToggle:
 			if len(m.policies) > m.policyCursor && m.policyCursor >= 0 {
 				p := m.policies[m.policyCursor]
 				cmd = func() tea.Msg {
-					m.client.PolicyToggle(p.ID, !p.Enabled)
+					if err := m.client.PolicyToggle(p.ID, !p.Enabled); err != nil {
+						return MsgBanner{Text: fmt.Sprintf("Toggle failed: %v", err), IsErr: true}
+					}
 					return MsgBanner{Text: fmt.Sprintf("Policy %s toggled", p.ShortID())}
 				}
 			}
@@ -314,14 +333,19 @@ func (m DashboardModel) updateModal(msg tea.KeyMsg) (DashboardModel, tea.Cmd) {
 			if len(m.tokens) > m.tokenCursor && m.tokenCursor >= 0 {
 				t := m.tokens[m.tokenCursor]
 				cmd = func() tea.Msg {
-					m.client.TokenRevoke(t.ID)
+					if err := m.client.TokenRevoke(t.ID); err != nil {
+						return MsgBanner{Text: fmt.Sprintf("Revoke failed: %v", err), IsErr: true}
+					}
 					return MsgBanner{Text: fmt.Sprintf("Token %s revoked", t.ShortID())}
 				}
 			}
 		case modalReceiptDetail:
 			if m.selectedReceipt != nil {
 				cmd = func() tea.Msg {
-					ok, _ := m.client.VerifyReceipt(m.selectedReceipt.ID)
+					ok, err := m.client.VerifyReceipt(m.selectedReceipt.ID)
+					if err != nil {
+						return MsgBanner{Text: fmt.Sprintf("Verify error: %v", err), IsErr: true}
+					}
 					if ok {
 						return MsgBanner{Text: "✓ Signature verified"}
 					}

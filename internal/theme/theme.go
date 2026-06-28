@@ -147,11 +147,12 @@ func FormatDuration(ms int64) string {
 }
 
 func FormatBytes(b int64) string {
-    switch {
-    case b < 1024:            return fmt.Sprintf("%dB", b)
-    case b < 1024*1024:       return fmt.Sprintf("%.1fKB", float64(b)/1024)
-    default:                  return fmt.Sprintf("%.1fMB", float64(b)/(1024*1024))
-    }
+	if b < 0 { return "0B" }
+	switch {
+	case b < 1024:            return fmt.Sprintf("%dB", b)
+	case b < 1024*1024:       return fmt.Sprintf("%.1fKB", float64(b)/1024)
+	default:                  return fmt.Sprintf("%.1fMB", float64(b)/(1024*1024))
+	}
 }
 
 func FormatUptime(d time.Duration) string {
@@ -164,15 +165,17 @@ func FormatUptime(d time.Duration) string {
 }
 
 func Trunc(s string, n int) string {
-    r := []rune(s)
-    if utf8.RuneCountInString(s) <= n { return s }
-    return string(r[:n-1]) + "…"
+	if n <= 0 { return "" }
+	r := []rune(s)
+	if utf8.RuneCountInString(s) <= n { return s }
+	return string(r[:n-1]) + "…"
 }
 
 func PadRight(s string, n int) string {
-    l := utf8.RuneCountInString(s)
-    if l >= n { return Trunc(s, n) }
-    return s + strings.Repeat(" ", n-l)
+	if n <= 0 { return "" }
+	l := utf8.RuneCountInString(s)
+	if l >= n { return Trunc(s, n) }
+	return s + strings.Repeat(" ", n-l)
 }
 
 func Sep(w int) string {

@@ -39,7 +39,7 @@ func New(c client.Client) *Poller {
 			MCP:    make(chan *model.MCPStatus, 1),
 			MCPLog: make(chan []*model.MCPLogEntry, 1),
 			Daemon: make(chan *model.DaemonStatus, 1),
-			Errors: make(chan error, 8),
+			Errors: make(chan error, 64),
 		},
 		stop: make(chan struct{}),
 	}
@@ -215,6 +215,15 @@ func (p *Poller) ForceRefresh() {
 	drain(p.C.Token)
 	drain(p.C.Snaps)
 	drain(p.C.Policy)
+	// drain pending errors too
+	for {
+		select {
+		case <-p.C.Errors:
+		default:
+			goto afterDrain
+		}
+	}
+afterDrain:
 	// immediate poll (non-blocking, just one shot per subsystem)
 	go func() {
 		if v, err := p.client.DaemonStatus(); err == nil {

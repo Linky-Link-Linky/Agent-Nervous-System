@@ -171,8 +171,8 @@ func (tm *TokenManager) ProvisionToken(ctx context.Context, req *TokenRequest) (
 
 // ValidateToken validates a token value and returns the validation result.
 func (tm *TokenManager) ValidateToken(ctx context.Context, tokenValue string) (*ValidationResult, error) {
-	tm.mu.RLock()
-	defer tm.mu.RUnlock()
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
 
 	// Get token from provider
 	token, err := tm.provider.ValidateToken(ctx, tokenValue)

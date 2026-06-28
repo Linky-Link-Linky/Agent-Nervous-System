@@ -23,6 +23,7 @@ func (s *Snapshot) ShortID() string {
 
 func (s *Snapshot) SizeStr() string {
     b := s.SizeBytes
+    if b < 0 { return "0B" }
     switch {
     case b < 1024:            return fmt.Sprintf("%dB", b)
     case b < 1024*1024:       return fmt.Sprintf("%.1fKB", float64(b)/1024)

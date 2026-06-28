@@ -157,6 +157,9 @@ func (a *AzureProvider) ValidateScope(scope Scope) error {
 }
 
 func (a *AzureProvider) resolveScope(resource string) string {
+	if len(resource) == 0 {
+		return ""
+	}
 	if strings.HasSuffix(resource, "/.default") {
 		return resource
 	}

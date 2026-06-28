@@ -10,9 +10,10 @@ import (
 var sparkChars = []rune{'▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'}
 
 func Sparkline(values []float64, width int, colour lipgloss.Color) string {
-    if len(values) == 0 || width <= 0 {
-        return strings.Repeat(string(sparkChars[0]), width)
-    }
+	if width <= 0 { return "" }
+	if len(values) == 0 {
+		return strings.Repeat(string(sparkChars[0]), width)
+	}
     sampled := resample(values, width)
     mx := maxSlice(sampled)
     if mx == 0 { mx = 1 }
@@ -28,11 +29,15 @@ func Sparkline(values []float64, width int, colour lipgloss.Color) string {
 }
 
 func resample(in []float64, n int) []float64 {
-    if len(in) == n { return in }
-    if len(in) == 0 { return make([]float64, n) }
-    out := make([]float64, n)
-    for i := range out {
-        src := float64(i) * float64(len(in)-1) / float64(n-1)
+	if n <= 1 {
+		if len(in) == 0 { return make([]float64, 1) }
+		return []float64{in[len(in)-1]}
+	}
+	if len(in) == n { return in }
+	if len(in) == 0 { return make([]float64, n) }
+	out := make([]float64, n)
+	for i := range out {
+		src := float64(i) * float64(len(in)-1) / float64(n-1)
         lo := int(src)
         if lo >= len(in)-1 { lo = len(in) - 2 }
         if lo < 0 { lo = 0 }

@@ -67,15 +67,18 @@ func (m DashboardModel) renderSnapshotPanel() string {
 	}
 
 	var total int64
-	oldest := time.Now()
-	newest := time.Time{}
+	var oldest time.Time
+	var newest time.Time
+	started := false
 	for _, s := range m.snaps {
 		total += s.SizeBytes
-		if s.Timestamp.Before(oldest) {
+		if !started {
 			oldest = s.Timestamp
-		}
-		if s.Timestamp.After(newest) {
 			newest = s.Timestamp
+			started = true
+		} else {
+			if s.Timestamp.Before(oldest) { oldest = s.Timestamp }
+			if s.Timestamp.After(newest) { newest = s.Timestamp }
 		}
 	}
 	b.WriteString(fmt.Sprintf("\n  TOTAL %d snapshots  SIZE %s", len(m.snaps), snapSizeStr(total)))

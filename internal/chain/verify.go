@@ -107,11 +107,14 @@ func (c *Chain) VerifyChain(pubkeys map[string]ed25519.PublicKey) VerificationRe
 				Error: fmt.Sprintf("hash mismatch at %d: stored=%s computed=%s", idx, storedHash, computed)}
 		}
 		if pubkeys != nil {
-			if pub, ok := pubkeys[r.AgentID]; ok {
-				if err := receipt.Verify(&r, pub); err != nil {
-					return VerificationResult{Valid: false, FirstBrokenAt: idx, TotalChecked: result.TotalChecked,
-						Error: fmt.Sprintf("sig invalid at %d: %v", idx, err)}
-				}
+			pub, ok := pubkeys[r.AgentID]
+			if !ok {
+				return VerificationResult{Valid: false, FirstBrokenAt: idx, TotalChecked: result.TotalChecked,
+					Error: fmt.Sprintf("agent ID %s not found in pubkeys map at %d", r.AgentID, idx)}
+			}
+			if err := receipt.Verify(&r, pub); err != nil {
+				return VerificationResult{Valid: false, FirstBrokenAt: idx, TotalChecked: result.TotalChecked,
+					Error: fmt.Sprintf("sig invalid at %d: %v", idx, err)}
 			}
 		}
 		expectedPrev = storedHash

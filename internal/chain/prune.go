@@ -191,9 +191,16 @@ func VerifyInclusion(anchor *Anchor, rawReceipt []byte) error {
 		return fmt.Errorf("receipt not found in anchor Merkle tree")
 	}
 
+	// Enforce maximum proof depth (DoS protection)
+	const maxProofDepth = 64
+	treeDepth := len(anchor.MerkleTree) - 1
+	if treeDepth > maxProofDepth {
+		return fmt.Errorf("merkle tree depth %d exceeds maximum %d", treeDepth, maxProofDepth)
+	}
+
 	// Walk up the tree recomputing parent hashes
 	idx := leafIdx
-	for level := 0; level < len(anchor.MerkleTree)-1; level++ {
+	for level := 0; level < treeDepth; level++ {
 		nodes := anchor.MerkleTree[level]
 		siblingIdx := idx
 		if idx%2 == 0 {
@@ -217,8 +224,16 @@ func VerifyInclusion(anchor *Anchor, rawReceipt []byte) error {
 		}
 
 		var combined [64]byte
-		copy(combined[:32], hexDecode(left))
-		copy(combined[32:], hexDecode(right))
+		leftDec := hexDecode(left)
+		if len(leftDec) != 32 {
+			return fmt.Errorf("invalid left hash at level %d: %s", level, left)
+		}
+		rightDec := hexDecode(right)
+		if len(rightDec) != 32 {
+			return fmt.Errorf("invalid right hash at level %d: %s", level, right)
+		}
+		copy(combined[:32], leftDec)
+		copy(combined[32:], rightDec)
 		parentHash := fmt.Sprintf("%x", sha256.Sum256(combined[:]))
 
 		// Verify against stored parent

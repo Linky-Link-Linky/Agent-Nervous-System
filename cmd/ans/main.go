@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/client"
@@ -118,7 +117,15 @@ func writePID() {
 		fmt.Fprintf(os.Stderr, "ans: warning: creating PID dir: %v\n", err)
 		return
 	}
-	if err := os.WriteFile(p, []byte(strconv.Itoa(os.Getpid())), 0600); err != nil {
-		fmt.Fprintf(os.Stderr, "ans: warning: writing PID file: %v\n", err)
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		if os.IsExist(err) {
+			fmt.Fprintf(os.Stderr, "ans: daemon already running (PID file exists: %s)\n", p)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "ans: warning: creating PID file: %v\n", err)
+		return
 	}
+	fmt.Fprintf(f, "%d\n", os.Getpid())
+	f.Close()
 }
