@@ -8,9 +8,9 @@ import (
 	"io"
 	"net"
 	"os"
-	"path/filepath"
 	"time"
 
+	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/daemon"
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/model"
 )
 
@@ -80,8 +80,10 @@ func NewSocket(sockPath string) *SocketClient {
 }
 
 func DefaultSockPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".ans", "daemon.sock")
+	if v := os.Getenv("ANS_SOCK_PATH"); v != "" {
+		return v
+	}
+	return daemon.SocketPath()
 }
 
 func (c *SocketClient) roundTrip(req *Request) (*Response, error) {

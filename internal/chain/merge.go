@@ -8,7 +8,7 @@ package chain
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"sort"
 
 	"github.com/Linky-Link-Linky/Agent-Nervous-System/internal/receipt"
@@ -87,7 +87,7 @@ func (c *Chain) MergeChains(agentIDs []string) ([]*MergedReceipt, error) {
 			if err == nil && len(allReceipts) > 0 {
 				before = append(before, allReceipts[0].ReceiptID)
 			} else if err != nil {
-				log.Printf("merge: cross-agent query for %s: %v", r.ParentAgentID, err)
+				slog.Warn("merge cross-agent query failed", "agent", r.ParentAgentID, "error", err)
 			}
 			}
 		}

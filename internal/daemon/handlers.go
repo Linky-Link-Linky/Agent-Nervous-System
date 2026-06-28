@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/url"
 	"os"
@@ -61,7 +62,7 @@ var allowedCompensationCmds = map[string]bool{
 // (e.g. client disconnect) and silently discarded after logging.
 func writeOK(w io.Writer, msgType byte, v interface{}) {
 	if err := WriteJSON(w, msgType, v); err != nil {
-		fmt.Fprintf(os.Stderr, "ans: write response: %v\n", err)
+		slog.Warn("write response error", "error", err)
 	}
 }
 
@@ -88,7 +89,7 @@ func (h *Handler) Handle(ctx context.Context, conn net.Conn) {
 		switch f.Type {
 		case MsgPing:
 			if err := WriteFrame(conn, MsgPong, nil); err != nil {
-				fmt.Fprintf(os.Stderr, "ans: write pong: %v\n", err)
+				slog.Warn("write pong error", "error", err)
 			}
 		case MsgSignAppend:
 			h.handleSignAppend(conn, f.Body)

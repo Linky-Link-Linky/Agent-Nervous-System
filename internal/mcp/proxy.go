@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 	"net/url"
 	"sync"
@@ -90,7 +90,7 @@ func (p *Proxy) Start() error {
 	p.listener = l
 	p.running = true
 	p.started = time.Now()
-	log.Printf("mcp proxy: listening on %s, forwarding to %s", p.listenAddr, p.targetURL)
+	slog.Info("mcp proxy listening", "addr", p.listenAddr, "target", p.targetURL)
 	go p.acceptLoop()
 	return nil
 }
@@ -109,7 +109,7 @@ func (p *Proxy) Stop() error {
 	}
 	p.wg.Wait()
 	p.stopCh = make(chan struct{})
-	log.Printf("mcp proxy: stopped")
+	slog.Info("mcp proxy stopped")
 	return nil
 }
 
@@ -138,7 +138,7 @@ func (p *Proxy) acceptLoop() {
 			case <-p.stopCh:
 				return
 			default:
-				log.Printf("mcp proxy: accept error: %v", err)
+				slog.Warn("mcp proxy accept error", "error", err)
 				continue
 			}
 		}
@@ -153,7 +153,7 @@ func (p *Proxy) handleConn(client net.Conn) {
 
 	target, err := DialTarget(p.targetURL)
 	if err != nil {
-		log.Printf("mcp proxy: dial target %s: %v", p.targetURL, err)
+		slog.Warn("mcp proxy dial target failed", "target", p.targetURL, "error", err)
 		return
 	}
 	defer target.Close()
@@ -162,7 +162,7 @@ func (p *Proxy) handleConn(client net.Conn) {
 	select {
 	case p.connSem <- struct{}{}:
 	default:
-		log.Printf("mcp proxy: max connections (%d) reached, rejecting", maxProxyConns)
+		slog.Warn("mcp proxy max connections reached", "max", maxProxyConns)
 		return
 	}
 	defer func() { <-p.connSem }()
@@ -201,7 +201,7 @@ func (ctx *proxyCtx) pipe(src, dst net.Conn, dir Direction, wg *sync.WaitGroup) 
 	defer wg.Done()
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("mcp proxy: pipe panic (%s): %v", dir, r)
+			slog.Warn("mcp proxy pipe panic", "dir", dir, "error", fmt.Sprintf("%v", r))
 		}
 	}()
 	reader := bufio.NewReaderSize(src, 4*1024*1024)
@@ -215,11 +215,11 @@ func (ctx *proxyCtx) pipe(src, dst net.Conn, dir Direction, wg *sync.WaitGroup) 
 		lineBytes, err := reader.ReadSlice('\n')
 		if err != nil {
 			if err == bufio.ErrBufferFull {
-				log.Printf("mcp proxy: line too long (>4MB) in %s direction, closing connection", dir)
+				slog.Warn("mcp proxy line too long, closing connection", "dir", dir)
 				return
 			}
 			if err != io.EOF && !isTimeout(err) {
-				log.Printf("mcp proxy: read error: %v", err)
+				slog.Warn("mcp proxy read error", "error", err)
 			}
 			return
 		}
@@ -233,7 +233,7 @@ func (ctx *proxyCtx) pipe(src, dst net.Conn, dir Direction, wg *sync.WaitGroup) 
 
 		// Check for injection
 		if entry.Injection {
-			log.Printf("mcp proxy: INJECTION DETECTED [%s] in %s: %s", entry.InjectionTy, entry.Method, TruncateString(entry.Content, 80))
+			slog.Warn("mcp proxy INJECTION DETECTED", "type", entry.InjectionTy, "method", entry.Method, "content", TruncateString(entry.Content, 80))
 		}
 
 		// Client-to-server: apply safety checks before forwarding
@@ -282,7 +282,7 @@ func (ctx *proxyCtx) checkRequestSafety(line string, entry *LogEntry, clientConn
 
 	// Rate limiting
 	if ctx.rateLim != nil && !ctx.rateLim.Allow(ctx.clientAddr) {
-		log.Printf("mcp proxy: rate limit exceeded for %s on %s", ctx.clientAddr, entry.Method)
+		slog.Warn("mcp proxy rate limit exceeded", "client", ctx.clientAddr, "method", entry.Method)
 		writeError(clientConn, entry.RequestID, -32000, "rate limit exceeded: too many requests per minute")
 		return false
 	}
@@ -291,7 +291,7 @@ func (ctx *proxyCtx) checkRequestSafety(line string, entry *LogEntry, clientConn
 	if ctx.tokBudget != nil {
 		reqTokens := EstimateTokens(line)
 		if !ctx.tokBudget.Allow(ctx.clientAddr, reqTokens) {
-			log.Printf("mcp proxy: token budget exceeded for %s", ctx.clientAddr)
+			slog.Warn("mcp proxy token budget exceeded", "client", ctx.clientAddr)
 			writeError(clientConn, entry.RequestID, -32001, "token budget exceeded for current window")
 			return false
 		}
@@ -301,7 +301,7 @@ func (ctx *proxyCtx) checkRequestSafety(line string, entry *LogEntry, clientConn
 	if safety.CheckPolicy != nil && entry.Method != "" {
 		allowed, reason := safety.CheckPolicy(ctx.clientAddr, entry.Method)
 		if !allowed {
-			log.Printf("mcp proxy: policy denied %s for %s: %s", entry.Method, ctx.clientAddr, reason)
+			slog.Warn("mcp proxy policy denied", "method", entry.Method, "client", ctx.clientAddr, "reason", reason)
 			writeError(clientConn, entry.RequestID, -32002, fmt.Sprintf("method %s denied by policy: %s", entry.Method, reason))
 			return false
 		}
@@ -314,13 +314,13 @@ func (ctx *proxyCtx) checkRequestSafety(line string, entry *LogEntry, clientConn
 			toolName := extractToolName(msg.Params)
 			approved, reason := safety.ApproveTool(ctx.clientAddr, toolName, msg.Params)
 			if !approved {
-				log.Printf("mcp proxy: tool call %s denied for %s: %s", toolName, ctx.clientAddr, reason)
+				slog.Warn("mcp proxy tool call denied", "tool", toolName, "client", ctx.clientAddr, "reason", reason)
 				errMsg := fmt.Sprintf("tool %s not approved: %s", toolName, reason)
 				writeError(clientConn, entry.RequestID, -32003, errMsg)
 				return false
 			}
 		} else {
-			log.Printf("mcp proxy: failed to parse tools/call message: %v", err)
+			slog.Warn("mcp proxy failed to parse tools/call message", "error", err)
 			writeError(clientConn, entry.RequestID, -32003, "failed to parse tool call")
 			return false
 		}
@@ -359,7 +359,7 @@ func (ctx *proxyCtx) applyResponseSafety(line string, entry *LogEntry) string {
 	if ctx.tokBudget != nil {
 		respTokens := EstimateTokens(line)
 		if !ctx.tokBudget.Allow(ctx.clientAddr, respTokens) {
-			log.Printf("mcp proxy: response token budget exceeded for %s", ctx.clientAddr)
+			slog.Warn("mcp proxy response token budget exceeded", "client", ctx.clientAddr)
 		}
 	}
 

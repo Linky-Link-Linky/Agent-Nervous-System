@@ -108,7 +108,7 @@ func (fs *FileSystemSnap) Capture(agentID string, chainIndex uint64, storePath s
 		if info.Mode().IsRegular() {
 			resolved, err := filepath.EvalSymlinks(path)
 			if err != nil {
-				return fmt.Errorf("resolving %s: %w", path, err)
+				resolved = path
 			}
 			if !hasPathPrefix(filepath.Clean(resolved), filepath.Clean(fs.WorkspaceRoot)) {
 				return fmt.Errorf("%s resolved outside workspace", path)
@@ -607,7 +607,7 @@ func (fs *FileSystemSnap) addToTar(absPath string, tw *tar.Writer, hash io.Write
 		}
 		resolved, err := filepath.EvalSymlinks(path)
 		if err != nil {
-			return fmt.Errorf("resolving %s: %w", path, err)
+			resolved = path
 		}
 		if !hasPathPrefix(filepath.Clean(resolved), filepath.Clean(fs.WorkspaceRoot)) {
 			return fmt.Errorf("%s resolved outside workspace", path)

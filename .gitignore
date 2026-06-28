@@ -1,16 +1,7 @@
-# Go binaries
-/bin/
-/ans
-/ans.exe
-*.exe
-/ans_*
-
 # Build artifacts
 .gocache/
 coverage.out
 coverage.html
-release/
-*.new
 
 # Node
 node_modules/

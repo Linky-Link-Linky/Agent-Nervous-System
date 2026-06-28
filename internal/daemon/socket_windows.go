@@ -8,6 +8,7 @@ package daemon
 import (
 	"fmt"
 	"net"
+	"os"
 	"time"
 
 	winio "github.com/Microsoft/go-winio"
@@ -15,7 +16,12 @@ import (
 
 const windowsPipeName = `\\.\pipe\ans`
 
-func SocketPath() string { return windowsPipeName }
+func SocketPath() string {
+	if v := os.Getenv("ANS_SOCK_PATH"); v != "" {
+		return v
+	}
+	return windowsPipeName
+}
 
 // Listen creates a Windows named pipe restricted to the current user.
 func Listen() (net.Listener, error) {

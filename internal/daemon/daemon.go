@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -103,7 +104,7 @@ func (d *Daemon) afterAppend(rawReceipt json.RawMessage) {
 	}
 	// Reject non-HTTPS webhook URLs (allow http only with ANS_DEV=1)
 	if !strings.HasPrefix(d.WebhookURL, "https://") && os.Getenv("ANS_DEV") != "1" {
-		fmt.Fprintf(os.Stderr, "ans: webhook URL must use https (set ANS_DEV=1 to allow http): %s\n", d.WebhookURL)
+		slog.Warn("webhook URL must use https; set ANS_DEV=1 to allow http", "url", d.WebhookURL)
 		return
 	}
 
@@ -133,7 +134,7 @@ func (d *Daemon) afterAppend(rawReceipt json.RawMessage) {
 		client := &http.Client{Timeout: 10 * time.Second}
 		resp, err := client.Do(req)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ans: webhook POST failed: %v\n", err)
+			slog.Error("webhook POST failed", "error", err)
 			return
 		}
 		_ = resp.Body.Close()
@@ -275,15 +276,15 @@ func (d *Daemon) Run() error {
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		<-sig
-		fmt.Fprintln(os.Stderr, "\nans: shutting down...")
+		slog.Info("shutting down")
 		d.cancel()
 		_ = l.Close()
 	}()
 
-	fmt.Fprintf(os.Stderr, "ans daemon started — socket: %s\n", SocketPath())
+	slog.Info("daemon started", "socket", SocketPath())
 	d.serveListener(ctx, l)
 	_ = d.chain.Close()
-	fmt.Fprintln(os.Stderr, "ans daemon stopped")
+	slog.Info("daemon stopped")
 	return nil
 }
 
@@ -303,7 +304,7 @@ func (d *Daemon) serveListener(ctx context.Context, l net.Listener) {
 				d.wg.Wait()
 				return
 			default:
-				fmt.Fprintf(os.Stderr, "ans: accept error: %v\n", err)
+				slog.Error("accept error", "error", err)
 				continue
 			}
 		}

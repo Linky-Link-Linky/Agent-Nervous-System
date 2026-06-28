@@ -94,8 +94,14 @@ func TestCaptureHashDeterministic(t *testing.T) {
 	p1 := filepath.Join(t.TempDir(), "snap1.tar.gz")
 	p2 := filepath.Join(t.TempDir(), "snap2.tar.gz")
 
-	s1, _ := fs.Capture("ans_test", 1, p1)
-	s2, _ := fs.Capture("ans_test", 1, p2)
+	s1, err := fs.Capture("ans_test", 1, p1)
+	if err != nil {
+		t.Fatalf("Capture 1: %v", err)
+	}
+	s2, err := fs.Capture("ans_test", 1, p2)
+	if err != nil {
+		t.Fatalf("Capture 2: %v", err)
+	}
 	if s1.Hash != s2.Hash {
 		t.Errorf("non-deterministic hash: %q != %q", s1.Hash, s2.Hash)
 	}
@@ -111,11 +117,17 @@ func TestCaptureHashChangedByContent(t *testing.T) {
 	fs := NewFileSystemSnap(ws)
 
 	p1 := filepath.Join(t.TempDir(), "a.tar.gz")
-	s1, _ := fs.Capture("ans_test", 1, p1)
+	s1, err := fs.Capture("ans_test", 1, p1)
+	if err != nil {
+		t.Fatalf("Capture 1: %v", err)
+	}
 
 	os.WriteFile(filepath.Join(ws, "a.txt"), []byte("bbb"), 0644)
 	p2 := filepath.Join(t.TempDir(), "b.tar.gz")
-	s2, _ := fs.Capture("ans_test", 1, p2)
+	s2, err := fs.Capture("ans_test", 1, p2)
+	if err != nil {
+		t.Fatalf("Capture 2: %v", err)
+	}
 
 	if s1.Hash == s2.Hash {
 		t.Error("different content produced same hash")

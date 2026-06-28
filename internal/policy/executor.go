@@ -1,7 +1,7 @@
 package policy
 
 import (
-	"log"
+	"log/slog"
 	"sync"
 )
 
@@ -31,7 +31,7 @@ type EvalResult struct {
 func (ex *Executor) Evaluate(facts FactProvider) *EvalResult {
 	policies, err := ex.store.ListEnabled()
 	if err != nil {
-		log.Printf("policy: error listing enabled policies: %v", err)
+		slog.Error("policy listing enabled policies failed", "error", err)
 		return &EvalResult{Allowed: false, Denied: true}
 	}
 

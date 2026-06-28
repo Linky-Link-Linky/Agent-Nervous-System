@@ -14,7 +14,11 @@ import (
 )
 
 // SocketPath returns the Unix socket path.
+// Override with ANS_SOCK_PATH env var.
 func SocketPath() string {
+	if v := os.Getenv("ANS_SOCK_PATH"); v != "" {
+		return v
+	}
 	if xdg := os.Getenv("XDG_RUNTIME_DIR"); xdg != "" {
 		return filepath.Join(xdg, "ans.sock")
 	}
