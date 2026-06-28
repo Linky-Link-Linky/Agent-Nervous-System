@@ -31,7 +31,7 @@ func main() {
 			commands.PrintUsageTo(os.Stderr)
 			os.Exit(0)
 		}
-		runTUI()
+		runTerminalTUI()
 		return
 	}
 
@@ -41,7 +41,7 @@ func main() {
 	}
 
 	if os.Args[1] == "dashboard" || os.Args[1] == "dash" || os.Args[1] == "tui" {
-		runTUI()
+		runEbitenTUI()
 		return
 	}
 
@@ -88,7 +88,7 @@ func runDaemon() {
 
 const Version = "v0.9.0"
 
-func runTUI() {
+func runEbitenTUI() {
 	if os.Getenv("ANSTUI_NO_EBITEN") != "" {
 		runTerminalTUI()
 		return
